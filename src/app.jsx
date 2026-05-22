@@ -1138,36 +1138,15 @@ function AdminPanel({allUsers,setAllUsers,notify,cu,user,economy,setEconomy,gang
               <div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>
                 {[
                   {label:"💸 Herkese Para Dağıt", color:"#10B981", borderColor:"rgba(16,185,129,0.4)", bg:"rgba(16,185,129,0.1)",
-                    action:async()=>{const r=await gPrompt("Herkese Para","Dağıtılacak miktar (₺):","Miktar","number",{min:1,default:"10000"});const v=parseInt(r);if(!isNaN(v)&&v>0){setAllUsers(prev=>(Array.isArray(prev)?prev:[]).map(u=>u.role!=="admin"?{...u,money:(u.money||0)+v}:u));notify(`✅ Herkese ${fmtMoney(v)} dağıtıldı!`);}}},
+                    action:async()=>{const r=await gPrompt("Herkese Para","Dağıtılacak miktar (₺):","Miktar","number",{min:1,default:"10000"});const v=parseInt(r);if(!isNaN(v)&&v>0){const _up=(Array.isArray(allUsers)?allUsers:[]).map(u=>u.role!=="admin"?{...u,money:(u.money||0)+v}:u);setAllUsers(_up);S.save("users",_up);_adminEmitUsers(_up);const _j=localStorage.getItem('us_jwt');if(_j){fetch('/api/admin/users/bulk/money',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_j},body:JSON.stringify({amount:v,operation:'add'})}).catch(()=>{})}notify(`✅ Herkese ${fmtMoney(v)} dağıtıldı!`);}}},
                   {label:"🪙 Herkese UC Dağıt", color:"#A78BFA", borderColor:"rgba(139,92,246,0.4)", bg:"rgba(139,92,246,0.1)",
                     action:async()=>{const r=await gPrompt("Herkese UC","Dağıtılacak UC:","Miktar","number",{min:1,default:"100"});const v=parseInt(r);if(!isNaN(v)&&v>0){setAllUsers(prev=>(Array.isArray(prev)?prev:[]).map(u=>u.role!=="admin"?{...u,underCoin:(u.underCoin||0)+v}:u));notify(`✅ Herkese ${v} UC dağıtıldı!`);}}},
                   {label:"🎯 Belirli Kişiye Para Ver", color:"#60A5FA", borderColor:"rgba(59,130,246,0.4)", bg:"rgba(59,130,246,0.1)",
-                    action:async()=>{const uname=await gPrompt("Kullanıcı Adı","Kime verilecek:","Kullanıcı adı");if(!uname)return;const r=await gPrompt("Miktar","Verilecek miktar (₺):","Miktar","number",{min:1,default:"10000"});const v=parseInt(r);if(uname&&!isNaN(v)&&v>0){setAllUsers(prev=>(Array.isArray(prev)?prev:[]).map(u=>u.username===uname?{...u,money:(u.money||0)+v}:u));notify(`✅ ${uname} → ${fmtMoney(v)}`);}}},
+                    action:async()=>{const uname=await gPrompt("Kullanıcı Adı","Kime verilecek:","Kullanıcı adı");if(!uname)return;const r=await gPrompt("Miktar","Verilecek miktar (₺):","Miktar","number",{min:1,default:"10000"});const v=parseInt(r);if(uname&&!isNaN(v)&&v>0){const _up=(Array.isArray(allUsers)?allUsers:[]).map(u=>u.username===uname?{...u,money:(u.money||0)+v}:u);setAllUsers(_up);S.save("users",_up);_adminEmitUsers(_up);if(cu&&cu.username===uname)setCu(p=>({...p,money:(p.money||0)+v}));const _tgt=allUsers.find(u=>u.username===uname);const _j=localStorage.getItem('us_jwt');if(_j&&_tgt&&String(_tgt.id).length>10){fetch('/api/admin/users/'+_tgt.id+'/money',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_j},body:JSON.stringify({amount:v,operation:'add',reason:'Admin hedefli para'})}).catch(()=>{})}notify(`✅ ${uname} → ${fmtMoney(v)}`);}}},
                   {label:"💼 Tüm Maaşları Öde", color:"#FBBF24", borderColor:"rgba(251,191,36,0.4)", bg:"rgba(251,191,36,0.1)",
                     action:()=>{const sal=allUsers.filter(u=>u.position&&(u.salary||0)>0);sal.forEach(u=>setAllUsers(prev=>(Array.isArray(prev)?prev:[]).map(uu=>uu.id===u.id?{...uu,money:(uu.money||0)+(u.salary||0)}:uu)));notify(`✅ ${sal.length} kişiye maaş ödendi!`);}},
                   {label:"🔴 Belirli Kişiden Para Kes", color:"#EF4444", borderColor:"rgba(239,68,68,0.4)", bg:"rgba(239,68,68,0.1)",
-                    action:async()=>{const uname=await gPrompt("Para Kes","Kimden kesilecek (kullanıcı adı):","Kullanıcı adı");if(!uname)return;const r=await gPrompt("Miktar","Kesilecek miktar (₺):","Miktar","number",{min:1,default:"10000"});const v=parseInt(r);if(!uname||isNaN(v)||v<=0)return;const target=allUsers.find(u=>u.username===uname);if(!target)return notify("❌ Kullanıcı bulunamadı!");if((target.money||0)<v)return notify(`❌ ${uname} kişisinin parası yetersiz (${fmtMoney((target.money||0))})`);setAllUsers(prev=>(Array.isArray(prev)?prev:[]).map(u=>u.username===uname?{...u,money:(u.money||0)-v}:u));notify(`✅ ${uname} kişisinden ${fmtMoney(v)} kesildi!`);}},
-                  {label:"🔴 Herkesten Para Kes", color:"#DC2626", borderColor:"rgba(220,38,38,0.4)", bg:"rgba(220,38,38,0.08)",
-                    action:async()=>{const r=await gPrompt("Herkesten Para Kes","Kesilecek miktar (₺):","Miktar","number",{min:1,default:"5000"});const v=parseInt(r);if(!isNaN(v)&&v>0){setAllUsers(prev=>(Array.isArray(prev)?prev:[]).map(u=>u.role!=="admin"?{...u,money:Math.max(0,(u.money||0)-v)}:u));notify(`✅ Herkesten ${fmtMoney(v)} kesildi!`);}}
-                  },
-                ].map(item=>(
-                  <button key={item.label} onClick={item.action}
-                    style={{padding:"0.6rem 1rem",borderRadius:9,border:`1px solid ${item.borderColor}`,
-                      background:item.bg,color:item.color,cursor:"pointer",fontSize:"0.83rem",fontWeight:700,
-                      textAlign:"left",minHeight:44,WebkitTapHighlightColor:"transparent",fontFamily:"Nunito,sans-serif"}}>
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Casino & Piyango */}
-            <div style={{...cardStyle,borderColor:"rgba(245,158,11,0.25)"}}>
-              <div style={{fontFamily:"Syne,sans-serif",color:"#F59E0B",fontWeight:700,fontSize:"0.88rem",marginBottom:"0.75rem"}}>🎰 Casino & Piyango</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.5rem"}}>
-                {[
-                  {label:"Max Bahis Ayarla", color:"#F59E0B", bg:"rgba(245,158,11,0.1)", border:"rgba(245,158,11,0.4)",
-                    action:async()=>{const r=await gPrompt("Max Bahis","Maks bahis limiti (₺):","Miktar","number",{min:100,default:"10000"});const v=parseInt(r);if(!isNaN(v)&&v>0){S_local.save("casinoMaxBet",v);notify(`✅ Max bahis ₺${v}`);}}},
+                    action:async()=>{const uname=await gPrompt("Para Kes","Kimden kesilecek (kullanıcı adı):","Kullanıcı adı");if(!uname)return;const r=await gPrompt("Miktar","Kesilecek miktar (₺):","Miktar","number",{min:1,default:"10000"});const v=parseInt(r);if(!uname||isNaN(v)||v<=0)return;const target=allUsers.find(u=>u.username===uname);if(!target)return notify("❌ Kullanıcı bulunamadı!");if((target.money||0)<v)return notify(`❌ ${uname} kişisinin parası yetersiz (${fmtMoney((target.money||0))})`);const _up4=(Array.isArray(allUsers)?allUsers:[]).map(u=>u.username===uname?{...u,money:(u.money||0)-v}:u);setAllUsers(_up4);S.save("users",_up4);_adminEmitUsers(_up4);const _j4=localStorage.getItem('us_jwt');if(_j4&&target&&String(target.id).length>10){fetch('/api/admin/users/'+target.id+'/money',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_j4},body:JSON.stringify({amount:v,operation:'remove',reason:'Admin para kesme'})}).catch(()=>{})}notify(`✅ ${uname} kişisinden ${fmtMoney(v)} kesildi!`);}}}
                   {label:"Bonus Dağıt", color:"#10B981", bg:"rgba(16,185,129,0.1)", border:"rgba(16,185,129,0.4)",
                     action:async()=>{const r=await gPrompt("Casino Bonusu","Bonus miktarı (₺):","Miktar","number",{min:1,default:"5000"});const v=parseInt(r);if(!isNaN(v)&&v>0){setAllUsers(prev=>(Array.isArray(prev)?prev:[]).map(u=>({...u,money:(u.money||0)+v})));notify(`✅ Bonus dağıtıldı!`);}}},
                   {label:"Casino Logları Temizle", color:"#EF4444", bg:"rgba(239,68,68,0.1)", border:"rgba(239,68,68,0.4)",
@@ -5083,6 +5062,24 @@ const [cityBudgets, setCityBudgets] = useState(()=>S.load("cityBudgets",{}));
         sock.on("onlinePlayers", (list)=>{ window.dispatchEvent(new CustomEvent("fb-sync",{detail:{key:"onlinePlayers",value:list}})); });
         sock.on("cabinetUpdate", (data)=>{ window.dispatchEvent(new CustomEvent("fb-sync",{detail:{key:"cabinet",value:data}})); });
         sock.on("electionUpdate", (data)=>{ window.dispatchEvent(new CustomEvent("fb-sync",{detail:{key:"electionState",value:data}})); });
+        sock.on("moneyUpdate", (data)=>{
+          if(!data) return;
+          if(data.bulk) {
+            setAllUsers(prev=>(Array.isArray(prev)?prev:[]).map(u=>u.role!=="admin"?{...u,money:Math.max(0,(u.money||0)+(data.delta||0))}:u));
+            setCu(p=>p&&p.role!=="admin"?{...p,money:Math.max(0,(p.money||0)+(data.delta||0))}:p);
+            if(data.delta>0) notify("💰 Admin: +" + String(data.delta) + " TL hesabınıza eklendi!");
+          } else if(data.money!==undefined) {
+            setCu(p=>p?{...p,money:data.money}:p);
+            setAllUsers(prev=>(Array.isArray(prev)?prev:[]).map(u=>cu&&u.id===cu.id?{...u,money:data.money}:u));
+            if(data.delta>0) notify("💰 Admin: +" + String(data.delta) + " TL hesabınıza eklendi!");
+          }
+        });
+        sock.on("coinsUpdate", (data)=>{
+          if(!data||data.underCoin===undefined) return;
+          setCu(p=>p?{...p,underCoin:data.underCoin}:p);
+          setAllUsers(prev=>(Array.isArray(prev)?prev:[]).map(u=>cu&&u.id===cu.id?{...u,underCoin:data.underCoin}:u));
+          if(data.delta>0) notify("🪩 Admin: +" + String(data.delta) + " UC hesabınıza eklendi!");
+        });
         // partyUpdate: dizi (toplu) veya tekil parti nesnesi (yeni kurulum)
         sock.on("partyUpdate", (data)=>{
           if(Array.isArray(data)){
@@ -5176,6 +5173,11 @@ const [cityBudgets, setCityBudgets] = useState(()=>S.load("cityBudgets",{}));
       }
     } catch(e) { console.warn("Socket.IO bağlantı hatası:", e); }
     setUser(found); setPage("app"); S.save("sessionUserId", found.id||found.uid||"");
+    // Cloud load: sync server data after login
+    setTimeout(async ()=>{ try { const srv=await _mongoLoad(); if(srv){ setCu(srv); } } catch(e){} }, 800);
+    // Auto-save: every 90 seconds sync progress to cloud
+    if(window._autoSaveTimer) clearInterval(window._autoSaveTimer);
+    window._autoSaveTimer = setInterval(()=>{ try{ _mongoSave(); }catch(e){} }, 90000);
   };
 
   const _hashPass = (raw) => btoa(unescape(encodeURIComponent(raw + "_us_salt_2024")));
@@ -5210,16 +5212,67 @@ const [cityBudgets, setCityBudgets] = useState(()=>S.load("cityBudgets",{}));
     } catch(e) {}
   };
 
-  const _mongoSave = async (gameData) => {
+  const _mongoSave = (overrides) => {
     const token = localStorage.getItem('us_jwt');
-    if (!token) return;
+    if (!token || !cu) return;
+    const payload = {
+      level: cu.level||1, xp: cu.xp||0, money: cu.money||0,
+      bankMoney: cu.bankMoney||0, underCoin: cu.underCoin||0,
+      hp: cu.hp||100, score: cu.score||0, creditScore: cu.creditScore||500,
+      meritPoints: cu.meritPoints||0, loyaltyPoints: cu.loyaltyPoints||0,
+      city: cu.city||"İstanbul", position: cu.position||"",
+      educationLevel: cu.educationLevel||"İlkokul",
+      educationProgress: cu.educationProgress||0,
+      inventory: cu.inventory||[], equippedItems: cu.equippedItems||{},
+      holdings: cu.holdings||[],
+      gameData: { partyId:cu.partyId, gangId:cu.gangId, familyId:cu.familyId,
+        gender:cu.gender, profilePhoto:cu.profilePhoto, phone:cu.phone,
+        foundUs:cu.foundUs, eduPackage:cu.eduPackage, ...((cu.gameData)||{}) },
+      ...(overrides||{})
+    };
+    fetch('/api/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify(payload)
+    }).catch(()=>{});
+  };
+
+  const _mongoLoad = async () => {
+    const token = localStorage.getItem('us_jwt');
+    if (!token) return null;
     try {
-      fetch('/api/game/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify(gameData)
-      }).catch(()=>{});
-    } catch(e) {}
+      const res = await fetch('/api/profile', { headers: { 'Authorization': 'Bearer ' + token } });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (!data.success || !data.user) return null;
+      const srv = data.user;
+      const local = allUsers.find(u => u.username === srv.username);
+      if (!local) return null;
+      const merged = {
+        ...local,
+        level: Math.max(local.level||1, srv.level||1),
+        xp: Math.max(local.xp||0, srv.xp||0),
+        money: Math.max(local.money||0, srv.money||0),
+        bankMoney: Math.max(local.bankMoney||0, srv.bankMoney||0),
+        underCoin: Math.max(local.underCoin||0, srv.underCoin||0),
+        hp: srv.hp !== undefined ? srv.hp : (local.hp||100),
+        score: Math.max(local.score||0, srv.score||0),
+        creditScore: srv.creditScore || local.creditScore || 500,
+        meritPoints: Math.max(local.meritPoints||0, srv.meritPoints||0),
+        loyaltyPoints: Math.max(local.loyaltyPoints||0, srv.loyaltyPoints||0),
+        city: srv.city || local.city || "İstanbul",
+        position: srv.position || local.position || "",
+        educationLevel: srv.educationLevel || local.educationLevel,
+        educationProgress: Math.max(local.educationProgress||0, srv.educationProgress||0),
+        inventory: (srv.inventory && (Array.isArray(srv.inventory)?srv.inventory.length:Object.keys(srv.inventory||{}).length) > 0) ? srv.inventory : local.inventory,
+        holdings: (srv.holdings && srv.holdings.length > 0) ? srv.holdings : (local.holdings||[]),
+        ...(srv.gameData||{}),
+      };
+      const updatedUsers = (Array.isArray(allUsers)?allUsers:[]).map(u => u.username===merged.username ? merged : u);
+      setAllUsers(updatedUsers);
+      S.save("users", updatedUsers);
+      return merged;
+    } catch(e) { return null; }
   };
 
   const handleLogin = async () => {
@@ -6469,17 +6522,25 @@ const [cityBudgets, setCityBudgets] = useState(()=>S.load("cityBudgets",{}));
     if(!amt) return;
     const updated = (Array.isArray(allUsers)?allUsers:[]).map(u=>u.id===uid?{...u,money:(u.money||0)+amt}:u);
     setAllUsers(updated);
+    S.save("users", updated);
     _adminEmitUsers(updated);
-    notify(`✅ ${fmtMoney(amt)} eklendi!`);
+    if(cu&&cu.id===uid) setCu(p=>({...p,money:(p.money||0)+amt}));
+    const _jwt=localStorage.getItem('us_jwt');
+    if(_jwt&&uid&&String(uid).length>10){fetch('/api/admin/users/'+uid+'/money',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_jwt},body:JSON.stringify({amount:amt,operation:'add',reason:'Admin para ekledi'})}).catch(()=>{});}
+    notify('✅ '+fmtMoney(amt)+' eklendi!');
   };
   const addRC = async (uid) => {
-    const amtStr = await gPrompt("🪙 UC Ekle","Eklenecek UC:","Miktar","number",{min:0,default:"100"});
+    const amtStr = await gPrompt("🪩 UC Ekle","Eklenecek UC:","Miktar","number",{min:0,default:"100"});
     const amt = parseInt(amtStr)||0;
     if(!amt) return;
     const updated = (Array.isArray(allUsers)?allUsers:[]).map(u=>u.id===uid?{...u,underCoin:(u.underCoin||0)+amt}:u);
     setAllUsers(updated);
+    S.save("users", updated);
     _adminEmitUsers(updated);
-    notify(`✅ ${amt} UC eklendi!`);
+    if(cu&&cu.id===uid) setCu(p=>({...p,underCoin:(p.underCoin||0)+amt}));
+    const _jwt=localStorage.getItem('us_jwt');
+    if(_jwt&&uid&&String(uid).length>10){fetch('/api/admin/users/'+uid+'/coins',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_jwt},body:JSON.stringify({amount:amt,operation:'add'})}).catch(()=>{});}
+    notify('✅ '+amt+' UC eklendi!');
   };
   const [assignModal, setAssignModal] = useState(null); // {uid}
 

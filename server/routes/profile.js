@@ -6,6 +6,14 @@ const { sanitizeInput } = require('../middleware/sanitize');
 const logger = require('../utils/logger');
 const { getConnectionStatus } = require('../database/connection');
 
+const SAVEABLE_FIELDS = [
+  'level', 'xp', 'money', 'bankMoney', 'underCoin', 'hp',
+  'score', 'creditScore', 'meritPoints', 'loyaltyPoints',
+  'city', 'position', 'educationLevel', 'educationProgress',
+  'inventory', 'equippedItems', 'holdings', 'gameData',
+];
+
+// GET /api/profile — load full cloud save
 router.get('/', authMiddleware, async (req, res) => {
   try {
     if (!getConnectionStatus()) return res.status(503).json({ success: false, message: 'DB bağlı değil' });
@@ -18,17 +26,14 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
+// PUT /api/profile — auto-save / cloud save
 router.put('/', authMiddleware, sanitizeInput, async (req, res) => {
   try {
     if (!getConnectionStatus()) return res.status(503).json({ success: false, message: 'DB bağlı değil' });
-    const { level, xp, money, inventory, equippedItems } = req.body;
-    const updates = {};
-    if (level !== undefined) updates.level = Math.max(1, parseInt(level) || 1);
-    if (xp !== undefined) updates.xp = Math.max(0, parseInt(xp) || 0);
-    if (money !== undefined) updates.money = Math.max(0, parseInt(money) || 0);
-    if (inventory !== undefined) updates.inventory = inventory;
-    if (equippedItems !== undefined) updates.equippedItems = equippedItems;
-
+    const updates = { lastLogin: new Date() };
+    for (const field of SAVEABLE_FIELDS) {
+      if (req.body[field] !== undefined) updates[field] = req.body[field];
+    }
     const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true });
     res.json({ success: true, user: user.toPublicJSON() });
   } catch (err) {

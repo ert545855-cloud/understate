@@ -131,6 +131,102 @@ router.post('/economy', adminMiddleware, (req, res) => {
   res.json({ success: true, update });
 });
 
+// Kullanıcıya para ver / kes
+router.post('/users/:userId/money', adminMiddleware, async (req, res) => {
+  try {
+    if (!getConnectionStatus()) return res.json({ success: false, message: 'DB bağlı değil' });
+    const { amount, operation = 'add', reason = 'Admin işlemi' } = req.body;
+    const amt = parseInt(amount);
+    if (!amt || isNaN(amt) || amt <= 0) return res.status(400).json({ success: false, message: 'Geçerli miktar girin' });
+
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ success: false, message: 'Kullanıcı bulunamadı' });
+
+    const oldMoney = user.money || 0;
+    const newMoney = operation === 'set' ? amt
+      : operation === 'remove' ? Math.max(0, oldMoney - amt)
+      : oldMoney + amt;
+
+    await User.findByIdAndUpdate(req.params.userId, { money: newMoney });
+
+    // Notify target player via socket if online
+    if (_io && user.socketId) {
+      _io.to(user.socketId).emit('moneyUpdate', {
+        money: newMoney,
+        delta: newMoney - oldMoney,
+        reason,
+        from: 'admin',
+        timestamp: Date.now(),
+      });
+    }
+
+    logger.info(`MONEY ${operation.toUpperCase()} ${amt} → ${user.username} (by ${req.user.username}): ${oldMoney} → ${newMoney}`);
+    res.json({ success: true, username: user.username, oldMoney, newMoney, delta: newMoney - oldMoney });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Kullanıcıya UC ver
+router.post('/users/:userId/coins', adminMiddleware, async (req, res) => {
+  try {
+    if (!getConnectionStatus()) return res.json({ success: false, message: 'DB bağlı değil' });
+    const { amount, operation = 'add' } = req.body;
+    const amt = parseInt(amount);
+    if (!amt || isNaN(amt) || amt <= 0) return res.status(400).json({ success: false, message: 'Geçerli miktar girin' });
+
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ success: false, message: 'Kullanıcı bulunamadı' });
+
+    const oldCoins = user.underCoin || 0;
+    const newCoins = operation === 'remove' ? Math.max(0, oldCoins - amt) : oldCoins + amt;
+    await User.findByIdAndUpdate(req.params.userId, { underCoin: newCoins });
+
+    if (_io && user.socketId) {
+      _io.to(user.socketId).emit('coinsUpdate', { underCoin: newCoins, delta: newCoins - oldCoins, from: 'admin', timestamp: Date.now() });
+    }
+
+    logger.info(`COINS ${operation} ${amt} → ${user.username} (by ${req.user.username})`);
+    res.json({ success: true, username: user.username, oldCoins, newCoins });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Herkese para dağıt
+router.post('/users/bulk/money', adminMiddleware, async (req, res) => {
+  try {
+    if (!getConnectionStatus()) return res.json({ success: false, message: 'DB bağlı değil' });
+    const { amount, operation = 'add', excludeAdmins = true } = req.body;
+    const amt = parseInt(amount);
+    if (!amt || isNaN(amt) || amt <= 0) return res.status(400).json({ success: false, message: 'Geçerli miktar girin' });
+
+    const query = excludeAdmins ? { role: { $ne: 'admin' } } : {};
+    let updateOp;
+    if (operation === 'add') updateOp = { $inc: { money: amt } };
+    else if (operation === 'remove') updateOp = { $inc: { money: -amt } };
+    else return res.status(400).json({ success: false, message: 'Geçersiz işlem' });
+
+    const result = await User.updateMany(query, updateOp);
+
+    // Notify all online players
+    if (_io) {
+      _io.emit('moneyUpdate', {
+        delta: operation === 'add' ? amt : -amt,
+        reason: `Admin toplu işlemi (${operation === 'add' ? '+' : '-'}${amt})`,
+        bulk: true,
+        from: 'admin',
+        timestamp: Date.now(),
+      });
+    }
+
+    logger.info(`BULK MONEY ${operation} ${amt} → ${result.modifiedCount} users (by ${req.user.username})`);
+    res.json({ success: true, affected: result.modifiedCount });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // Server health (public)
 router.get('/health', (req, res) => {
   const stats = monitoring.getStats(roomManager.getAllRooms().length);
