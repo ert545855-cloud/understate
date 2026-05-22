@@ -1142,7 +1142,9 @@ function boot() {
       return;
     }
 
-    _socket = io(window.location.origin, {
+    var socketUrl = window._SOCKET_URL || (window.__ENV__ && window.__ENV__.SOCKET_URL) || window.location.origin;
+
+    _socket = io(socketUrl, {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,

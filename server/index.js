@@ -22,6 +22,23 @@ const { router: adminRoutes, setIO: setAdminIO } = require('./routes/admin');
 const app = express();
 const server = http.createServer(app);
 
+// --- CORS / Public URL ---
+// Render sets RENDER_EXTERNAL_URL automatically; you can also set PUBLIC_URL manually
+const PUBLIC_URL = process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || null;
+const allowedOrigins = ['http://localhost:5000', 'http://localhost:3000'];
+if (PUBLIC_URL) allowedOrigins.push(PUBLIC_URL.replace(/\/$/, ''));
+
+const corsOptions = {
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+      cb(null, true);
+    } else {
+      cb(new Error('CORS: ' + origin + ' izin verilmiyor'));
+    }
+  },
+  credentials: true,
+};
+
 const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
   pingTimeout: 60000,
@@ -29,12 +46,24 @@ const io = new Server(server, {
   maxHttpBufferSize: 2e6,
 });
 
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '2mb' }));
 app.use(generalLimiter);
 app.use(sanitizeInput);
 
-app.use(express.static(path.join(__dirname, '../')));
+// Serve frontend
+app.use(express.static(path.join(__dirname, '../'), {
+  maxAge: process.env.NODE_ENV === 'production' ? '1h' : 0,
+}));
+
+// Config endpoint — frontend uses this to know the socket URL
+app.get('/api/config', (req, res) => {
+  res.json({
+    socketUrl: PUBLIC_URL || '',
+    env: process.env.NODE_ENV || 'development',
+    version: process.env.npm_package_version || '1.0.0',
+  });
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
@@ -54,6 +83,7 @@ app.get('/health', (req, res) => {
     timestamp: new Date(),
     db: getConnectionStatus() ? 'connected' : 'disconnected',
     online: online.length,
+    publicUrl: PUBLIC_URL || 'auto',
     ...monitoring.getStats(roomManager.getAllRooms().length),
   });
 });
@@ -79,6 +109,7 @@ async function start() {
   server.listen(PORT, HOST, () => {
     logger.success(`Sunucu çalışıyor: http://${HOST}:${PORT}`);
     logger.info(`Ortam: ${process.env.NODE_ENV || 'development'}`);
+    if (PUBLIC_URL) logger.info(`Public URL: ${PUBLIC_URL}`);
   });
 }
 

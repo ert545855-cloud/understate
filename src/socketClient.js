@@ -2,143 +2,119 @@
 let socket = null;
 let socketConnected = false;
 
-export function initSocket(serverUrl = 'https://understate1.onrender.com') {
+function _resolveServerUrl(fallback) {
+  if (typeof window !== 'undefined') {
+    if (window._SOCKET_URL) return window._SOCKET_URL;
+    if (window.__ENV__ && window.__ENV__.SOCKET_URL) return window.__ENV__.SOCKET_URL;
+    return window.location.origin;
+  }
+  return fallback || 'http://localhost:5000';
+}
+
+export function initSocket(serverUrl) {
   if (socket) return socket;
-  
-  socket = io(serverUrl, {
+  const url = serverUrl || _resolveServerUrl();
+
+  socket = io(url, {
     reconnection: true,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
-    reconnectionAttempts: 5,
+    reconnectionAttempts: Infinity,
     transports: ['websocket', 'polling']
   });
-  
-  // Bağlantı olayları
+
   socket.on('connect', () => {
     socketConnected = true;
-    console.log('✓ Socket.IO bağlandı:', socket.id);
+    console.log('[Socket Bridge] Bağlantı kuruldu ✓', socket.id);
     window.dispatchEvent(new CustomEvent('socket-connected', { detail: { socketId: socket.id } }));
   });
-  
+
   socket.on('disconnect', () => {
     socketConnected = false;
-    console.log('✗ Socket.IO bağlantı kesildi');
+    console.log('[Socket Bridge] Bağlantı kesildi ✗');
     window.dispatchEvent(new CustomEvent('socket-disconnected'));
   });
-  
+
   socket.on('reconnect', () => {
     socketConnected = true;
-    console.log('↻ Socket.IO yeniden bağlandı');
+    console.log('[Socket Bridge] Yeniden bağlandı ↻');
     window.dispatchEvent(new CustomEvent('socket-reconnected'));
   });
-  
-  // Chat mesajları
+
   socket.on('chat', (data) => {
-    console.log('💬 Yeni mesaj:', data);
     try {
       const channel = data.channel || 'globalChat';
       let current = JSON.parse(localStorage.getItem('rep_' + channel) || '[]');
       if (!Array.isArray(current)) current = [];
-      
-      // Duplikat kontrol
       if (!current.find(m => m.id === data.id)) {
         current.push({
           id: data.id || Math.random().toString(36).slice(2),
           sender: data.sender,
           message: data.message,
           timestamp: data.timestamp || Date.now(),
-          channel: channel
+          channel
         });
         localStorage.setItem('rep_' + channel, JSON.stringify(current));
-        window.dispatchEvent(new CustomEvent('fb-sync', {
-          detail: { key: channel, value: current }
-        }));
+        window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: channel, value: current } }));
       }
-    } catch (e) {
-      console.warn('Chat mesaj hatası:', e);
-    }
+    } catch (e) { console.warn('Chat hatası:', e); }
   });
-  
-  // Oyuncu durumu güncellemeleri
+
   socket.on('playerUpdate', (data) => {
-    console.log('👤 Oyuncu güncellemesi:', data);
     try {
       const updates = JSON.parse(localStorage.getItem('rep_playerUpdates') || '{}');
-      updates[data.userId] = {
-        ...data,
-        lastUpdate: Date.now()
-      };
+      updates[data.userId] = { ...data, lastUpdate: Date.now() };
       localStorage.setItem('rep_playerUpdates', JSON.stringify(updates));
-      window.dispatchEvent(new CustomEvent('player-updated', {
-        detail: { userId: data.userId, data: data }
-      }));
-    } catch (e) {
-      console.warn('Oyuncu güncellemesi hatası:', e);
-    }
+      window.dispatchEvent(new CustomEvent('player-updated', { detail: { userId: data.userId, data } }));
+    } catch (e) { console.warn('Oyuncu güncelleme hatası:', e); }
   });
-  
-  // Online oyuncu sayısı
+
   socket.on('onlineCount', (count) => {
-    console.log('👥 Online oyuncu sayısı:', count);
     localStorage.setItem('rep_onlineCount', JSON.stringify(count));
-    window.dispatchEvent(new CustomEvent('fb-sync', {
-      detail: { key: 'onlineCount', value: count }
-    }));
+    window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: 'onlineCount', value: count } }));
   });
-  
-  // Genel broadcast
+
   socket.on('broadcast', (data) => {
-    console.log('📢 Broadcast:', data);
-    window.dispatchEvent(new CustomEvent('socket-broadcast', {
-      detail: data
-    }));
+    window.dispatchEvent(new CustomEvent('socket-broadcast', { detail: data }));
   });
-  
+
+  socket.on('serverAnnouncement', (data) => {
+    window.dispatchEvent(new CustomEvent('socket-broadcast', { detail: { ...data, type: 'announcement' } }));
+  });
+
+  socket.on('marketSnapshot', (data) => {
+    window.dispatchEvent(new CustomEvent('market-update', { detail: data }));
+  });
+
+  socket.on('economyUpdate', (data) => {
+    window.dispatchEvent(new CustomEvent('economy-update', { detail: data }));
+  });
+
+  socket.on('gameEvent', (data) => {
+    window.dispatchEvent(new CustomEvent('game-event', { detail: data }));
+  });
+
   return socket;
 }
 
-export function getSocket() {
-  return socket;
-}
-
-export function isConnected() {
-  return socketConnected && socket?.connected;
-}
+export function getSocket() { return socket; }
+export function isConnected() { return socketConnected && socket?.connected; }
 
 export function sendChat(channel, message, sender) {
   if (!socket) return;
-  socket.emit('chat', {
-    id: Math.random().toString(36).slice(2),
-    channel,
-    message,
-    sender,
-    timestamp: Date.now()
-  });
+  socket.emit('chat', { id: Math.random().toString(36).slice(2), channel, message, sender, timestamp: Date.now() });
 }
 
 export function sendPlayerUpdate(userId, action, data) {
   if (!socket) return;
-  socket.emit('playerUpdate', {
-    userId,
-    action,
-    data,
-    timestamp: Date.now()
-  });
+  socket.emit('playerUpdate', { userId, action, data, timestamp: Date.now() });
 }
 
 export function broadcastEvent(eventName, data) {
   if (!socket) return;
-  socket.emit('broadcast', {
-    event: eventName,
-    data,
-    timestamp: Date.now()
-  });
+  socket.emit('broadcast', { event: eventName, data, timestamp: Date.now() });
 }
 
 export function disconnect() {
-  if (socket) {
-    socket.disconnect();
-    socket = null;
-    socketConnected = false;
-  }
+  if (socket) { socket.disconnect(); socket = null; socketConnected = false; }
 }
