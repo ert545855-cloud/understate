@@ -733,6 +733,7 @@ function AdminPanel({allUsers,setAllUsers,notify,cu,user,economy,setEconomy,gang
     {id:"milletvekili", icon:"🏛️", label:"Milletvekili Ata"},
     {id:"support", icon:"🆘", label:"Destek", badge:(Array.isArray(supportMsgs)?supportMsgs.filter(m=>m.status==='pending').length:0)||undefined},
     {id:"cezalar", icon:"⚖️", label:"Cezalar"},
+    {id:"server", icon:"🖥️", label:"Server"},
   ];
 
   const filteredUsers = allUsers.filter(u =>
@@ -747,10 +748,53 @@ function AdminPanel({allUsers,setAllUsers,notify,cu,user,economy,setEconomy,gang
 
   const [liveOnlineCount, setLiveOnlineCount] = React.useState(0);
   const [lastRefresh, setLastRefresh] = React.useState(null);
+  const [serverStats, setServerStats] = React.useState(null);
+  const [serverOnline, setServerOnline] = React.useState([]);
+
+  const _fetchServerStats = React.useCallback(() => {
+    const jwt = localStorage.getItem('us_jwt');
+    if (!jwt) return;
+    fetch('/api/admin/stats', { headers: { 'Authorization': 'Bearer ' + jwt } })
+      .then(r => r.ok ? r.json() : null).then(data => {
+        if (data && data.success) {
+          setServerStats(data.stats);
+          setServerOnline(data.stats.onlineList || []);
+          setLiveOnlineCount(data.stats.onlinePlayers || 0);
+        }
+      }).catch(() => {});
+  }, []);
+
+  const _serverKick = (socketId, username) => {
+    const jwt = localStorage.getItem('us_jwt');
+    if (!jwt) return notify('JWT token yok');
+    fetch('/api/admin/kick/' + socketId, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({ reason: 'Admin tarafından çıkarıldı' })
+    }).then(r => r.json()).then(d => notify(d.success ? '✅ ' + username + ' kick edildi' : '❌ ' + d.message)).catch(() => {});
+  };
+
+  const _serverBroadcast = (msg) => {
+    const jwt = localStorage.getItem('us_jwt');
+    if (!jwt || !msg) return;
+    fetch('/api/admin/broadcast', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({ message: msg })
+    }).then(r => r.json()).then(d => notify(d.success ? '✅ Duyuru gönderildi' : '❌ ' + d.message)).catch(() => {});
+  };
+
+  const _serverEconomy = (update) => {
+    const jwt = localStorage.getItem('us_jwt');
+    if (!jwt) return notify('JWT token yok');
+    fetch('/api/admin/economy', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify(update)
+    }).then(r => r.json()).then(d => { if (d.success) { setEconomy(p => ({...p, ...d.update})); notify('✅ Ekonomi güncellendi'); } }).catch(() => {});
+  };
 
   // Supabase'den tüm oyuncuları yükle + online durumunu senkronize et
   const _refreshAdminData = React.useCallback(() => {
-    fetch('/api/players').then(r=>r.json()).then(players=>{
+    const _jwt = localStorage.getItem('us_jwt');
+    fetch('/api/admin/users', _jwt ? {headers:{'Authorization':'Bearer '+_jwt}} : {}).then(r=>r.ok?r.json():Promise.resolve({users:[]})).then(res=>{const players=res.users||[];if(players.length===0) return;
       if(!Array.isArray(players)||players.length===0) return;
       setAllUsers(prev => {
         const localMap = new Map((Array.isArray(prev)?prev:[]).map(u=>[u.id||u.userId,u]));
@@ -775,7 +819,7 @@ function AdminPanel({allUsers,setAllUsers,notify,cu,user,economy,setEconomy,gang
         return Array.from(localMap.values());
       });
     }).catch(()=>{});
-    fetch('/api/online-players').then(r=>r.json()).then(list=>{
+    fetch('/api/game/online').then(r=>r.ok?r.json():Promise.resolve({count:0,players:[]})).then(res=>{const list=res.players||[];
       if(Array.isArray(list)) {
         setLiveOnlineCount(list.length);
         setAllUsers(prev=>{
@@ -790,9 +834,10 @@ function AdminPanel({allUsers,setAllUsers,notify,cu,user,economy,setEconomy,gang
 
   React.useEffect(() => {
     _refreshAdminData();
+    _fetchServerStats();
     // Her 15 saniyede bir online listeyi güncelle
     const interval = setInterval(()=>{
-      fetch('/api/online-players').then(r=>r.json()).then(list=>{
+      fetch('/api/game/online').then(r=>r.ok?r.json():Promise.resolve({count:0,players:[]})).then(res=>{const list=res.players||[];
         if(Array.isArray(list)){
           setLiveOnlineCount(list.length);
           setAllUsers(prev=>{
@@ -2205,7 +2250,70 @@ function OrtakliIslerPage({cu, allUsers, setAllUsers, collabRequests, setCollabR
           )}
 
           {/* ─── TAB: MİLLETVEKİLİ ATA ─── */}
-          {aTab==="milletvekili"&&(()=>{
+        {aTab==="server"&&(
+          <div>
+            <div style={{display:"flex",gap:"0.5rem",marginBottom:"0.75rem",flexWrap:"wrap"}}>
+              <button onClick={_fetchServerStats} style={{padding:"0.4rem 0.9rem",borderRadius:8,border:"1px solid rgba(0,201,255,0.4)",background:"rgba(0,201,255,0.1)",color:"#00C9FF",cursor:"pointer",fontSize:"0.78rem",fontWeight:700,minHeight:36}}>🔄 Yenile</button>
+              <button onClick={async()=>{const m=await gPrompt("Sunucu Duyurusu","Tüm oyunculara gönderilecek mesaj:","Mesaj");if(m)_serverBroadcast(m);}} style={{padding:"0.4rem 0.9rem",borderRadius:8,border:"1px solid rgba(255,184,0,0.4)",background:"rgba(255,184,0,0.1)",color:"#FFB800",cursor:"pointer",fontSize:"0.78rem",fontWeight:700,minHeight:36}}>📢 Duyuru Gönder</button>
+            </div>
+            {serverStats&&(
+              <div style={{background:"#0D1020",border:"1px solid rgba(255,255,255,0.08)",borderRadius:12,padding:"1rem",marginBottom:"0.75rem"}}>
+                <div style={{fontWeight:700,color:"#fff",marginBottom:"0.6rem",fontSize:"0.85rem"}}>📊 Server İstatistikleri</div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"0.4rem",marginBottom:"0.6rem"}}>
+                  {[
+                    [serverStats.connectedSockets||0,"Online","#10B981"],
+                    [serverStats.peakOnline||0,"Peak","#60A5FA"],
+                    [serverStats.roomCount||0,"Oda","#A78BFF"],
+                    [serverStats.totalConnections||0,"Toplam Bağ.","#F59E0B"],
+                    [serverStats.chatMessages||0,"Chat Msg","#FB7185"],
+                    [serverStats.uptimeFormatted||"—","Uptime","#34D399"],
+                  ].map(([v,l,c])=>(
+                    <div key={l} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:8,padding:"0.5rem",textAlign:"center"}}>
+                      <div style={{fontSize:"1rem",fontWeight:900,color:c,fontFamily:"JetBrains Mono,monospace"}}>{v}</div>
+                      <div style={{fontSize:"0.58rem",color:"#5E7390",textTransform:"uppercase",marginTop:2}}>{l}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{display:"flex",gap:"0.5rem",flexWrap:"wrap"}}>
+                  <span style={{fontSize:"0.72rem",color:"#5E7390"}}>DB: <span style={{color:serverStats.db==="connected"?"#10B981":"#EF4444",fontWeight:700}}>{serverStats.db}</span></span>
+                </div>
+              </div>
+            )}
+            <div style={{background:"#0D1020",border:"1px solid rgba(255,255,255,0.08)",borderRadius:12,padding:"1rem",marginBottom:"0.75rem"}}>
+              <div style={{fontWeight:700,color:"#fff",marginBottom:"0.6rem",fontSize:"0.85rem"}}>👥 Çevrimiçi Oyuncular ({serverOnline.length})</div>
+              {serverOnline.length===0&&<div style={{color:"#5E7390",fontSize:"0.8rem",textAlign:"center",padding:"1rem"}}>Şu an kimse çevrimiçi değil</div>}
+              {serverOnline.map((p,i)=>(
+                <div key={p.socketId||i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"0.5rem 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+                  <div>
+                    <span style={{fontWeight:700,color:"#fff",fontSize:"0.85rem"}}>{p.username}</span>
+                    <span style={{fontSize:"0.7rem",color:"#5E7390",marginLeft:"0.5rem"}}>Lv{p.level} · {p.city||"—"}</span>
+                  </div>
+                  <button onClick={()=>_serverKick(p.socketId, p.username)}
+                    style={{padding:"0.3rem 0.65rem",borderRadius:6,border:"1px solid rgba(239,68,68,0.4)",background:"rgba(239,68,68,0.1)",color:"#EF4444",cursor:"pointer",fontSize:"0.72rem",fontWeight:700,minHeight:30}}>
+                    ⚡ Kick
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div style={{background:"#0D1020",border:"1px solid rgba(255,255,255,0.08)",borderRadius:12,padding:"1rem"}}>
+              <div style={{fontWeight:700,color:"#fff",marginBottom:"0.6rem",fontSize:"0.85rem"}}>⚙️ Server Ekonomi Kontrolü</div>
+              <div style={{display:"flex",gap:"0.5rem",flexWrap:"wrap"}}>
+                {[
+                  {label:"Enflasyon Artır +1%",fn:()=>_serverEconomy({inflation:(economy.inflation||5)+1})},
+                  {label:"Enflasyon Azalt -1%",fn:()=>_serverEconomy({inflation:Math.max(0,(economy.inflation||5)-1)})},
+                  {label:"Hazineye 1M Ekle",fn:()=>_serverEconomy({treasury:(economy.treasury||0)+1000000})},
+                  {label:"Vergi Artır +1%",fn:()=>_serverEconomy({taxRate:(economy.taxRate||10)+1})},
+                ].map(({label,fn})=>(
+                  <button key={label} onClick={fn}
+                    style={{padding:"0.4rem 0.75rem",borderRadius:7,border:"1px solid rgba(255,184,0,0.3)",background:"rgba(255,184,0,0.08)",color:"#FFB800",cursor:"pointer",fontSize:"0.72rem",fontWeight:700,minHeight:34}}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+                  {aTab==="milletvekili"&&(()=>{
             const [mvSearch, setMvSearch] = React.useState("");
             const [mvFilter, setMvFilter] = React.useState("all");
             const realPlayers = allUsers.filter(u=>!u.isBot&&u.role!=="bot"&&(!mvSearch||u.username.toLowerCase().includes(mvSearch.toLowerCase())));

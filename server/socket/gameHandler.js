@@ -5,6 +5,15 @@ const onlinePlayers = new Map();
 
 function registerGameHandlers(io, socket) {
 
+  // ── Yeni bağlanan oyuncuya anlık market + economy gönder ────────
+  try {
+    const { getMarketSnapshot, getEconomyState } = require('../services/gameEngine');
+    setTimeout(() => {
+      socket.emit('marketSnapshot', getMarketSnapshot());
+      socket.emit('economyUpdate', getEconomyState());
+    }, 500);
+  } catch(e) {}
+
   // ── Oyuncu katılma ──────────────────────────────────────────────
   socket.on('playerJoin', (data) => {
     if (!data || !data.userId) return;
@@ -28,7 +37,7 @@ function registerGameHandlers(io, socket) {
     const list = Array.from(onlinePlayers.values());
     io.emit('onlinePlayers', list);
     io.emit('onlineCount', list.length);
-    logger.socket('playerJoin', socket.id, `user=${player.username}`);
+    logger.socket('playerJoin', socket.id, `user=${player.username} city=${player.city}`);
   });
 
   // ── Online oyuncu listesi isteği ────────────────────────────────
@@ -36,6 +45,22 @@ function registerGameHandlers(io, socket) {
     const list = Array.from(onlinePlayers.values());
     socket.emit('onlinePlayers', list);
     socket.emit('onlineCount', list.length);
+  });
+
+  // ── Oyuncu profili güncelle (level, para vs.) ───────────────────
+  socket.on('updatePresence', (data) => {
+    if (!data) return;
+    const player = onlinePlayers.get(socket.id);
+    if (player) {
+      Object.assign(player, {
+        level: data.level || player.level,
+        money: data.money || player.money,
+        city: data.city || player.city,
+        party: data.party !== undefined ? data.party : player.party,
+        gang: data.gang !== undefined ? data.gang : player.gang,
+      });
+      io.emit('onlinePlayers', Array.from(onlinePlayers.values()));
+    }
   });
 
   // ── Oyun state relay (Firebase yerine socket üzerinden) ─────────

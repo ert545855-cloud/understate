@@ -9,6 +9,7 @@ const { connectDB } = require('./database/connection');
 const { initSocket } = require('./socket/index');
 const { generalLimiter } = require('./middleware/rateLimiter');
 const { sanitizeInput } = require('./middleware/sanitize');
+const { startGameEngine } = require('./services/gameEngine');
 const logger = require('./utils/logger');
 
 const authRoutes = require('./routes/auth');
@@ -16,6 +17,7 @@ const profileRoutes = require('./routes/profile');
 const leaderboardRoutes = require('./routes/leaderboard');
 const saveRoutes = require('./routes/save');
 const gameRoutes = require('./routes/game');
+const { router: adminRoutes, setIO: setAdminIO } = require('./routes/admin');
 
 const app = express();
 const server = http.createServer(app);
@@ -24,6 +26,7 @@ const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
   pingTimeout: 60000,
   pingInterval: 25000,
+  maxHttpBufferSize: 2e6,
 });
 
 app.use(cors());
@@ -38,15 +41,19 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/save', saveRoutes);
 app.use('/api/game', gameRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/health', (req, res) => {
   const { getConnectionStatus } = require('./database/connection');
   const monitoring = require('./services/monitoringService');
   const roomManager = require('./rooms/roomManager');
+  const { getOnlineGamePlayers } = require('./socket/gameHandler');
+  const online = getOnlineGamePlayers();
   res.json({
     status: 'OK',
     timestamp: new Date(),
     db: getConnectionStatus() ? 'connected' : 'disconnected',
+    online: online.length,
     ...monitoring.getStats(roomManager.getAllRooms().length),
   });
 });
@@ -61,6 +68,8 @@ app.use((err, req, res, next) => {
 });
 
 initSocket(io);
+setAdminIO(io);
+startGameEngine(io);
 
 const PORT = process.env.PORT || 5000;
 const HOST = '0.0.0.0';
