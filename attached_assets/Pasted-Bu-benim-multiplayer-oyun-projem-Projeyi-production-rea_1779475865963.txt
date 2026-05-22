@@ -1,0 +1,145 @@
+Bu benim multiplayer oyun projem.
+
+Projeyi production-ready online multiplayer sisteme dönüştür.
+
+Kullandığım sistemler:
+- Node.js
+- Socket.IO
+- JavaScript
+- HTML/CSS frontend
+
+Projeyi analiz et ve eksik olan tüm sistemleri profesyonel şekilde ekle.
+
+EKLENECEK SİSTEMLER:
+
+1. MongoDB Atlas bağlantısı
+- mongoose kullan
+- .env sistemi kur
+- database connection dosyası oluştur
+
+2. Authentication sistemi
+- register API
+- login API
+- JWT auth
+- bcrypt password hash
+- token middleware
+
+3. User database sistemi
+Kullanıcı verileri:
+- username
+- email
+- password
+- level
+- xp
+- money
+- inventory
+- equippedItems
+- lastLogin
+- createdAt
+
+4. Multiplayer authoritative server sistemi
+- oyuncu hareketlerini server kontrol etsin
+- speed hack engelle
+- teleport kontrolü yap
+- packet validation ekle
+
+5. Room/Lobby sistemi
+- oda oluşturma
+- oyuncu katılma
+- room cleanup
+- max player sistemi
+- reconnect desteği
+
+6. Realtime sync sistemi
+- player movement sync
+- animation sync
+- health sync
+- inventory sync
+- item pickup sync
+- disconnect sync
+
+7. Reconnect sistemi
+- oyuncu reconnect olursa state geri yüklensin
+- timeout sistemi olsun
+
+8. Save system
+- autosave
+- disconnect save
+- periodic save
+
+9. Anti cheat basic system
+- movement validation
+- spam packet protection
+- cooldown validation
+- duplicate packet detection
+
+10. Security sistemi
+- rate limiting
+- socket validation
+- invalid packet reject
+- sanitize input
+
+11. Backend API sistemi
+- /register
+- /login
+- /profile
+- /save
+- /leaderboard
+
+12. Chat sistemi
+- realtime global chat
+- room chat
+- profanity filter
+- spam koruması
+
+13. Leaderboard sistemi
+- level ranking
+- money ranking
+- online players
+
+14. Monitoring sistemi
+- online player count
+- room count
+- socket logs
+- error logs
+
+15. Deployment sistemi
+- Dockerfile oluştur
+- production config oluştur
+- environment configs oluştur
+
+16. Dosya yapısını profesyonel hale getir
+
+İSTEDİĞİM DOSYA YAPISI:
+
+/server
+/config
+/routes
+/models
+/socket
+/middleware
+/utils
+/services
+/database
+/auth
+/rooms
+
+17. Eksik npm paketlerini otomatik kur
+
+18. Tüm import/export hatalarını düzelt
+
+19. Kodları modüler hale getir
+
+20. Production-ready optimize et
+
+ÖNEMLİ:
+- mevcut kodları bozmadan ilerle
+- eksik dosyaları oluştur
+- tüm sistemi entegre et
+- socket.io yapısını koru
+- kodları temiz ve okunabilir yaz
+- async/await kullan
+- error handling ekle
+- console log sistemi kur
+
+Projeyi tamamen çalışır halde teslim et.

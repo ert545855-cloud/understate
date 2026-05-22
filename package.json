@@ -1,16 +1,25 @@
 {
-  "name": "server",
-  "main": "server.js",
+  "name": "understate-server",
+  "version": "1.0.0",
+  "description": "UNDERSTATE - Multiplayer City & State Simulation Server",
+  "main": "server/index.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server/index.js",
+    "dev": "node server/index.js",
+    "start:legacy": "node server.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.0",
+    "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
+    "dotenv": "^16.4.7",
     "express": "^4.22.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.10.1",
     "nodemailer": "^8.0.7",
     "phaser": "^4.1.0",
     "socket.io": "^4.8.3",
+    "uuid": "^11.1.0",
     "ws": "^8.20.1"
   }
 }
