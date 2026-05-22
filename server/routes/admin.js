@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { adminMiddleware } = require('../middleware/adminMiddleware');
 const User = require('../models/User');
-const { getConnectionStatus } = require('../database/connection');
+const { getConnectionStatus, getConnectionDetails } = require('../database/connection');
 const monitoring = require('../services/monitoringService');
 const roomManager = require('../rooms/roomManager');
 const { getOnlineGamePlayers } = require('../socket/gameHandler');
@@ -31,6 +31,7 @@ router.get('/stats', adminMiddleware, async (req, res) => {
         onlinePlayers: onlinePlayers.length,
         onlineList: onlinePlayers,
         rooms: roomManager.getAllRooms(),
+        dbDetails: getConnectionDetails(),
       },
     });
   } catch (err) {

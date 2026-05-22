@@ -73,7 +73,7 @@ app.use('/api/game', gameRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.get('/health', (req, res) => {
-  const { getConnectionStatus } = require('./database/connection');
+  const { getConnectionStatus, getConnectionDetails } = require('./database/connection');
   const monitoring = require('./services/monitoringService');
   const roomManager = require('./rooms/roomManager');
   const { getOnlineGamePlayers } = require('./socket/gameHandler');
@@ -82,6 +82,7 @@ app.get('/health', (req, res) => {
     status: 'OK',
     timestamp: new Date(),
     db: getConnectionStatus() ? 'connected' : 'disconnected',
+    dbDetails: getConnectionDetails(),
     online: online.length,
     publicUrl: PUBLIC_URL || 'auto',
     ...monitoring.getStats(roomManager.getAllRooms().length),
@@ -105,7 +106,7 @@ const PORT = process.env.PORT || 5000;
 const HOST = '0.0.0.0';
 
 async function start() {
-  await connectDB();
+  await connectDB(io);
   server.listen(PORT, HOST, () => {
     logger.success(`Sunucu çalışıyor: http://${HOST}:${PORT}`);
     logger.info(`Ortam: ${process.env.NODE_ENV || 'development'}`);
