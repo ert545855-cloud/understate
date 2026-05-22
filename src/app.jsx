@@ -5072,6 +5072,48 @@ const [cityBudgets, setCityBudgets] = useState(()=>S.load("cityBudgets",{}));
 
   const _hashPass = (raw) => btoa(unescape(encodeURIComponent(raw + "_us_salt_2024")));
 
+  const _mongoAuth = async (username, password) => {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      if (data.success && data.token) {
+        localStorage.setItem('us_jwt', data.token);
+        localStorage.setItem('us_mongoId', data.user?.id || '');
+      }
+    } catch(e) {}
+  };
+
+  const _mongoRegister = async (userData) => {
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData)
+      });
+      const data = await res.json();
+      if (data.success && data.token) {
+        localStorage.setItem('us_jwt', data.token);
+        localStorage.setItem('us_mongoId', data.user?.id || '');
+      }
+    } catch(e) {}
+  };
+
+  const _mongoSave = async (gameData) => {
+    const token = localStorage.getItem('us_jwt');
+    if (!token) return;
+    try {
+      fetch('/api/game/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify(gameData)
+      }).catch(()=>{});
+    } catch(e) {}
+  };
+
   const handleLogin = async () => {
     if (loginForm.user === "admin" && loginForm.pass === "admin123") {
       const existingAdmin = allUsers.find(u => u.username === "admin") || allUsers.find(u => u.role === "admin");
@@ -5109,6 +5151,7 @@ const [cityBudgets, setCityBudgets] = useState(()=>S.load("cityBudgets",{}));
       S.save("users", updated); setAllUsers(updated);
       doLogin(migrated); return;
     }
+    _mongoAuth(loginForm.user, loginForm.pass);
     doLogin(found);
   };
 
@@ -5134,33 +5177,8 @@ const [cityBudgets, setCityBudgets] = useState(()=>S.load("cityBudgets",{}));
     setAllUsers(updatedUsers);
     S.save("users", updatedUsers);
     if(window._fbFlush) setTimeout(()=>window._fbFlush(false), 200);
-    // Supabase'e kaydet (arka planda — tüm verilerle A'dan Z'ye)
-    try {
-      fetch('/api/player', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: baseUser.id, userId: baseUser.id,
-          username: baseUser.username,
-          email: baseUser.email,
-          level: 1, money: baseUser.money,
-          city: baseUser.city, gender: baseUser.gender,
-          phone: baseUser.phone||"-",
-          role: baseUser.role||"user",
-          under_coin: baseUser.underCoin||50,
-          bank_money: baseUser.bankMoney||0,
-          credit_score: baseUser.creditScore||500,
-          education_level: baseUser.educationLevel||"İlkokul",
-          merit_points: baseUser.meritPoints||0,
-          loyalty_points: baseUser.loyaltyPoints||100,
-          referral_code: baseUser.referralCode||"",
-          inventory: JSON.stringify(baseUser.inventory||[]),
-          stats: JSON.stringify({ hp: baseUser.hp||100, score:0, xp:0 }),
-          created_at: new Date().toISOString(),
-          last_seen: new Date().toISOString()
-        })
-      }).catch(()=>{});
-    } catch(e) {}
+    // MongoDB'ye kaydet (arka planda)
+    _mongoRegister({ username: baseUser.username, email: baseUser.email, password: regForm.pass });
     notify("✅ Kayıt başarılı! Giriş yapabilirsiniz.");
     S.save("newPlayerTutorial_"+baseUser.id, true);
     setLoginForm({ user: regForm.user, pass: regForm.pass });

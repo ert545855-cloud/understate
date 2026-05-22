@@ -2,9 +2,9 @@ const { socketAuthMiddleware } = require('../middleware/authMiddleware');
 const { registerChatHandlers } = require('./chatHandler');
 const { registerPlayerHandlers, removePlayer, getOnlinePlayers } = require('./playerHandler');
 const { registerRoomHandlers } = require('./roomHandler');
+const { registerGameHandlers, removeGamePlayer } = require('./gameHandler');
 const roomManager = require('../rooms/roomManager');
-const { saveUser } = require('../services/saveService');
-const { startAutosave } = require('../services/saveService');
+const { saveUser, startAutosave } = require('../services/saveService');
 const { startMonitoringLog } = require('../services/monitoringService');
 const monitoring = require('../services/monitoringService');
 const antiCheat = require('../utils/antiCheat');
@@ -24,6 +24,7 @@ function initSocket(io) {
     registerChatHandlers(io, socket);
     registerPlayerHandlers(io, socket);
     registerRoomHandlers(io, socket);
+    registerGameHandlers(io, socket);
 
     socket.on('syncGameData', (data) => {
       if (socket.userId && data) {
@@ -58,6 +59,7 @@ function initSocket(io) {
       });
 
       removePlayer(socket.id);
+      removeGamePlayer(socket.id, io);
       antiCheat.cleanupPlayer(socket.id);
 
       if (socket.userId) {
