@@ -1,0 +1,40 @@
+{
+  "appId": "com.understate.game",
+  "appName": "UNDERSTATE",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "android": {
+    "buildOptions": {
+      "keystorePath": "android/app/understate.keystore",
+      "keystoreAlias": "understate",
+      "releaseType": "APK"
+    },
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "AdMob": {
+      "appId": {
+        "android": "ca-app-pub-7362104594733603~3744323984"
+      },
+      "initializeForTesting": false
+    },
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#0A1628",
+      "showSpinner": false,
+      "androidSpinnerStyle": "small",
+      "splashImmersive": true
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0A1628"
+    }
+  },
+  "server": {
+    "androidScheme": "https",
+    "cleartext": false,
+    "hostname": "understate.game"
+  }
+}

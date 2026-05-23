@@ -130,11 +130,27 @@
   // ── Native AdMob (Capacitor) ──────────────────────────────────────────────
   async function showNativeInterstitial(onClose) {
     try {
-      const { AdMob } = await import('@capacitor-community/admob');
-      await AdMob.prepareInterstitial({ adId: AD_CONFIG.interstitialId });
-      await AdMob.showInterstitial();
-      lastAdShownAt = Date.now();
-      if (typeof onClose === 'function') onClose();
+      // Use global Capacitor plugins (loaded by Capacitor runtime)
+      const AdMob = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AdMob;
+      if (!AdMob) throw new Error('AdMob plugin not available');
+
+      // Listen for interstitial events
+      AdMob.addListener('interstitialAdLoaded',  function() { AdMob.showInterstitial(); });
+      AdMob.addListener('interstitialAdClosed',  function() {
+        lastAdShownAt = Date.now();
+        if (typeof onClose === 'function') onClose();
+      });
+      AdMob.addListener('interstitialAdFailedToLoad', function(err) {
+        console.warn('[AdMob] Interstitial failed to load:', err);
+        showWebInterstitial(onClose);
+      });
+
+      await AdMob.prepareInterstitial({
+        adId: AD_CONFIG.interstitialId,
+        isTesting: false,
+        margin: 0,
+        npa: false,
+      });
     } catch (err) {
       console.warn('[AdMob] Native interstitial failed, falling back to web:', err);
       showWebInterstitial(onClose);
@@ -171,8 +187,16 @@
     // Check if Capacitor + AdMob available
     if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) {
       try {
-        const { AdMob } = await import('@capacitor-community/admob');
-        await AdMob.initialize({ appId: AD_CONFIG.appId });
+        // Use Capacitor global plugins
+        const AdMob = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AdMob;
+        if (!AdMob) throw new Error('Not native');
+        await AdMob.initialize({
+          appId:              AD_CONFIG.appId,
+          initializeForTesting: false,
+          tagForChildDirectedTreatment: false,
+          tagForUnderAgeOfConsent:      false,
+          maxAdContentRating:           'MA',
+        });
         nativeAvailable = true;
         console.log('[AdMob] Native platform initialized');
       } catch {

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">UNDERSTATE</string>
+    <string name="title_activity_main">UNDERSTATE</string>
+    <string name="package_name">com.understate.game</string>
+    <string name="custom_url_scheme">com.understate.game</string>
+</resources>

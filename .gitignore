@@ -54,3 +54,22 @@ __tests__/snapshots/
 .replit.nix
 .upm/
 replit.nix
+
+# Android build outputs & secrets
+android/app/*.keystore
+android/app/*.jks
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/app/google-services.json
+.env.android
+*.keystore
+*.jks
+
+# Capacitor generated
+www/
+.capacitor/
+
+# Scripts
+scripts/*.sh
