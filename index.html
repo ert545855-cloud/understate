@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-title" content="UNDERSTATE">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#0A1628" media="(prefers-color-scheme: dark)"><meta name="theme-color" content="#F0F2F5" media="(prefers-color-scheme: light)">
-    <link rel="manifest" href="data:application/json,{%22name%22:%22UNDERSTATE%22,%22short_name%22:%22UNDERSTATE%22,%22display%22:%22standalone%22,%22background_color%22:%22%230A1628%22,%22theme_color%22:%22%230A1628%22}">
+    <link rel="manifest" href="/manifest.json">
     <title>UNDERSTATE - Şehir &amp; Devlet Simülasyonu</title>
     <link rel="icon" href="favicon.jpg" type="image/jpeg">
     <link rel="apple-touch-icon" href="favicon.jpg">
@@ -30,6 +30,7 @@
     <script>
     /* === firebase-init v6 === */
     (function(){
+      // Firebase web config is intentionally public (restricted by Firebase Rules, not by secrecy)
       const FIREBASE_CONFIG = {
         apiKey:            "AIzaSyBOfuPVR5fns4c0EFM9uyO0og0ZvlySAe4",
         authDomain:        "understate-62919.firebaseapp.com",

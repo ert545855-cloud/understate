@@ -1,0 +1,56 @@
+# Environment & secrets — NEVER commit these
+.env
+.env.local
+.env.production
+.env.staging
+*.env
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+.cache/
+.parcel-cache/
+.vite/
+
+# Logs
+logs/
+*.log
+/tmp/
+
+# Runtime
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V*/
+.Trashes
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+coverage/
+.nyc_output/
+__tests__/snapshots/
+
+# Replit internal (safe to ignore)
+.replit.nix
+.upm/
+replit.nix

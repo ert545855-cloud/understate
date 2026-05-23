@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
@@ -22,41 +23,112 @@ const { router: adminRoutes, setIO: setAdminIO } = require('./routes/admin');
 const app = express();
 const server = http.createServer(app);
 
-// --- CORS / Public URL ---
-// Render sets RENDER_EXTERNAL_URL automatically; you can also set PUBLIC_URL manually
+// --- Public URL / CORS origins ---
 const PUBLIC_URL = process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || null;
+const IS_PROD = process.env.NODE_ENV === 'production';
+
 const allowedOrigins = ['http://localhost:5000', 'http://localhost:3000'];
 if (PUBLIC_URL) allowedOrigins.push(PUBLIC_URL.replace(/\/$/, ''));
+if (process.env.EXTRA_ORIGINS) {
+  process.env.EXTRA_ORIGINS.split(',').forEach(o => allowedOrigins.push(o.trim()));
+}
 
 const corsOptions = {
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
-      cb(null, true);
-    } else {
-      cb(new Error('CORS: ' + origin + ' izin verilmiyor'));
-    }
+    if (!origin || !IS_PROD || allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error('CORS: ' + origin + ' not allowed'));
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
+// --- Socket.IO ---
 const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] },
+  cors: {
+    origin: IS_PROD ? allowedOrigins : '*',
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
   pingTimeout: 60000,
   pingInterval: 25000,
   maxHttpBufferSize: 2e6,
 });
 
+// --- Security headers via helmet ---
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: [
+        "'self'", "'unsafe-inline'", "'unsafe-eval'",
+        'https://cdn.jsdelivr.net',
+        'https://cdnjs.cloudflare.com',
+        'https://unpkg.com',
+        'https://www.gstatic.com',
+        'https://cdn.socket.io',
+        'https://cdn.babylonjs.com',
+        'https://www.google.com',
+      ],
+      styleSrc: [
+        "'self'", "'unsafe-inline'",
+        'https://fonts.googleapis.com',
+        'https://cdn.jsdelivr.net',
+        'https://cdnjs.cloudflare.com',
+      ],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+      connectSrc: [
+        "'self'", 'wss:', 'ws:',
+        'https://*.firebaseio.com',
+        'https://*.googleapis.com',
+        'https://*.mongo.com',
+      ],
+      mediaSrc: ["'self'", 'blob:'],
+      workerSrc: ["'self'", 'blob:'],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: IS_PROD ? [] : null,
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  hsts: IS_PROD ? { maxAge: 31536000, includeSubDomains: true } : false,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  xssFilter: true,
+  noSniff: true,
+  frameguard: { action: 'deny' },
+}));
+
+// --- Core middleware ---
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: false, limit: '2mb' }));
 app.use(generalLimiter);
 app.use(sanitizeInput);
 
-// Serve frontend
+// HTTPS redirect in production
+if (IS_PROD) {
+  app.use((req, res, next) => {
+    if (req.headers['x-forwarded-proto'] === 'http') {
+      return res.redirect(301, 'https://' + req.headers.host + req.url);
+    }
+    next();
+  });
+}
+
+// --- Static files ---
 app.use(express.static(path.join(__dirname, '../'), {
-  maxAge: process.env.NODE_ENV === 'production' ? '1h' : 0,
+  maxAge: IS_PROD ? '1h' : 0,
+  etag: true,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+  },
 }));
 
-// Config endpoint — frontend uses this to know the socket URL
+// --- Public config endpoint (safe to expose) ---
 app.get('/api/config', (req, res) => {
   res.json({
     socketUrl: PUBLIC_URL || '',
@@ -65,6 +137,7 @@ app.get('/api/config', (req, res) => {
   });
 });
 
+// --- API routes ---
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
@@ -72,6 +145,7 @@ app.use('/api/save', saveRoutes);
 app.use('/api/game', gameRoutes);
 app.use('/api/admin', adminRoutes);
 
+// --- Health check ---
 app.get('/health', (req, res) => {
   const { getConnectionStatus, getConnectionDetails } = require('./database/connection');
   const monitoring = require('./services/monitoringService');
@@ -89,15 +163,21 @@ app.get('/health', (req, res) => {
   });
 });
 
+// --- SPA fallback ---
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../index.html'));
 });
 
+// --- Global error handler ---
 app.use((err, req, res, next) => {
+  if (err.message && err.message.startsWith('CORS')) {
+    return res.status(403).json({ success: false, message: 'CORS hatası' });
+  }
   logger.error('Express hatası:', err.message);
   res.status(500).json({ success: false, message: 'Sunucu hatası' });
 });
 
+// --- Init ---
 initSocket(io);
 setAdminIO(io);
 startGameEngine(io);
@@ -109,7 +189,8 @@ async function start() {
   await connectDB(io);
   server.listen(PORT, HOST, () => {
     logger.success(`Sunucu çalışıyor: http://${HOST}:${PORT}`);
-    logger.info(`Ortam: ${process.env.NODE_ENV || 'development'}`);
+    logger.info(`Ortam: ${IS_PROD ? 'production' : 'development'}`);
+    logger.info(`Helmet: aktif | CORS: ${IS_PROD ? 'kısıtlı' : 'geliştirme'} | HTTPS: ${IS_PROD ? 'zorla' : 'kapalı'}`);
     if (PUBLIC_URL) logger.info(`Public URL: ${PUBLIC_URL}`);
   });
 }
