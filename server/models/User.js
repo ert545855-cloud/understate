@@ -14,21 +14,21 @@ const userSchema = new mongoose.Schema(
       lowercase: true, trim: true,
       match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     },
-    password:  { type: String, required: true, minlength: 6, select: false },
-    role:      { type: String, default: 'user', enum: ['user', 'admin', 'moderator'] },
-    banned:    { type: Boolean, default: false },
-    banReason: { type: String, default: '' },
+    password:    { type: String, required: true, minlength: 6, select: false },
+    role:        { type: String, default: 'user', enum: ['user', 'admin', 'moderator'] },
+    banned:      { type: Boolean, default: false },
+    banReason:   { type: String, default: '' },
 
     // Core stats
-    level:     { type: Number, default: 1, min: 1 },
-    xp:        { type: Number, default: 0, min: 0 },
-    money:     { type: Number, default: 1000, min: 0 },
-    bankMoney: { type: Number, default: 0, min: 0 },
-    underCoin: { type: Number, default: 0, min: 0 },
-    hp:        { type: Number, default: 100 },
-    score:     { type: Number, default: 0 },
-    creditScore:{ type: Number, default: 500 },
-    meritPoints:{ type: Number, default: 0 },
+    level:        { type: Number, default: 1, min: 1 },
+    xp:           { type: Number, default: 0, min: 0 },
+    money:        { type: Number, default: 1000, min: 0 },
+    bankMoney:    { type: Number, default: 0, min: 0 },
+    underCoin:    { type: Number, default: 0, min: 0 },
+    hp:           { type: Number, default: 100 },
+    score:        { type: Number, default: 0 },
+    creditScore:  { type: Number, default: 500 },
+    meritPoints:  { type: Number, default: 0 },
     loyaltyPoints:{ type: Number, default: 0 },
 
     // Progression
@@ -42,13 +42,18 @@ const userSchema = new mongoose.Schema(
     equippedItems:{ type: mongoose.Schema.Types.Mixed, default: {} },
     holdings:     { type: mongoose.Schema.Types.Mixed, default: [] },
 
-    // Full game snapshot (everything not in top-level fields)
+    // Full game snapshot
     gameData: { type: mongoose.Schema.Types.Mixed, default: {} },
 
+    // Auth tokens
+    refreshToken:      { type: String, default: null, select: false },
+    resetToken:        { type: String, default: null, select: false },
+    resetTokenExpiry:  { type: Date, default: null },
+
     // Meta
-    lastLogin: { type: Date, default: Date.now },
-    isOnline:  { type: Boolean, default: false },
-    socketId:  { type: String, default: null },
+    lastLogin:  { type: Date, default: Date.now },
+    isOnline:   { type: Boolean, default: false },
+    socketId:   { type: String, default: null },
   },
   { timestamps: true }
 );

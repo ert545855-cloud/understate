@@ -5193,6 +5193,7 @@ const [cityBudgets, setCityBudgets] = useState(()=>S.load("cityBudgets",{}));
       if (data.success && data.token) {
         localStorage.setItem('us_jwt', data.token);
         localStorage.setItem('us_mongoId', data.user?.id || '');
+        if (data.refreshToken) localStorage.setItem('us_refreshToken', data.refreshToken);
       }
     } catch(e) {}
   };
@@ -5208,6 +5209,7 @@ const [cityBudgets, setCityBudgets] = useState(()=>S.load("cityBudgets",{}));
       if (data.success && data.token) {
         localStorage.setItem('us_jwt', data.token);
         localStorage.setItem('us_mongoId', data.user?.id || '');
+        if (data.refreshToken) localStorage.setItem('us_refreshToken', data.refreshToken);
       }
     } catch(e) {}
   };

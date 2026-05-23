@@ -30,7 +30,7 @@ router.get('/me', authMiddleware, async (req, res) => {
   }
 });
 
-// Online oyuncu sayısı (public)
+// Online oyuncu sayısı (public — money bilgisi gizlendi)
 router.get('/online', (req, res) => {
   const { getOnlineGamePlayers } = require('../socket/gameHandler');
   const players = getOnlineGamePlayers();
@@ -41,6 +41,7 @@ router.get('/online', (req, res) => {
       username: p.username,
       level: p.level,
       city: p.city,
+      // money, userId, socketId intentionally excluded
     })),
   });
 });

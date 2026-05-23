@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const logger = require('../utils/logger');
 const { getConnectionStatus } = require('../database/connection');
@@ -14,6 +15,7 @@ const TOP_LEVEL_FIELDS = [
 
 async function saveUserFull(userId, data) {
   if (!getConnectionStatus() || !userId) return false;
+  if (!mongoose.isValidObjectId(userId)) return false; // skip non-MongoDB IDs (e.g. guest/admin_001)
   try {
     const updateFields = { lastLogin: new Date() };
     for (const field of TOP_LEVEL_FIELDS) {
@@ -29,6 +31,7 @@ async function saveUserFull(userId, data) {
 
 async function saveUser(userId, gameData) {
   if (!getConnectionStatus() || !userId) return false;
+  if (!mongoose.isValidObjectId(userId)) return false;
   try {
     await User.findByIdAndUpdate(userId, { gameData, lastLogin: new Date() });
     return true;

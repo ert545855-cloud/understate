@@ -69,7 +69,11 @@ app.use(helmet({
         'https://cdn.socket.io',
         'https://cdn.babylonjs.com',
         'https://www.google.com',
+        'https://pagead2.googlesyndication.com',
+        'https://www.googletagservices.com',
+        'https://partner.googleadservices.com',
       ],
+      scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc: [
         "'self'", "'unsafe-inline'",
         'https://fonts.googleapis.com',
@@ -135,6 +139,17 @@ app.get('/api/config', (req, res) => {
     env: process.env.NODE_ENV || 'development',
     version: process.env.npm_package_version || '1.0.0',
   });
+});
+
+// --- .well-known (TWA / Apple App Site Association) ---
+app.use('/.well-known', express.static(path.join(__dirname, '../.well-known'), {
+  setHeaders: (res) => { res.setHeader('Content-Type', 'application/json'); }
+}));
+
+// --- AdMob public config ---
+app.get('/api/admob-config', (req, res) => {
+  const { getPublicAdConfig } = require('./config/admob');
+  res.json(getPublicAdConfig(!IS_PROD));
 });
 
 // --- API routes ---

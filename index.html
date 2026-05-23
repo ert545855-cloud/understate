@@ -1481,5 +1481,151 @@ function boot() {
 window._US_AUDIO_SRC = "audio/background.mp3";
 </script>
 
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SERVICE WORKER + JWT AUTO-REFRESH + ERROR BOUNDARY + ADMOB
+     ════════════════════════════════════════════════════════════════ -->
+<script>
+(function() {
+  'use strict';
+
+  // ── Service Worker registration ─────────────────────────────────────────
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
+        .then(function(reg) {
+          console.log('[SW] Registered ✓ scope:', reg.scope);
+          reg.addEventListener('updatefound', function() {
+            var newSW = reg.installing;
+            newSW.addEventListener('statechange', function() {
+              if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('[SW] Update available');
+                newSW.postMessage({ type: 'SKIP_WAITING' });
+              }
+            });
+          });
+        })
+        .catch(function(err) { console.warn('[SW] Registration failed:', err); });
+
+      // Handle SW messages (e.g. background sync)
+      navigator.serviceWorker.addEventListener('message', function(evt) {
+        if (evt.data && evt.data.type === 'SYNC_REQUESTED') {
+          if (window._mongoSave) window._mongoSave();
+        }
+      });
+    });
+  }
+
+  // ── Global Error Boundary ───────────────────────────────────────────────
+  window.onerror = function(msg, src, line, col, err) {
+    console.error('[ErrorBoundary]', msg, 'at', src, line + ':' + col);
+    // Avoid crash loop — only show UI if root still exists
+    var root = document.getElementById('root');
+    if (root && root.children.length === 0) {
+      root.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0A1628;color:#fff;font-family:sans-serif;flex-direction:column;gap:12px"><h2 style="color:#e74c3c">Beklenmedik Hata</h2><p style="color:#aaa;max-width:400px;text-align:center">' + String(msg).slice(0,200) + '</p><button onclick="location.reload()" style="background:#2ecc71;color:#fff;border:none;border-radius:8px;padding:12px 24px;font-size:15px;cursor:pointer">Yeniden Yükle</button></div>';
+    }
+    return false;
+  };
+
+  window.addEventListener('unhandledrejection', function(evt) {
+    console.warn('[ErrorBoundary] Unhandled promise rejection:', evt.reason);
+  });
+
+  // ── JWT Auto-Refresh helper ─────────────────────────────────────────────
+  // Patches global fetch: on 401, tries refresh token, retries original request
+  var _originalFetch = window.fetch;
+  var _isRefreshing  = false;
+  var _refreshQueue  = [];
+
+  function processRefreshQueue(err, token) {
+    _refreshQueue.forEach(function(cb) { cb(err, token); });
+    _refreshQueue = [];
+  }
+
+  window.fetch = function(url, opts) {
+    return _originalFetch(url, opts).then(function(res) {
+      // Only intercept API calls that return 401
+      if (res.status !== 401 || !url || !String(url).startsWith('/api/')) return res;
+
+      var refreshToken = localStorage.getItem('us_refreshToken');
+      if (!refreshToken) {
+        // No refresh token — trigger re-login event
+        window.dispatchEvent(new CustomEvent('us-session-expired'));
+        return res;
+      }
+
+      if (_isRefreshing) {
+        return new Promise(function(resolve, reject) {
+          _refreshQueue.push(function(err, token) {
+            if (err) return resolve(res);
+            var newOpts = Object.assign({}, opts, { headers: Object.assign({}, (opts && opts.headers) || {}, { 'Authorization': 'Bearer ' + token }) });
+            resolve(_originalFetch(url, newOpts));
+          });
+        });
+      }
+
+      _isRefreshing = true;
+      return _originalFetch('/api/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: refreshToken }),
+      }).then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (!data.success || !data.token) throw new Error('Refresh failed');
+          localStorage.setItem('us_jwt', data.token);
+          if (data.refreshToken) localStorage.setItem('us_refreshToken', data.refreshToken);
+          processRefreshQueue(null, data.token);
+          _isRefreshing = false;
+          var newOpts = Object.assign({}, opts, { headers: Object.assign({}, (opts && opts.headers) || {}, { 'Authorization': 'Bearer ' + data.token }) });
+          return _originalFetch(url, newOpts);
+        })
+        .catch(function(err) {
+          processRefreshQueue(err, null);
+          _isRefreshing = false;
+          localStorage.removeItem('us_jwt');
+          localStorage.removeItem('us_refreshToken');
+          window.dispatchEvent(new CustomEvent('us-session-expired'));
+          return res;
+        });
+    });
+  };
+
+  // ── Session expired UI ──────────────────────────────────────────────────
+  window.addEventListener('us-session-expired', function() {
+    console.warn('[Auth] Session expired — showing re-login prompt');
+    if (document.getElementById('us-session-expired-banner')) return;
+    var banner = document.createElement('div');
+    banner.id = 'us-session-expired-banner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999998;background:#e74c3c;color:#fff;text-align:center;padding:12px 16px;font-family:sans-serif;font-size:14px;';
+    banner.innerHTML = 'Oturumunuzun süresi doldu. <a href="/" onclick="location.reload()" style="color:#fff;font-weight:bold;text-decoration:underline;">Yeniden giriş yapın</a>';
+    document.body.insertBefore(banner, document.body.firstChild);
+  });
+
+  // ── Logout → notify server ──────────────────────────────────────────────
+  window._usLogout = async function() {
+    var jwt = localStorage.getItem('us_jwt');
+    if (jwt) {
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + jwt, 'Content-Type': 'application/json' }
+        });
+      } catch(e) { /* ignore — local logout still proceeds */ }
+    }
+    // Clear all auth data
+    localStorage.removeItem('us_jwt');
+    localStorage.removeItem('us_refreshToken');
+    localStorage.removeItem('us_mongoId');
+    localStorage.removeItem('us_username');
+    // Reload to login screen
+    location.reload();
+  };
+
+})();
+</script>
+
+<!-- AdMob / Ad Manager -->
+<script src="/js/admob.js" defer></script>
+
 </body>
 </html>
