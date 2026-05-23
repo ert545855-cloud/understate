@@ -1031,7 +1031,7 @@ function boot() {
 </script>
 
 <!-- Socket.IO Client -->
-<script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.2/dist/socket.io.min.js" crossorigin="anonymous"></script>
+<script src="/public/js/socket.io.min.js" crossorigin="anonymous"></script>
 
 <!-- Socket.IO Oyun Köprüsü: Firebase yerine Socket.IO + Supabase REST -->
 <script>
@@ -1461,17 +1461,17 @@ function boot() {
 </script>
 
 <!-- Babel (JSX transform) -->
-<script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.24.7/babel.min.js"
+<script src="/public/js/babel.min.js"
   crossorigin="anonymous"
   onerror="console.warn('Babel CDN failed')"
   onload="_advanceBar(25,'Babel ✓')"></script>
 
 <!-- React 18 -->
-<script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"
+<script src="/public/js/react.min.js"
   crossorigin="anonymous"
   onerror="_showError('React CDN yüklenemedi')"
   onload="_advanceBar(40,'React ✓')"></script>
-<script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"
+<script src="/public/js/react-dom.min.js"
   crossorigin="anonymous"
   onerror="_showError('ReactDOM CDN yüklenemedi')"
   onload="_advanceBar(55,'ReactDOM ✓'); if(document.readyState==='complete'||document.readyState==='interactive'){boot();}else{document.addEventListener('DOMContentLoaded',boot);}"></script>
@@ -1753,6 +1753,342 @@ window._US_AUDIO_SRC = "audio/background.mp3";
 
 <!-- AdMob / Ad Manager -->
 <script src="/js/admob.js" defer></script>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     ŞİFRE SIFIRLAMA MODAL
+     ════════════════════════════════════════════════════════════════ -->
+<div id="us-forgot-modal" style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);align-items:center;justify-content:center;">
+  <div style="background:#111827;border:1px solid rgba(208,0,0,0.3);border-radius:16px;padding:32px 28px;width:min(420px,92vw);position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.7);">
+    <button onclick="window._USForgot.close()" style="position:absolute;top:14px;right:16px;background:none;border:none;color:#666;font-size:20px;cursor:pointer;line-height:1;">&#x2715;</button>
+    <div style="font-family:'Syne',sans-serif;font-size:1.35rem;font-weight:800;color:#fff;margin-bottom:6px;letter-spacing:.05em;">&#x15E;&#x130;FREMI UNUTTUM</div>
+    <div id="us-forgot-msg" style="font-size:.82rem;color:#aaa;margin-bottom:20px;">E-posta adresinizi girin, sıfırlama bağlantısı gönderelim.</div>
+    <div id="us-forgot-form">
+      <input id="us-forgot-email" type="email" placeholder="E-posta adresi" autocomplete="email"
+        style="width:100%;box-sizing:border-box;background:#1a2332;border:1px solid #2a3a50;border-radius:10px;padding:13px 16px;color:#fff;font-size:.95rem;font-family:'DM Sans',sans-serif;outline:none;margin-bottom:14px;">
+      <button onclick="window._USForgot.submit()" id="us-forgot-btn"
+        style="width:100%;background:#D00000;border:none;border-radius:10px;color:#fff;font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem;padding:13px;cursor:pointer;letter-spacing:.08em;">
+        SIFIRLAMA BA&#x11E;LANTISI G&#xD6;NDER
+      </button>
+    </div>
+    <div id="us-forgot-success" style="display:none;text-align:center;padding:16px 0;">
+      <div style="font-size:2rem;margin-bottom:10px;">&#x2709;&#xFE0F;</div>
+      <div style="color:#2ecc71;font-weight:700;font-size:1rem;margin-bottom:6px;">Bağlantı Gönderildi!</div>
+      <div style="color:#aaa;font-size:.82rem;">E-posta kutunuzu kontrol edin. Spam klasörüne de bakın.</div>
+    </div>
+  </div>
+</div>
+
+<div id="us-reset-modal" style="display:none;position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,0.92);backdrop-filter:blur(8px);align-items:center;justify-content:center;">
+  <div style="background:#111827;border:1px solid rgba(208,0,0,0.4);border-radius:16px;padding:36px 28px;width:min(420px,92vw);position:relative;box-shadow:0 24px 70px rgba(0,0,0,0.8);">
+    <div style="font-family:'Syne',sans-serif;font-size:1.35rem;font-weight:800;color:#fff;margin-bottom:6px;letter-spacing:.05em;">YEN&#x130; &#x15E;&#x130;FRE BEL&#x130;RLE</div>
+    <div style="font-size:.82rem;color:#aaa;margin-bottom:22px;">En az 8 karakter, büyük harf ve rakam içermelidir.</div>
+    <div id="us-reset-alert" style="display:none;background:rgba(231,76,60,.15);border:1px solid rgba(231,76,60,.4);border-radius:8px;padding:10px 14px;font-size:.82rem;color:#e74c3c;margin-bottom:14px;"></div>
+    <input id="us-reset-pw1" type="password" placeholder="Yeni şifre" autocomplete="new-password"
+      style="width:100%;box-sizing:border-box;background:#1a2332;border:1px solid #2a3a50;border-radius:10px;padding:13px 16px;color:#fff;font-size:.95rem;font-family:'DM Sans',sans-serif;outline:none;margin-bottom:12px;">
+    <input id="us-reset-pw2" type="password" placeholder="Şifre tekrar" autocomplete="new-password"
+      style="width:100%;box-sizing:border-box;background:#1a2332;border:1px solid #2a3a50;border-radius:10px;padding:13px 16px;color:#fff;font-size:.95rem;font-family:'DM Sans',sans-serif;outline:none;margin-bottom:16px;">
+    <button onclick="window._USReset.submit()" id="us-reset-btn"
+      style="width:100%;background:#D00000;border:none;border-radius:10px;color:#fff;font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem;padding:13px;cursor:pointer;letter-spacing:.08em;">
+      &#x15E;&#x130;FREY&#x130; G&#xDC;NCELLE
+    </button>
+    <div id="us-reset-success" style="display:none;text-align:center;padding:16px 0 4px;">
+      <div style="color:#2ecc71;font-weight:700;font-size:1rem;margin-bottom:6px;">&#x2705; Şifreniz Güncellendi!</div>
+      <div style="color:#aaa;font-size:.82rem;margin-bottom:18px;">Yeni şifrenizle giriş yapabilirsiniz.</div>
+      <button onclick="location.href='/'" style="background:#2ecc71;border:none;border-radius:10px;color:#fff;font-family:'Syne',sans-serif;font-weight:700;padding:12px 24px;cursor:pointer;">G&#x130;R&#x130;&#x15E; YAP</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     LEADERBOARD PANELİ + ÇEVRİMİÇİ SAYAÇ
+     ════════════════════════════════════════════════════════════════ -->
+<div id="us-online-badge" style="display:none;position:fixed;bottom:80px;right:16px;z-index:9990;background:rgba(10,22,40,0.92);border:1px solid rgba(46,204,113,0.35);border-radius:20px;padding:6px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;backdrop-filter:blur(8px);box-shadow:0 4px 20px rgba(0,0,0,0.4);" onclick="window._USLeaderboard.toggle()">
+  <span style="width:8px;height:8px;background:#2ecc71;border-radius:50%;display:inline-block;box-shadow:0 0 6px #2ecc71;animation:us-pulse 2s infinite;"></span>
+  <span id="us-online-count" style="color:#fff;font-family:'DM Sans',sans-serif;font-size:.8rem;font-weight:600;">0 çevrimiçi</span>
+  <span style="color:#D00000;font-family:'Syne',sans-serif;font-size:.75rem;font-weight:700;letter-spacing:.05em;">LB</span>
+</div>
+
+<div id="us-lb-panel" style="display:none;position:fixed;top:0;right:0;bottom:0;z-index:99990;width:min(360px,96vw);background:#0b1622;border-left:1px solid rgba(208,0,0,0.2);box-shadow:-8px 0 40px rgba(0,0,0,0.7);flex-direction:column;overflow:hidden;font-family:'DM Sans',sans-serif;">
+  <div style="background:#0d1e35;padding:18px 20px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;color:#fff;letter-spacing:.1em;">SIRALAMALAR</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span id="us-lb-online-top" style="font-size:.75rem;color:#2ecc71;font-weight:600;"></span>
+        <button onclick="window._USLeaderboard.close()" style="background:rgba(255,255,255,.08);border:none;border-radius:8px;color:#aaa;font-size:.9rem;cursor:pointer;padding:5px 10px;">&#x2715;</button>
+      </div>
+    </div>
+    <div id="us-lb-tabs" style="display:flex;gap:4px;overflow-x:auto;padding-bottom:12px;">
+      <button class="us-lb-tab us-lb-tab-active" data-type="level" onclick="window._USLeaderboard.setTab('level')">&#x1F3C6; SEV&#x130;YE</button>
+      <button class="us-lb-tab" data-type="money" onclick="window._USLeaderboard.setTab('money')">&#x1F4B0; PARA</button>
+      <button class="us-lb-tab" data-type="bank" onclick="window._USLeaderboard.setTab('bank')">&#x1F3E6; SERVET</button>
+      <button class="us-lb-tab" data-type="score" onclick="window._USLeaderboard.setTab('score')">&#x2B50; PUAN</button>
+      <button class="us-lb-tab" data-type="gang" onclick="window._USLeaderboard.setTab('gang')">&#x2694;&#xFE0F; &#xC7;ETE</button>
+    </div>
+  </div>
+  <div id="us-lb-list" style="flex:1;overflow-y:auto;padding:12px 16px;"></div>
+  <div style="padding:10px 16px;background:#0d1e35;border-top:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between;align-items:center;">
+    <span id="us-lb-updated" style="font-size:.72rem;color:#555;">&#x2014;</span>
+    <button onclick="window._USLeaderboard.refresh()" style="background:rgba(208,0,0,.15);border:1px solid rgba(208,0,0,.3);border-radius:8px;color:#D00000;font-size:.72rem;padding:5px 12px;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;letter-spacing:.05em;">YEN&#x130;LE</button>
+  </div>
+</div>
+
+<style>
+@keyframes us-pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.us-lb-tab{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:8px;color:#aaa;font-family:'Syne',sans-serif;font-size:.68rem;font-weight:700;letter-spacing:.06em;padding:6px 12px;cursor:pointer;white-space:nowrap;transition:all .2s;}
+.us-lb-tab:hover{background:rgba(255,255,255,.1);color:#fff;}
+.us-lb-tab-active{background:rgba(208,0,0,.2)!important;border-color:rgba(208,0,0,.5)!important;color:#fff!important;}
+.us-lb-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;margin-bottom:5px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.04);transition:background .15s;}
+.us-lb-row:hover{background:rgba(255,255,255,.06);}
+.us-lb-rank{width:24px;text-align:center;font-family:'Syne',sans-serif;font-size:.78rem;font-weight:800;color:#D00000;}
+.us-lb-rank-gold{color:#f1c40f!important;}
+.us-lb-rank-silver{color:#bdc3c7!important;}
+.us-lb-rank-bronze{color:#cd7f32!important;}
+.us-lb-name{flex:1;font-size:.85rem;font-weight:600;color:#e0e0e0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.us-lb-val{font-family:'JetBrains Mono',monospace;font-size:.78rem;color:#aaa;white-space:nowrap;}
+.us-lb-dot{width:6px;height:6px;border-radius:50%;background:#2ecc71;display:inline-block;margin-left:4px;vertical-align:middle;}
+.us-lb-loading{text-align:center;padding:40px 0;color:#555;font-size:.85rem;}
+</style>
+
+<script>
+(function(){
+'use strict';
+
+// ── 1. ŞİFRE SIFIRLAMA ──────────────────────────────────────────────────────
+window._USForgot={
+  open:function(){
+    var m=document.getElementById('us-forgot-modal');
+    m.style.display='flex';
+    document.getElementById('us-forgot-success').style.display='none';
+    document.getElementById('us-forgot-form').style.display='';
+    document.getElementById('us-forgot-email').value='';
+    document.getElementById('us-forgot-msg').style.color='#aaa';
+    document.getElementById('us-forgot-msg').textContent='E-posta adresinizi girin, sıfırlama bağlantısı gönderelim.';
+    setTimeout(function(){document.getElementById('us-forgot-email').focus();},100);
+  },
+  close:function(){document.getElementById('us-forgot-modal').style.display='none';},
+  submit:async function(){
+    var email=document.getElementById('us-forgot-email').value.trim();
+    var btn=document.getElementById('us-forgot-btn');
+    var msg=document.getElementById('us-forgot-msg');
+    if(!email){msg.style.color='#e74c3c';msg.textContent='E-posta adresi gerekli.';return;}
+    btn.disabled=true;btn.textContent='Gönderiliyor...';btn.style.opacity='.6';
+    try{
+      await fetch('/api/auth/forgot-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email})});
+      document.getElementById('us-forgot-form').style.display='none';
+      document.getElementById('us-forgot-success').style.display='';
+    }catch(e){
+      msg.style.color='#e74c3c';msg.textContent='Bir hata oluştu. Tekrar deneyin.';
+      btn.disabled=false;btn.textContent='SIFIRLAMA BAĞLANTISI GÖNDER';btn.style.opacity='1';
+    }
+  }
+};
+
+window._USReset={
+  _token:null,_userId:null,
+  open:function(token,userId){
+    this._token=token;this._userId=userId;
+    document.getElementById('us-reset-modal').style.display='flex';
+    document.getElementById('us-reset-success').style.display='none';
+    document.getElementById('us-reset-btn').style.display='';
+    document.getElementById('us-reset-alert').style.display='none';
+    document.getElementById('us-reset-pw1').value='';
+    document.getElementById('us-reset-pw2').value='';
+  },
+  submit:async function(){
+    var pw1=document.getElementById('us-reset-pw1').value;
+    var pw2=document.getElementById('us-reset-pw2').value;
+    var btn=document.getElementById('us-reset-btn');
+    var al=document.getElementById('us-reset-alert');
+    al.style.display='none';
+    if(!pw1||pw1.length<8){al.style.display='';al.textContent='En az 8 karakter giriniz.';return;}
+    if(pw1!==pw2){al.style.display='';al.textContent='Şifreler eşleşmiyor.';return;}
+    btn.disabled=true;btn.textContent='Güncelleniyor...';btn.style.opacity='.6';
+    try{
+      var res=await fetch('/api/auth/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:this._userId,token:this._token,newPassword:pw1})});
+      var data=await res.json();
+      if(data.success){
+        document.getElementById('us-reset-btn').style.display='none';
+        document.getElementById('us-reset-success').style.display='';
+        history.replaceState({},'','/');
+      }else{
+        al.style.display='';al.textContent=data.message||'Bağlantı geçersiz veya süresi dolmuş.';
+        btn.disabled=false;btn.textContent='ŞİFREYİ GÜNCELLE';btn.style.opacity='1';
+      }
+    }catch(e){
+      al.style.display='';al.textContent='Sunucu hatası, tekrar deneyin.';
+      btn.disabled=false;btn.textContent='ŞİFREYİ GÜNCELLE';btn.style.opacity='1';
+    }
+  }
+};
+
+// URL parametrelerini kontrol et
+(function(){
+  var p=new URLSearchParams(window.location.search);
+  var rt=p.get('resetToken'),uid=p.get('userId'),ev=p.get('emailVerified');
+  if(rt&&uid){
+    window.addEventListener('load',function(){setTimeout(function(){window._USReset.open(rt,uid);},800);});
+  }
+  if(ev==='1'){
+    window.addEventListener('load',function(){
+      setTimeout(function(){
+        var b=document.createElement('div');
+        b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:999999;background:#27ae60;color:#fff;text-align:center;padding:14px;font-family:DM Sans,sans-serif;font-size:.9rem;font-weight:600;box-shadow:0 2px 12px rgba(0,0,0,.3);';
+        b.textContent='✅ E-posta adresiniz başarıyla doğrulandı! Artık tüm özelliklere erişebilirsiniz.';
+        document.body.insertBefore(b,document.body.firstChild);
+        setTimeout(function(){b.remove();},6000);
+        history.replaceState({},'','/');
+      },1000);
+    });
+  }
+})();
+
+// ── 2. LEADERBOARD PANELİ ───────────────────────────────────────────────────
+var _lbCache={},_lbLoaded=false,_lbTab='level',_lbOpen=false;
+
+function _fmt(n){
+  if(n===null||n===undefined)return'—';
+  if(n>=1e9)return(n/1e9).toFixed(1)+'B';
+  if(n>=1e6)return(n/1e6).toFixed(1)+'M';
+  if(n>=1e3)return(n/1e3).toFixed(1)+'K';
+  return String(n);
+}
+function _rankCls(r){
+  if(r===1)return'us-lb-rank us-lb-rank-gold';
+  if(r===2)return'us-lb-rank us-lb-rank-silver';
+  if(r===3)return'us-lb-rank us-lb-rank-bronze';
+  return'us-lb-rank';
+}
+function _medal(r){return r<=3?['🥇','🥈','🥉'][r-1]:String(r);}
+
+function _renderRows(type){
+  var list=document.getElementById('us-lb-list');
+  var data=_lbCache[type]||[];
+  if(!data.length){list.innerHTML='<div class="us-lb-loading">Veri yok ya da yükleniyor...</div>';return;}
+  var html='';
+  if(type==='gang'){
+    data.forEach(function(g){
+      html+='<div class="us-lb-row">'+
+        '<span class="'+_rankCls(g.rank)+'">'+_medal(g.rank)+'</span>'+
+        '<span class="us-lb-name">⚔️ '+(g.gangName||'?')+'</span>'+
+        '<span class="us-lb-val">💪'+_fmt(g.gangPower)+' <span style="color:#555;font-size:.7rem;">('+g.memberCount+' üye)</span></span>'+
+      '</div>';
+    });
+  }else{
+    var vk={level:'level',money:'money',bank:'totalWealth',score:'score'}[type]||type;
+    var vl={level:'Lv.',money:'₺',bank:'₺',score:''}[type]||'';
+    data.forEach(function(u){
+      html+='<div class="us-lb-row">'+
+        '<span class="'+_rankCls(u.rank)+'">'+_medal(u.rank)+'</span>'+
+        '<span class="us-lb-name">'+(u.username||'?')+(u.isOnline?'<span class="us-lb-dot"></span>':'')+'</span>'+
+        '<span class="us-lb-val">'+vl+_fmt(u[vk])+'</span>'+
+      '</div>';
+    });
+  }
+  list.innerHTML=html;
+}
+
+function _updateOnline(n){
+  var el=document.getElementById('us-online-count');
+  if(el)el.textContent=n+' çevrimiçi';
+}
+
+async function _loadAll(){
+  var list=document.getElementById('us-lb-list');
+  list.innerHTML='<div class="us-lb-loading">⏳ Yükleniyor...</div>';
+  try{
+    var res=await fetch('/api/leaderboard/all');
+    var data=await res.json();
+    if(data.success){
+      _lbCache=data.data||{};_lbLoaded=true;
+      document.getElementById('us-lb-updated').textContent='Güncellendi: '+new Date().toLocaleTimeString('tr-TR');
+    }else{list.innerHTML='<div class="us-lb-loading" style="color:#e74c3c">Yüklenemedi</div>';return;}
+  }catch(e){list.innerHTML='<div class="us-lb-loading" style="color:#e74c3c">Sunucuya ulaşılamıyor</div>';return;}
+  _renderRows(_lbTab);
+  try{
+    var or=await fetch('/api/leaderboard/online');
+    var od=await or.json();
+    if(od.success){
+      _updateOnline(od.online||0);
+      var top=document.getElementById('us-lb-online-top');
+      if(top)top.textContent=(od.online||0)+' çevrimiçi';
+    }
+  }catch(e){}
+}
+
+window._USLeaderboard={
+  open:function(){var p=document.getElementById('us-lb-panel');p.style.display='flex';_lbOpen=true;if(!_lbLoaded)_loadAll();else _renderRows(_lbTab);},
+  close:function(){document.getElementById('us-lb-panel').style.display='none';_lbOpen=false;},
+  toggle:function(){_lbOpen?this.close():this.open();},
+  setTab:function(type){
+    _lbTab=type;
+    document.querySelectorAll('.us-lb-tab').forEach(function(t){t.classList.toggle('us-lb-tab-active',t.dataset.type===type);});
+    if(_lbLoaded)_renderRows(type);else _loadAll();
+  },
+  refresh:function(){_lbLoaded=false;_loadAll();}
+};
+
+// ── 3. ÇEVRİMİÇİ SAYAÇ ─────────────────────────────────────────────────────
+window.addEventListener('fb-sync',function(e){
+  if(e.detail&&e.detail.key==='onlineCount')_updateOnline(e.detail.value||0);
+});
+
+window.addEventListener('load',function(){
+  setTimeout(function(){
+    var badge=document.getElementById('us-online-badge');
+    if(badge)badge.style.display='flex';
+    fetch('/api/leaderboard/online').then(function(r){return r.json();}).then(function(d){if(d&&d.success)_updateOnline(d.online||0);}).catch(function(){});
+  },2000);
+  setInterval(function(){
+    fetch('/api/leaderboard/online').then(function(r){return r.json();}).then(function(d){
+      if(d&&d.success){
+        _updateOnline(d.online||0);
+        if(_lbOpen){var t=document.getElementById('us-lb-online-top');if(t)t.textContent=(d.online||0)+' çevrimiçi';}
+      }
+    }).catch(function(){});
+  },60000);
+});
+
+// ── 4. SAYFA YÜKLENINCE TOKEN DOĞRULAMA ─────────────────────────────────────
+window.addEventListener('load',function(){
+  var jwt=localStorage.getItem('us_jwt');
+  if(!jwt)return;
+  setTimeout(function(){
+    fetch('/api/auth/verify',{headers:{'Authorization':'Bearer '+jwt}})
+      .then(function(r){return r.json();})
+      .then(function(data){
+        if(!data.valid){
+          var rt=localStorage.getItem('us_refreshToken');
+          if(!rt){window.dispatchEvent(new CustomEvent('us-session-expired'));return;}
+          fetch('/api/auth/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refreshToken:rt})})
+            .then(function(r){return r.json();})
+            .then(function(d){
+              if(d.success&&d.token){
+                localStorage.setItem('us_jwt',d.token);
+                if(d.refreshToken)localStorage.setItem('us_refreshToken',d.refreshToken);
+                console.log('[Auth] Token yenilendi (sayfa yükleme) ✓');
+              }else{window.dispatchEvent(new CustomEvent('us-session-expired'));}
+            }).catch(function(){window.dispatchEvent(new CustomEvent('us-session-expired'));});
+        }else if(data.shouldRefresh){
+          var rt2=localStorage.getItem('us_refreshToken');
+          if(rt2){
+            fetch('/api/auth/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refreshToken:rt2})})
+              .then(function(r){return r.json();})
+              .then(function(d){
+                if(d.success&&d.token){
+                  localStorage.setItem('us_jwt',d.token);
+                  if(d.refreshToken)localStorage.setItem('us_refreshToken',d.refreshToken);
+                  console.log('[Auth] Token proaktif yenilendi ✓ (kalan:'+data.expiresIn+'s)');
+                }
+              }).catch(function(){});
+          }
+        }
+      }).catch(function(){});
+  },1500);
+});
+
+})();
+</script>
 
 </body>
 </html>

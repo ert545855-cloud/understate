@@ -64,6 +64,7 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: [
         "'self'", "'unsafe-inline'", "'unsafe-eval'",
+        'blob:',
         'https://cdn.jsdelivr.net',
         'https://cdnjs.cloudflare.com',
         'https://unpkg.com',
