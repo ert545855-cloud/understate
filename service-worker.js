@@ -1,13 +1,23 @@
-// UNDERSTATE Service Worker v1.0
-// Handles: offline cache, background sync, push notifications
+// UNDERSTATE Service Worker v2.0
+// Handles: offline cache, background sync, push notifications, app icons
 
-const CACHE_NAME = 'understate-v1';
+const CACHE_NAME = 'understate-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/css/styles.css',
-  '/audio/background.mp3',
+  '/favicon.ico',
+  // App icons (PWA + push notification badges)
+  '/icon-72.png',
+  '/icon-96.png',
+  '/icon-128.png',
+  '/icon-144.png',
+  '/icon-152.png',
+  '/icon-192.png',
+  '/icon-384.png',
+  '/icon-512.png',
+  // CDN assets
   'https://cdn.jsdelivr.net/npm/socket.io-client@4.7.2/dist/socket.io.min.js',
   'https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js',
   'https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js',
@@ -101,6 +111,13 @@ self.addEventListener('notificationclick', (event) => {
       if (clients.openWindow) return clients.openWindow(url);
     })
   );
+});
+
+// ── SKIP_WAITING message (güncelleme anında aktif et) ─────────────────────────
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // ── Background sync ───────────────────────────────────────────────────────────

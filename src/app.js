@@ -12507,8 +12507,108 @@ document.head.appendChild(styleEl);
 // ═══════════════════════════════════════════════════════
 // MOUNT
 // ═══════════════════════════════════════════════════════
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+// REACT ERROR BOUNDARY
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null, retryCount: 0 };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    this.setState({ errorInfo });
+    console.error('[UNDERSTATE ErrorBoundary] React hatas\u0131:', error, errorInfo);
+    try {
+      const jwt = localStorage.getItem('us_jwt');
+      if (jwt) {
+        fetch('/api/game/error-report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+          body: JSON.stringify({
+            message: String(error?.message || error).slice(0, 500),
+            stack: String(errorInfo?.componentStack || '').slice(0, 1000),
+            version: window.APP_V || '8.0',
+            ts: Date.now()
+          })
+        }).catch(() => {});
+      }
+    } catch(_) {}
+  }
+
+  handleRetry() {
+    this.setState(prev => ({ hasError: false, error: null, errorInfo: null, retryCount: prev.retryCount + 1 }));
+  }
+
+  render() {
+    if (!this.state.hasError) return this.props.children;
+
+    const dark = document.body.classList.contains('us-dark');
+    const bg   = dark ? '#060C18' : '#0A1628';
+    const card = dark ? '#0D1F3A' : '#0D2040';
+
+    return React.createElement('div', {
+      style: {
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        height: '100vh', width: '100vw', background: bg,
+        fontFamily: "'DM Sans', sans-serif", flexDirection: 'column', gap: '16px',
+        padding: '24px', textAlign: 'center'
+      }
+    },
+      React.createElement('img', {
+        src: '/icon-192.png', alt: 'UNDERSTATE',
+        style: { width: '72px', height: '72px', borderRadius: '18px', marginBottom: '8px', opacity: 0.8 }
+      }),
+      React.createElement('h2', {
+        style: { color: '#e74c3c', fontSize: '20px', fontWeight: 800, letterSpacing: '-0.5px' }
+      }, '\u26a0\ufe0f Beklenmedik Bir Hata Olu\u015ftu'),
+      React.createElement('p', {
+        style: { color: '#8BA0B8', fontSize: '13px', maxWidth: '320px', lineHeight: 1.5 }
+      }, 'Oyun ekran\u0131 y�klenirken bir sorun ya\u015fand\u0131. A\u015fa\u011f\u0131daki butona basarak tekrar deneyebilirsin.'),
+      this.state.error && React.createElement('div', {
+        style: {
+          background: card, border: '1px solid rgba(231,76,60,0.3)', borderRadius: '10px',
+          padding: '10px 14px', maxWidth: '340px', width: '100%'
+        }
+      },
+        React.createElement('code', {
+          style: { color: '#F87171', fontSize: '11px', wordBreak: 'break-word', display: 'block' }
+        }, String(this.state.error?.message || this.state.error).slice(0, 200))
+      ),
+      React.createElement('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' } },
+        React.createElement('button', {
+          onClick: () => this.handleRetry(),
+          style: {
+            background: 'linear-gradient(135deg,#2563EB,#1D4ED8)', color: '#fff',
+            border: 'none', borderRadius: '10px', padding: '12px 24px',
+            fontSize: '14px', fontWeight: 700, cursor: 'pointer'
+          }
+        }, '\ud83d\udd04 Tekrar Dene'),
+        React.createElement('button', {
+          onClick: () => { localStorage.clear(); location.reload(); },
+          style: {
+            background: 'rgba(255,255,255,0.06)', color: '#8BA0B8',
+            border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px',
+            padding: '12px 24px', fontSize: '14px', fontWeight: 600, cursor: 'pointer'
+          }
+        }, '\ud83d\uddd1\ufe0f �nbelle\u011fi Temizle & Yenile')
+      ),
+      this.state.retryCount > 0 && React.createElement('p', {
+        style: { color: '#5A7089', fontSize: '11px' }
+      }, `${this.state.retryCount}. deneme ba\u015far\u0131s\u0131z \u2014 tam yenileme deneyebilirsin`)
+    );
+  }
+}
+
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+// MOUNT
+// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(React.createElement(App));
+root.render(React.createElement(ErrorBoundary, null, React.createElement(App)));
 
 // Loading screen kapat (auth yoksa da bir süre sonra kapat)
 setTimeout(() => window._hideLoading?.(), 4000);

@@ -37,3 +37,9 @@ externalPort = 80
 [deployment]
 deploymentTarget = "vm"
 run = ["node", "server/index.js"]
+
+[userenv]
+
+[userenv.shared]
+NODE_ENV = "development"
+PORT = "5000"

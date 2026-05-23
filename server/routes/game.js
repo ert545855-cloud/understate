@@ -30,6 +30,16 @@ router.get('/me', authMiddleware, async (req, res) => {
   }
 });
 
+// Hata raporu (ErrorBoundary'den gelir — sessizce loglanır)
+router.post('/error-report', authMiddleware, (req, res) => {
+  try {
+    const { message, stack, version, ts } = req.body || {};
+    logger.warn(`[ErrorBoundary] user=${req.user?.username} v=${version} msg=${String(message || '').slice(0, 200)}`);
+    if (stack) logger.warn(`[ErrorBoundary] stack=${String(stack).slice(0, 400)}`);
+  } catch (_) {}
+  res.json({ success: true });
+});
+
 // Online oyuncu sayısı (public — money bilgisi gizlendi)
 router.get('/online', (req, res) => {
   const { getOnlineGamePlayers } = require('../socket/gameHandler');
