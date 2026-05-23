@@ -7,15 +7,15 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "start":           "node server/index.js",
-    "dev":             "node --watch server/index.js",
-    "start:legacy":    "node server.js",
-    "lint":            "node --check server/index.js server/routes/*.js server/auth/*.js server/middleware/*.js 2>&1 | head -20",
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "start:legacy": "node server.js",
+    "lint": "node --check server/index.js server/routes/*.js server/auth/*.js server/middleware/*.js 2>&1 | head -20",
     "android:prepare": "node scripts/prepare-android.js",
-    "android:sync":    "npm run android:prepare && npx cap sync android",
-    "android:open":    "npm run android:sync && npx cap open android",
-    "android:build":   "npm run android:sync && npx cap build android",
-    "android:run":     "npm run android:sync && npx cap run android"
+    "android:sync": "npm run android:prepare && npx cap sync android",
+    "android:open": "npm run android:sync && npx cap open android",
+    "android:build": "npm run android:sync && npx cap build android",
+    "android:run": "npm run android:sync && npx cap run android"
   },
   "dependencies": {
     "@capacitor-community/admob": "^7.2.0",
@@ -32,6 +32,7 @@
     "mongoose": "^8.10.1",
     "nodemailer": "^8.0.7",
     "socket.io": "^4.8.3",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "web-push": "^3.6.7"
   }
 }
