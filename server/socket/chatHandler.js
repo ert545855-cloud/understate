@@ -1,9 +1,17 @@
 const { filterMessage } = require('../utils/profanityFilter');
 const { checkPacketRate } = require('../utils/antiCheat');
 const { validatePacket, sanitizeString } = require('../middleware/sanitize');
+const { checkSocketRate } = require('../middleware/socketRateLimiter');
 const monitoring = require('../services/monitoringService');
 const logger = require('../utils/logger');
 const { MAX_CHAT_LENGTH, MAX_CHAT_RATE, CHAT_RATE_WINDOW } = require('../config/constants');
+const { getConnectionStatus } = require('../database/connection');
+
+let ChatMessage;
+function _getModel() {
+  if (!ChatMessage) ChatMessage = require('../models/ChatMessage');
+  return ChatMessage;
+}
 
 const chatRates = new Map();
 
@@ -23,11 +31,47 @@ function isSpamming(socketId) {
   return rate.count > MAX_CHAT_RATE;
 }
 
+// Kanal geçmiş mesajlarını çek (son 50)
+async function getChannelHistory(channel, limit = 50) {
+  if (!getConnectionStatus()) return [];
+  try {
+    const Model = _getModel();
+    const msgs = await Model.find({ channel })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+    return msgs.reverse().map(m => ({
+      id: m.msgId || m._id.toString(),
+      channel: m.channel,
+      message: m.message,
+      sender: m.sender,
+      userId: m.userId,
+      timestamp: m.createdAt.getTime(),
+    }));
+  } catch (err) {
+    logger.warn('[Chat] Geçmiş yüklenemedi:', err.message);
+    return [];
+  }
+}
+
 function registerChatHandlers(io, socket) {
-  socket.on('chat', (data) => {
+  // Kanal geçmişi isteği
+  socket.on('chatHistory', async (data) => {
+    if (!checkSocketRate(socket.id, 'chatHistory')) return;
+    const channel = sanitizeString(data?.channel || 'global').slice(0, 50);
+    const history = await getChannelHistory(channel);
+    socket.emit('chatHistory', { channel, messages: history });
+  });
+
+  // Yeni mesaj
+  socket.on('chat', async (data) => {
     if (!validatePacket(data, ['channel', 'message'])) return;
     if (!checkPacketRate(socket.id)) {
       socket.emit('error', { code: 'RATE_LIMIT', message: 'Çok hızlı mesaj gönderiyorsunuz' });
+      return;
+    }
+    if (!checkSocketRate(socket.id, 'chat')) {
+      socket.emit('error', { code: 'RATE_LIMIT', message: 'Mesaj limitini aştınız' });
       return;
     }
     if (isSpamming(socket.id)) {
@@ -35,21 +79,35 @@ function registerChatHandlers(io, socket) {
       return;
     }
 
-    const message = sanitizeString(data.message).slice(0, MAX_CHAT_LENGTH);
-    if (!message) return;
+    const rawMessage = sanitizeString(data.message).slice(0, MAX_CHAT_LENGTH);
+    if (!rawMessage) return;
 
-    const filtered = filterMessage(message);
+    const filtered = filterMessage(rawMessage);
+    const channel  = sanitizeString(data.channel).slice(0, 50);
+    const msgId    = data.id || `${Date.now()}_${socket.id.slice(0, 4)}`;
+
     const outgoing = {
-      id: data.id || `${Date.now()}_${socket.id.slice(0, 4)}`,
-      channel: sanitizeString(data.channel),
+      id: msgId,
+      channel,
       message: filtered,
-      sender: socket.username || 'Bilinmeyen',
-      userId: socket.userId || null,
+      sender:    socket.username || 'Bilinmeyen',
+      userId:    socket.userId   || null,
       timestamp: Date.now(),
     };
 
-    const channel = outgoing.channel;
+    // DB'ye kaydet (async — mesaj iletimini bloklamaz)
+    if (getConnectionStatus()) {
+      _getModel().create({
+        channel,
+        message:  filtered,
+        sender:   outgoing.sender,
+        userId:   outgoing.userId,
+        filtered: filtered !== rawMessage,
+        msgId,
+      }).catch(err => logger.warn('[Chat] DB kayıt hatası:', err.message));
+    }
 
+    // Emit
     if (channel.startsWith('room_')) {
       io.to(channel).emit('chat', outgoing);
     } else {
@@ -61,4 +119,8 @@ function registerChatHandlers(io, socket) {
   });
 }
 
-module.exports = { registerChatHandlers };
+function cleanupChatRates(socketId) {
+  chatRates.delete(socketId);
+}
+
+module.exports = { registerChatHandlers, cleanupChatRates, getChannelHistory };

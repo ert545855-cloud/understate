@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node server/index.js",
-    "dev": "node --watch server/index.js",
+    "dev": "nodemon server/index.js",
     "start:legacy": "node server.js",
     "lint": "node --check server/index.js server/routes/*.js server/auth/*.js server/middleware/*.js 2>&1 | head -20",
     "android:prepare": "node scripts/prepare-android.js",
@@ -31,8 +31,13 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.10.1",
     "nodemailer": "^8.0.7",
+    "phaser": "^4.1.0",
     "socket.io": "^4.8.3",
     "uuid": "^11.1.0",
-    "web-push": "^3.6.7"
+    "web-push": "^3.6.7",
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }
