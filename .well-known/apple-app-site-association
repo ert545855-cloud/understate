@@ -4,11 +4,17 @@
     "details": [
       {
         "appID": "TEAM_ID.com.understate.game",
-        "paths": ["*"]
+        "paths": ["*"],
+        "components": [
+          { "/": "/*" }
+        ]
       }
     ]
   },
   "webcredentials": {
+    "apps": ["TEAM_ID.com.understate.game"]
+  },
+  "activitycontinuation": {
     "apps": ["TEAM_ID.com.understate.game"]
   }
 }

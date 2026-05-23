@@ -45,6 +45,14 @@ const userSchema = new mongoose.Schema(
     // Full game snapshot
     gameData: { type: mongoose.Schema.Types.Mixed, default: {} },
 
+    // Push bildirimleri
+    pushSubscriptions: { type: [mongoose.Schema.Types.Mixed], default: [] },
+
+    // Email doğrulama
+    emailVerified:       { type: Boolean, default: false },
+    emailVerifyToken:    { type: String, default: null, select: false },
+    emailVerifyExpiry:   { type: Date, default: null },
+
     // Auth tokens
     refreshToken:      { type: String, default: null, select: false },
     resetToken:        { type: String, default: null, select: false },

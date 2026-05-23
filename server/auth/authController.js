@@ -4,6 +4,14 @@ const { signToken, signRefreshToken, verifyRefreshToken } = require('../config/j
 const logger = require('../utils/logger');
 const { getConnectionStatus } = require('../database/connection');
 const { RESET_TOKEN_EXPIRY_MS } = require('../config/constants');
+const mailService = require('../services/mailService');
+
+const EMAIL_VERIFY_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 saat
+
+function _baseUrl(req) {
+  return process.env.PUBLIC_URL
+    || (req ? `${req.protocol}://${req.get('host')}` : 'http://localhost:5000');
+}
 
 // ── Validation helpers ──────────────────────────────────────────────────────
 function validateUsername(u) {
@@ -51,11 +59,24 @@ async function register(req, res) {
       return res.status(409).json({ success: false, message: `${field} zaten kullanımda` });
     }
 
-    const user = await User.create({ username: cleanUsername, email: cleanEmail, password });
+    // Email doğrulama token'ı oluştur
+    const rawVerifyToken    = crypto.randomBytes(32).toString('hex');
+    const hashedVerifyToken = crypto.createHash('sha256').update(rawVerifyToken).digest('hex');
+
+    const user = await User.create({
+      username: cleanUsername, email: cleanEmail, password,
+      emailVerifyToken: hashedVerifyToken,
+      emailVerifyExpiry: new Date(Date.now() + EMAIL_VERIFY_EXPIRY_MS),
+    });
+
     const token        = signToken({ id: user._id, username: user.username, role: user.role });
     const refreshToken = signRefreshToken({ id: user._id });
-
     await User.findByIdAndUpdate(user._id, { refreshToken });
+
+    // Hoş geldin + doğrulama maili gönder (hata olursa engelleme)
+    const verifyUrl = `${_baseUrl(req)}/?verifyToken=${rawVerifyToken}&userId=${user._id}`;
+    mailService.sendWelcome(cleanEmail, cleanUsername).catch(() => {});
+    mailService.sendEmailVerification(cleanEmail, cleanUsername, verifyUrl).catch(() => {});
 
     logger.success(`Yeni kullanıcı: ${cleanUsername}`);
     res.status(201).json({ success: true, token, refreshToken, user: user.toPublicJSON() });
@@ -182,37 +203,17 @@ async function forgotPassword(req, res) {
       resetTokenExpiry: new Date(Date.now() + RESET_TOKEN_EXPIRY_MS),
     });
 
-    const resetUrl = `${process.env.PUBLIC_URL || 'http://localhost:5000'}/?resetToken=${rawToken}&userId=${user._id}`;
+    const resetUrl = `${_baseUrl(req)}/?resetToken=${rawToken}&userId=${user._id}`;
 
-    // Send email if nodemailer is configured
     try {
-      const nodemailer = require('nodemailer');
-      if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-        const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
-          port: parseInt(process.env.SMTP_PORT || '587'),
-          secure: process.env.SMTP_PORT === '465',
-          auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-        });
-        await transporter.sendMail({
-          from: process.env.SMTP_FROM || process.env.SMTP_USER,
-          to: user.email,
-          subject: 'UNDERSTATE — Şifre Sıfırlama',
-          html: `
-            <h2>Şifre Sıfırlama</h2>
-            <p>Merhaba <strong>${user.username}</strong>,</p>
-            <p>Şifrenizi sıfırlamak için aşağıdaki bağlantıya tıklayın:</p>
-            <a href="${resetUrl}" style="background:#4CAF50;color:#fff;padding:12px 24px;border-radius:4px;text-decoration:none;">Şifreyi Sıfırla</a>
-            <p>Bu bağlantı 1 saat geçerlidir.</p>
-            <p>Bu isteği siz yapmadıysanız bu emaili görmezden gelin.</p>
-          `,
-        });
-        logger.info(`Şifre sıfırlama emaili gönderildi: ${user.email}`);
+      const result = await mailService.sendPasswordReset(user.email, user.username, resetUrl);
+      if (result.ok) {
+        logger.info(`Şifre sıfırlama maili gönderildi: ${user.email}`);
       } else {
-        logger.warn(`SMTP ayarı yok. Sıfırlama URL: ${resetUrl}`);
+        logger.warn(`Şifre sıfırlama maili gönderilemedi: ${result.reason}`);
       }
     } catch (mailErr) {
-      logger.error('Email gönderme hatası:', mailErr.message);
+      logger.error('Mail hatası:', mailErr.message);
     }
 
     res.json({ success: true, message: 'Eğer bu email kayıtlıysa, sıfırlama bağlantısı gönderildi' });

@@ -18,7 +18,9 @@ const profileRoutes = require('./routes/profile');
 const leaderboardRoutes = require('./routes/leaderboard');
 const saveRoutes = require('./routes/save');
 const gameRoutes = require('./routes/game');
+const pushRoutes = require('./routes/push');
 const { router: adminRoutes, setIO: setAdminIO } = require('./routes/admin');
+const { init: initPush } = require('./services/pushService');
 
 const app = express();
 const server = http.createServer(app);
@@ -158,6 +160,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/save', saveRoutes);
 app.use('/api/game', gameRoutes);
+app.use('/api/push', pushRoutes);
 app.use('/api/admin', adminRoutes);
 
 // --- Health check ---
@@ -196,6 +199,7 @@ app.use((err, req, res, next) => {
 initSocket(io);
 setAdminIO(io);
 startGameEngine(io);
+initPush();
 
 const PORT = process.env.PORT || 5000;
 const HOST = '0.0.0.0';

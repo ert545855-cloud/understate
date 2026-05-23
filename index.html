@@ -1516,6 +1516,133 @@ window._US_AUDIO_SRC = "audio/background.mp3";
     });
   }
 
+  // ── Push Bildirim Sistemi ────────────────────────────────────────────────
+  window._pushManager = (function() {
+    var _reg = null;
+
+    // Push desteği var mı?
+    function isSupported() {
+      return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+    }
+
+    // Bildirim izni iste
+    async function requestPermission() {
+      if (!isSupported()) return 'unsupported';
+      var result = await Notification.requestPermission();
+      console.log('[Push] İzin:', result);
+      return result; // 'granted' | 'denied' | 'default'
+    }
+
+    // VAPID public key al ve abone ol
+    async function subscribe() {
+      if (!isSupported()) return { ok: false, reason: 'Desteklenmiyor' };
+      var jwt = localStorage.getItem('us_jwt');
+      if (!jwt) return { ok: false, reason: 'Giriş yapılmamış' };
+
+      try {
+        // İzin al
+        var perm = Notification.permission;
+        if (perm === 'denied') return { ok: false, reason: 'Bildirim engellendi' };
+        if (perm !== 'granted') {
+          perm = await requestPermission();
+          if (perm !== 'granted') return { ok: false, reason: 'İzin verilmedi' };
+        }
+
+        // VAPID key al
+        var keyRes = await fetch('/api/push/vapid-key');
+        var keyData = await keyRes.json();
+        if (!keyData.publicKey) return { ok: false, reason: 'VAPID key alınamadı' };
+
+        // SW kaydını al
+        _reg = await navigator.serviceWorker.ready;
+
+        // Abone ol
+        var sub = await _reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: _urlBase64ToUint8Array(keyData.publicKey)
+        });
+
+        // Sunucuya kaydet
+        var saveRes = await fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+          body: JSON.stringify({ subscription: sub.toJSON() })
+        });
+        var saveData = await saveRes.json();
+        console.log('[Push] Abone olundu ✓');
+        return { ok: saveData.success };
+      } catch (err) {
+        console.warn('[Push] Subscribe hatası:', err.message);
+        return { ok: false, reason: err.message };
+      }
+    }
+
+    // Aboneliği iptal et
+    async function unsubscribe() {
+      if (!isSupported()) return;
+      try {
+        _reg = _reg || await navigator.serviceWorker.ready;
+        var sub = await _reg.pushManager.getSubscription();
+        if (!sub) return;
+        var endpoint = sub.endpoint;
+        await sub.unsubscribe();
+        var jwt = localStorage.getItem('us_jwt');
+        if (jwt) {
+          await fetch('/api/push/unsubscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+            body: JSON.stringify({ endpoint })
+          });
+        }
+        console.log('[Push] Abonelik iptal edildi');
+      } catch (err) {
+        console.warn('[Push] Unsubscribe hatası:', err.message);
+      }
+    }
+
+    // Mevcut abonelik durumu
+    async function getStatus() {
+      if (!isSupported()) return 'unsupported';
+      if (Notification.permission === 'denied') return 'denied';
+      try {
+        _reg = _reg || await navigator.serviceWorker.ready;
+        var sub = await _reg.pushManager.getSubscription();
+        return sub ? 'subscribed' : 'unsubscribed';
+      } catch { return 'unknown'; }
+    }
+
+    // Base64 → Uint8Array (VAPID key için gerekli)
+    function _urlBase64ToUint8Array(base64String) {
+      var padding = '='.repeat((4 - base64String.length % 4) % 4);
+      var base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+      var raw     = window.atob(base64);
+      var arr     = new Uint8Array(raw.length);
+      for (var i = 0; i < raw.length; ++i) arr[i] = raw.charCodeAt(i);
+      return arr;
+    }
+
+    return { isSupported, requestPermission, subscribe, unsubscribe, getStatus };
+  })();
+
+  // ── URL param kontrolleri ────────────────────────────────────────────────
+  (function() {
+    var params = new URLSearchParams(window.location.search);
+
+    // Email doğrulama başarılı
+    if (params.get('emailVerified') === '1') {
+      window.history.replaceState({}, '', '/');
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          var banner = document.createElement('div');
+          banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:#10B981;color:#fff;text-align:center;padding:14px 16px;font-family:sans-serif;font-size:14px;font-weight:600;';
+          banner.textContent = '✅ E-posta adresin doğrulandı! Hesabın aktif.';
+          document.body.insertBefore(banner, document.body.firstChild);
+          setTimeout(function() { banner.remove(); }, 6000);
+        }, 1500);
+      });
+    }
+  })();
+
   // ── Global Error Boundary ───────────────────────────────────────────────
   window.onerror = function(msg, src, line, col, err) {
     console.error('[ErrorBoundary]', msg, 'at', src, line + ':' + col);
