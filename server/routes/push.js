@@ -3,24 +3,25 @@ const router = express.Router();
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { adminMiddleware } = require('../middleware/adminMiddleware');
 const { sendPushToMany } = require('../services/pushService');
-const User = require('../models/User');
+const sb = require('../services/supabaseService');
 const logger = require('../utils/logger');
 
-// VAPID public key (tarayıcıya güvenli, şifreli değil)
 router.get('/vapid-key', (req, res) => {
   res.json({ publicKey: process.env.VAPID_PUBLIC_KEY || '' });
 });
 
-// Push aboneliği kaydet
 router.post('/subscribe', authMiddleware, async (req, res) => {
   try {
     const { subscription } = req.body;
-    if (!subscription?.endpoint) {
-      return res.status(400).json({ success: false, message: 'Geçersiz abonelik' });
+    if (!subscription?.endpoint) return res.status(400).json({ success: false, message: 'Geçersiz abonelik' });
+    if (!sb.isReady()) return res.json({ success: false, message: 'DB bağlı değil' });
+    const user = await sb.findUserById(req.user.id);
+    if (!user) return res.status(404).json({ success: false });
+    const subs = Array.isArray(user.push_subscriptions) ? user.push_subscriptions : [];
+    if (!subs.find(s => s.endpoint === subscription.endpoint)) {
+      subs.push(subscription);
+      await sb.updateUser(req.user.id, { push_subscriptions: subs });
     }
-    await User.findByIdAndUpdate(req.user.id, {
-      $addToSet: { pushSubscriptions: subscription }
-    });
     logger.info(`[Push] Abone: ${req.user.username}`);
     res.json({ success: true });
   } catch (err) {
@@ -29,32 +30,31 @@ router.post('/subscribe', authMiddleware, async (req, res) => {
   }
 });
 
-// Push aboneliğini sil
 router.post('/unsubscribe', authMiddleware, async (req, res) => {
   try {
     const { endpoint } = req.body;
     if (!endpoint) return res.status(400).json({ success: false });
-    await User.findByIdAndUpdate(req.user.id, {
-      $pull: { pushSubscriptions: { endpoint } }
-    });
+    if (!sb.isReady()) return res.json({ success: false });
+    const user = await sb.findUserById(req.user.id);
+    if (!user) return res.status(404).json({ success: false });
+    const subs = (user.push_subscriptions || []).filter(s => s.endpoint !== endpoint);
+    await sb.updateUser(req.user.id, { push_subscriptions: subs });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false });
   }
 });
 
-// Admin: tüm kullanıcılara push gönder
 router.post('/broadcast', adminMiddleware, async (req, res) => {
   try {
     const { title, body, url } = req.body;
     if (!title || !body) return res.status(400).json({ success: false, message: 'title ve body gerekli' });
-
-    const users = await User.find({ pushSubscriptions: { $exists: true, $not: { $size: 0 } } })
-                            .select('pushSubscriptions');
-    const allSubs = users.flatMap(u => u.pushSubscriptions || []);
-
+    if (!sb.isReady()) return res.json({ success: false, message: 'DB bağlı değil' });
+    const admin = sb.getAdmin();
+    const { data: users } = await admin.from('users').select('push_subscriptions').not('push_subscriptions', 'eq', '[]');
+    const allSubs = (users || []).flatMap(u => u.push_subscriptions || []);
     const payload = { title, body, icon: '/icon-192.png', badge: '/icon-72.png', url: url || '/' };
-    const result  = await sendPushToMany(allSubs, payload);
+    const result = await sendPushToMany(allSubs, payload);
     res.json({ success: true, ...result });
   } catch (err) {
     logger.error('[Push] Broadcast hatası:', err.message);
@@ -62,17 +62,15 @@ router.post('/broadcast', adminMiddleware, async (req, res) => {
   }
 });
 
-// Admin: belirli kullanıcıya push gönder
 router.post('/send/:userId', adminMiddleware, async (req, res) => {
   try {
     const { title, body, url } = req.body;
-    const user = await User.findById(req.params.userId).select('pushSubscriptions username');
+    if (!sb.isReady()) return res.json({ success: false });
+    const user = await sb.findUserById(req.params.userId);
     if (!user) return res.status(404).json({ success: false, message: 'Kullanıcı bulunamadı' });
-    if (!user.pushSubscriptions?.length) {
-      return res.json({ success: false, message: 'Kullanıcının push aboneliği yok' });
-    }
+    if (!user.push_subscriptions?.length) return res.json({ success: false, message: 'Kullanıcının push aboneliği yok' });
     const payload = { title, body, icon: '/icon-192.png', badge: '/icon-72.png', url: url || '/' };
-    const result  = await sendPushToMany(user.pushSubscriptions, payload);
+    const result = await sendPushToMany(user.push_subscriptions, payload);
     res.json({ success: true, ...result });
   } catch (err) {
     res.status(500).json({ success: false });

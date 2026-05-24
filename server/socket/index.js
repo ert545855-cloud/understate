@@ -5,24 +5,15 @@ const { registerRoomHandlers } = require('./roomHandler');
 const { registerGameHandlers, removeGamePlayer } = require('./gameHandler');
 const { createSocketRateLimitMiddleware, cleanupSocket: cleanupSocketRL } = require('../middleware/socketRateLimiter');
 const roomManager = require('../rooms/roomManager');
-const { saveUser, saveUserFull, startAutosave } = require('../services/saveService');
+const { saveUser, startAutosave } = require('../services/saveService');
 const { startMonitoringLog } = require('../services/monitoringService');
 const monitoring = require('../services/monitoringService');
 const antiCheat = require('../utils/antiCheat');
 const logger = require('../utils/logger');
-const { getConnectionStatus } = require('../database/connection');
-
-let _User;
-function _getUser() {
-  if (!_User) _User = require('../models/User');
-  return _User;
-}
+const sb = require('../services/supabaseService');
 
 function initSocket(io) {
-  // Auth middleware
   io.use(socketAuthMiddleware);
-
-  // Socket-level rate limiter (her event öncesi çalışır)
   io.use(createSocketRateLimitMiddleware(['ping', 'disconnect', 'connect', 'chatHistory']));
 
   io.on('connection', (socket) => {
@@ -31,12 +22,8 @@ function initSocket(io) {
     logger.socket('connected', socket.id, `user=${socket.username || 'guest'}`);
     io.emit('onlineCount', monitoring.getStats().connectedSockets);
 
-    // Kullanıcı bağlandığında isOnline=true, socketId güncelle
-    if (socket.userId && getConnectionStatus()) {
-      _getUser().findByIdAndUpdate(socket.userId, {
-        isOnline: true,
-        socketId: socket.id,
-      }).catch(() => {});
+    if (socket.userId && sb.isReady()) {
+      sb.updateUser(socket.userId, { is_online: true, socket_id: socket.id }).catch(() => {});
     }
 
     registerChatHandlers(io, socket);

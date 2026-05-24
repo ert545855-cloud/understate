@@ -1,39 +1,34 @@
 const { verifyToken } = require('../config/jwt');
-const User = require('../models/User');
+const sb = require('../services/supabaseService');
 const logger = require('../utils/logger');
 
 const ADMIN_USERNAMES = (process.env.ADMIN_USERS || 'admin').split(',').map(s => s.trim());
 
 async function adminMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!authHeader || !authHeader.startsWith('Bearer '))
     return res.status(401).json({ success: false, message: 'Token gerekli' });
-  }
   try {
     const decoded = verifyToken(authHeader.slice(7));
-
-    // Check both ENV list and DB role field (belt-and-suspenders)
     const isEnvAdmin = ADMIN_USERNAMES.includes(decoded.username);
-    const isDbAdmin = decoded.role === 'admin' || decoded.role === 'moderator';
-
-    if (!isEnvAdmin && !isDbAdmin) {
-      // One last DB check in case token role is stale
-      const user = await User.findById(decoded.id).select('role banned');
-      if (!user || !['admin', 'moderator'].includes(user.role)) {
-        logger.warn(`Admin erişim reddi: ${decoded.username}`);
+    const isRoleAdmin = decoded.role === 'admin' || decoded.role === 'moderator';
+    if (!isEnvAdmin && !isRoleAdmin) {
+      if (sb.isReady()) {
+        const user = await sb.findUserById(decoded.id);
+        if (!user || !['admin', 'moderator'].includes(user.role)) {
+          logger.warn(`Admin erişim reddi: ${decoded.username}`);
+          return res.status(403).json({ success: false, message: 'Admin yetkisi yok' });
+        }
+      } else {
         return res.status(403).json({ success: false, message: 'Admin yetkisi yok' });
       }
     }
-
-    req.user = decoded;
+    req.user = { id: decoded.id, username: decoded.username, role: decoded.role };
     next();
-  } catch (err) {
+  } catch {
     return res.status(401).json({ success: false, message: 'Geçersiz token' });
   }
 }
 
-function isAdminUsername(username) {
-  return ADMIN_USERNAMES.includes(username);
-}
-
+function isAdminUsername(u) { return ADMIN_USERNAMES.includes(u); }
 module.exports = { adminMiddleware, isAdminUsername };

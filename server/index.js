@@ -87,9 +87,9 @@ app.use(helmet({
       imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
       connectSrc: [
         "'self'", 'wss:', 'ws:',
-        'https://*.firebaseio.com',
+        'https://*.supabase.co',
+        'https://*.supabase.in',
         'https://*.googleapis.com',
-        'https://*.mongo.com',
       ],
       mediaSrc: ["'self'", 'blob:'],
       workerSrc: ["'self'", 'blob:'],
@@ -125,6 +125,10 @@ if (IS_PROD) {
 }
 
 // --- Static files ---
+app.use(express.static(path.join(__dirname, '../public'), {
+  maxAge: IS_PROD ? '1h' : 0,
+  etag: true,
+}));
 app.use(express.static(path.join(__dirname, '../'), {
   maxAge: IS_PROD ? '1h' : 0,
   etag: true,

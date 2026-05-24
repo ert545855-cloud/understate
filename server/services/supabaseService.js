@@ -6,6 +6,10 @@
 const { createClient } = require('@supabase/supabase-js');
 const logger = require('../utils/logger');
 
+// Node.js 20 için ws paketi gerekli (native WebSocket yok)
+let wsImpl;
+try { wsImpl = require('ws'); } catch { wsImpl = null; }
+
 const SUPABASE_URL          = process.env.SUPABASE_URL          || '';
 const SUPABASE_SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || '';
 const SUPABASE_ANON_KEY     = process.env.SUPABASE_ANON_KEY     || '';
@@ -13,10 +17,17 @@ const SUPABASE_ANON_KEY     = process.env.SUPABASE_ANON_KEY     || '';
 let _admin = null;  // service_role client
 let _anon  = null;  // anon client (frontend ile aynı)
 
+function _clientOpts(extra = {}) {
+  const opts = { ...extra };
+  if (wsImpl) opts.global = { WebSocket: wsImpl };
+  return opts;
+}
+
 function getAdmin() {
   if (!_admin && SUPABASE_URL && SUPABASE_SERVICE_KEY) {
     _admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-      auth: { autoRefreshToken: false, persistSession: false }
+      auth: { autoRefreshToken: false, persistSession: false },
+      realtime: wsImpl ? { transport: wsImpl } : {},
     });
     logger.success('Supabase admin client hazır ✓');
   }
@@ -25,7 +36,9 @@ function getAdmin() {
 
 function getAnon() {
   if (!_anon && SUPABASE_URL && SUPABASE_ANON_KEY) {
-    _anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    _anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      realtime: wsImpl ? { transport: wsImpl } : {},
+    });
   }
   return _anon;
 }

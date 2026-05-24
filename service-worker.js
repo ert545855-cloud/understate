@@ -1,13 +1,18 @@
 // UNDERSTATE Service Worker v2.0
 // Handles: offline cache, background sync, push notifications, app icons
 
-const CACHE_NAME = 'understate-v2';
+const CACHE_NAME = 'understate-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/css/styles.css',
   '/favicon.ico',
+  '/js/supabase.min.js',
+  '/js/react.min.js',
+  '/js/react-dom.min.js',
+  '/js/babel.min.js',
+  '/js/socket.io.min.js',
   // App icons (PWA + push notification badges)
   '/icon-72.png',
   '/icon-96.png',
@@ -17,11 +22,6 @@ const STATIC_ASSETS = [
   '/icon-192.png',
   '/icon-384.png',
   '/icon-512.png',
-  // CDN assets
-  'https://cdn.jsdelivr.net/npm/socket.io-client@4.7.2/dist/socket.io.min.js',
-  'https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js',
-  'https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js',
-  'https://cdn.jsdelivr.net/npm/@babel/standalone@7.24.7/babel.min.js',
 ];
 
 // ── Install: cache static assets ─────────────────────────────────────────────
@@ -55,6 +55,19 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/socket.io')) return;
   if (url.pathname.startsWith('/api/')) return;
   if (url.protocol === 'chrome-extension:') return;
+  // Always fetch JS/CSS files from network (prevents MIME-type cache corruption)
+  if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
+    event.respondWith(
+      fetch(event.request).then(res => {
+        if (res && res.status === 200) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
+        }
+        return res;
+      }).catch(() => caches.match(event.request))
+    );
+    return;
+  }
 
   // Network-first for HTML (always fresh)
   if (event.request.headers.get('Accept')?.includes('text/html')) {
