@@ -104,7 +104,7 @@ app.use(helmet({
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   xssFilter: true,
   noSniff: true,
-  frameguard: { action: 'deny' },
+  frameguard: IS_PROD ? { action: 'sameorigin' } : false,
 }));
 
 // --- Core middleware ---
