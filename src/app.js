@@ -601,7 +601,19 @@ function AuthScreen({ onLogin }) {
               </> : (tab==='login' ? '→ Giriş Yap' : '→ Hesap Oluştur')}
             </button>
 
-          </div>
+          
+            {tab==='login' && (
+              <div style={{textAlign:'center',marginTop:'1rem'}}>
+                <button type="button"
+                  onClick={()=>{ if(window._USForgot) window._USForgot.open(); }}
+                  style={{background:'none',border:'none',color:'rgba(255,255,255,0.35)',fontSize:'0.8rem',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",textDecoration:'underline',textDecorationColor:'rgba(255,255,255,0.15)',letterSpacing:'0.02em',padding:'4px 8px'}}
+                  onMouseOver={e=>e.target.style.color='rgba(255,255,255,0.7)'}
+                  onMouseOut={e=>e.target.style.color='rgba(255,255,255,0.35)'}>
+                  ^ifremi unuttum?
+                </button>
+              </div>
+            )}
+</div>
           </form>
         </div>
 

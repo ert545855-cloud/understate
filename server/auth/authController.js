@@ -1,19 +1,21 @@
-const crypto = require('crypto');
-const User = require('../models/User');
+/**
+ * Auth Controller — Supabase PostgreSQL versiyonu
+ * MongoDB kaldırıldı, tüm user operations supabaseService üzerinden.
+ */
+const crypto  = require('crypto');
+const bcrypt  = require('bcryptjs');
+const sb      = require('../services/supabaseService');
 const { signToken, signRefreshToken, verifyRefreshToken } = require('../config/jwt');
-const logger = require('../utils/logger');
-const { getConnectionStatus } = require('../database/connection');
-const { RESET_TOKEN_EXPIRY_MS } = require('../config/constants');
+const logger  = require('../utils/logger');
+const { RESET_TOKEN_EXPIRY_MS, BCRYPT_ROUNDS } = require('../config/constants');
 const mailService = require('../services/mailService');
 
-const EMAIL_VERIFY_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 saat
+const EMAIL_VERIFY_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
 function _baseUrl(req) {
-  return process.env.PUBLIC_URL
-    || (req ? `${req.protocol}://${req.get('host')}` : 'http://localhost:5000');
+  return process.env.PUBLIC_URL || (req ? `${req.protocol}://${req.get('host')}` : 'http://localhost:5000');
 }
 
-// ── Validation helpers ──────────────────────────────────────────────────────
 function validateUsername(u) {
   if (!u || typeof u !== 'string') return 'Kullanıcı adı gerekli';
   const t = u.trim();
@@ -35,55 +37,86 @@ function validatePassword(p) {
   return null;
 }
 
+function userToPublic(u) {
+  return {
+    id:               u.id,
+    username:         u.username,
+    email:            u.email,
+    role:             u.role,
+    banned:           u.banned,
+    banReason:        u.ban_reason,
+    level:            u.level,
+    xp:               u.xp,
+    money:            u.money,
+    bankMoney:        u.bank_money,
+    underCoin:        u.under_coin,
+    hp:               u.hp,
+    score:            u.score,
+    creditScore:      u.credit_score,
+    meritPoints:      u.merit_points,
+    loyaltyPoints:    u.loyalty_points,
+    city:             u.city,
+    position:         u.position_tag,
+    educationLevel:   u.education_level,
+    educationProgress:u.education_progress,
+    inventory:        u.inventory,
+    equippedItems:    u.equipped_items,
+    holdings:         u.holdings,
+    gameData:         u.game_data,
+    lastLogin:        u.last_login,
+    createdAt:        u.created_at,
+    emailVerified:    u.email_verified,
+  };
+}
+
 // ── Register ────────────────────────────────────────────────────────────────
 async function register(req, res) {
   try {
-    if (!getConnectionStatus())
+    if (!sb.isReady())
       return res.status(503).json({ success: false, message: 'Veritabanı bağlı değil' });
 
     const { username, email, password } = req.body;
 
-    const uErr = validateUsername(username);
-    if (uErr) return res.status(400).json({ success: false, message: uErr });
-    const eErr = validateEmail(email);
-    if (eErr) return res.status(400).json({ success: false, message: eErr });
-    const pErr = validatePassword(password);
-    if (pErr) return res.status(400).json({ success: false, message: pErr });
+    const uErr = validateUsername(username); if (uErr) return res.status(400).json({ success: false, message: uErr });
+    const eErr = validateEmail(email);       if (eErr) return res.status(400).json({ success: false, message: eErr });
+    const pErr = validatePassword(password); if (pErr) return res.status(400).json({ success: false, message: pErr });
 
     const cleanUsername = username.trim();
     const cleanEmail    = email.trim().toLowerCase();
 
-    const existing = await User.findOne({ $or: [{ username: cleanUsername }, { email: cleanEmail }] });
-    if (existing) {
-      const field = existing.username === cleanUsername ? 'Kullanıcı adı' : 'Email';
-      return res.status(409).json({ success: false, message: `${field} zaten kullanımda` });
-    }
+    // Check duplicate
+    const [existU, existE] = await Promise.all([
+      sb.findUserByUsername(cleanUsername),
+      sb.findUserByEmail(cleanEmail),
+    ]);
+    if (existU) return res.status(409).json({ success: false, message: 'Kullanıcı adı zaten kullanımda' });
+    if (existE) return res.status(409).json({ success: false, message: 'Email zaten kullanımda' });
 
-    // Email doğrulama token'ı oluştur
+    const passwordHash      = await bcrypt.hash(password, BCRYPT_ROUNDS);
     const rawVerifyToken    = crypto.randomBytes(32).toString('hex');
     const hashedVerifyToken = crypto.createHash('sha256').update(rawVerifyToken).digest('hex');
 
-    const user = await User.create({
-      username: cleanUsername, email: cleanEmail, password,
-      emailVerifyToken: hashedVerifyToken,
-      emailVerifyExpiry: new Date(Date.now() + EMAIL_VERIFY_EXPIRY_MS),
+    const { ok, user, error } = await sb.createUser({
+      username:            cleanUsername,
+      email:               cleanEmail,
+      password_hash:       passwordHash,
+      email_verify_token:  hashedVerifyToken,
+      email_verify_expiry: new Date(Date.now() + EMAIL_VERIFY_EXPIRY_MS).toISOString(),
     });
+    if (!ok) return res.status(500).json({ success: false, message: error || 'Kayıt başarısız' });
 
-    const token        = signToken({ id: user._id, username: user.username, role: user.role });
-    const refreshToken = signRefreshToken({ id: user._id });
-    await User.findByIdAndUpdate(user._id, { refreshToken });
+    const token        = signToken({ id: user.id, username: user.username, role: user.role });
+    const refreshToken = signRefreshToken({ id: user.id });
+    await sb.updateUser(user.id, { refresh_token: refreshToken });
 
-    // Hoş geldin + doğrulama maili gönder (hata olursa engelleme)
-    const verifyUrl = `${_baseUrl(req)}/?verifyToken=${rawVerifyToken}&userId=${user._id}`;
+    const verifyUrl = `${_baseUrl(req)}/api/auth/verify-email?token=${rawVerifyToken}&userId=${user.id}`;
     mailService.sendWelcome(cleanEmail, cleanUsername).catch(() => {});
     mailService.sendEmailVerification(cleanEmail, cleanUsername, verifyUrl).catch(() => {});
 
     logger.success(`Yeni kullanıcı: ${cleanUsername}`);
-    res.status(201).json({ success: true, token, refreshToken, user: user.toPublicJSON() });
+    res.status(201).json({ success: true, token, refreshToken, user: userToPublic(user) });
   } catch (err) {
     logger.error('Register hatası:', err.message);
-    if (err.code === 11000)
-      return res.status(409).json({ success: false, message: 'Bu kullanıcı adı veya email zaten kayıtlı' });
     res.status(500).json({ success: false, message: 'Sunucu hatası' });
   }
 }
@@ -91,39 +124,35 @@ async function register(req, res) {
 // ── Login ───────────────────────────────────────────────────────────────────
 async function login(req, res) {
   try {
-    if (!getConnectionStatus())
+    if (!sb.isReady())
       return res.status(503).json({ success: false, message: 'Veritabanı bağlı değil' });
 
     const { username, password } = req.body;
-    if (!username || typeof username !== 'string' || username.trim().length < 1)
-      return res.status(400).json({ success: false, message: 'Kullanıcı adı gerekli' });
-    if (!password || typeof password !== 'string')
-      return res.status(400).json({ success: false, message: 'Şifre gerekli' });
-    if (username.length > 100 || password.length > 256)
-      return res.status(400).json({ success: false, message: 'Geçersiz giriş' });
+    if (!username || !password)
+      return res.status(400).json({ success: false, message: 'Kullanıcı adı ve şifre gerekli' });
 
-    const user = await User.findOne({
-      $or: [{ username: username.trim() }, { email: username.trim().toLowerCase() }],
-    }).select('+password +refreshToken');
-
-    // Timing-safe: always run compare even if user not found
-    const validPw = user ? await user.comparePassword(password) : false;
-    if (!user || !validPw)
-      return res.status(401).json({ success: false, message: 'Geçersiz kullanıcı adı veya şifre' });
+    const user = await sb.findUserByUsernameOrEmail(username.trim());
+    if (!user)
+      return res.status(401).json({ success: false, message: 'Kullanıcı bulunamadı' });
 
     if (user.banned)
-      return res.status(403).json({ success: false, message: 'Hesabınız banlanmıştır: ' + (user.banReason || '') });
+      return res.status(403).json({ success: false, message: `Hesabınız banlanmıştır: ${user.ban_reason || ''}` });
 
-    const token        = signToken({ id: user._id, username: user.username, role: user.role });
-    const newRefresh   = signRefreshToken({ id: user._id });
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid)
+      return res.status(401).json({ success: false, message: 'Hatalı şifre' });
 
-    user.lastLogin  = new Date();
-    user.isOnline   = true;
-    user.refreshToken = newRefresh;
-    await user.save();
+    const token        = signToken({ id: user.id, username: user.username, role: user.role });
+    const newRefresh   = signRefreshToken({ id: user.id });
 
-    logger.success(`Giriş: ${user.username}`);
-    res.json({ success: true, token, refreshToken: newRefresh, user: user.toPublicJSON() });
+    await sb.updateUser(user.id, {
+      refresh_token: newRefresh,
+      last_login:    new Date().toISOString(),
+      is_online:     true,
+    });
+
+    logger.info(`Giriş: ${user.username}`);
+    res.json({ success: true, token, refreshToken: newRefresh, user: userToPublic(user) });
   } catch (err) {
     logger.error('Login hatası:', err.message);
     res.status(500).json({ success: false, message: 'Sunucu hatası' });
@@ -133,10 +162,10 @@ async function login(req, res) {
 // ── Logout ──────────────────────────────────────────────────────────────────
 async function logout(req, res) {
   try {
-    await User.findByIdAndUpdate(req.user.id, {
-      isOnline: false,
-      refreshToken: null,
-      socketId: null,
+    await sb.updateUser(req.user.id, {
+      refresh_token: null,
+      is_online:     false,
+      socket_id:     null,
     });
     logger.info(`Çıkış: ${req.user.username}`);
     res.json({ success: true, message: 'Çıkış yapıldı' });
@@ -154,23 +183,20 @@ async function refreshToken(req, res) {
       return res.status(400).json({ success: false, message: 'Refresh token gerekli' });
 
     let decoded;
-    try {
-      decoded = verifyRefreshToken(token);
-    } catch {
-      return res.status(401).json({ success: false, message: 'Geçersiz veya süresi dolmuş refresh token' });
-    }
+    try { decoded = verifyRefreshToken(token); }
+    catch { return res.status(401).json({ success: false, message: 'Geçersiz veya süresi dolmuş refresh token' }); }
 
-    const user = await User.findById(decoded.id).select('+refreshToken');
-    if (!user || user.refreshToken !== token)
+    const user = await sb.findUserById(decoded.id);
+    if (!user || user.refresh_token !== token)
       return res.status(401).json({ success: false, message: 'Token geçersiz' });
 
     if (user.banned)
       return res.status(403).json({ success: false, message: 'Hesabınız banlanmıştır' });
 
-    const newAccess  = signToken({ id: user._id, username: user.username, role: user.role });
-    const newRefresh = signRefreshToken({ id: user._id });
+    const newAccess  = signToken({ id: user.id, username: user.username, role: user.role });
+    const newRefresh = signRefreshToken({ id: user.id });
 
-    await User.findByIdAndUpdate(user._id, { refreshToken: newRefresh });
+    await sb.updateUser(user.id, { refresh_token: newRefresh });
 
     res.json({ success: true, token: newAccess, refreshToken: newRefresh });
   } catch (err) {
@@ -182,39 +208,27 @@ async function refreshToken(req, res) {
 // ── Forgot Password ──────────────────────────────────────────────────────────
 async function forgotPassword(req, res) {
   try {
-    if (!getConnectionStatus())
+    if (!sb.isReady())
       return res.status(503).json({ success: false, message: 'Veritabanı bağlı değil' });
 
     const { email } = req.body;
-    if (!email || typeof email !== 'string')
-      return res.status(400).json({ success: false, message: 'Email gerekli' });
+    if (!email) return res.status(400).json({ success: false, message: 'Email gerekli' });
 
-    // Always respond success to prevent email enumeration
-    const user = await User.findOne({ email: email.trim().toLowerCase() });
-    if (!user) {
-      return res.json({ success: true, message: 'Eğer bu email kayıtlıysa, sıfırlama bağlantısı gönderildi' });
-    }
+    const user = await sb.findUserByEmail(email.trim().toLowerCase());
+    if (!user) return res.json({ success: true, message: 'Eğer bu email kayıtlıysa, sıfırlama bağlantısı gönderildi' });
 
-    const rawToken  = crypto.randomBytes(32).toString('hex');
-    const hashedTok = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const rawToken    = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
 
-    await User.findByIdAndUpdate(user._id, {
-      resetToken:       hashedTok,
-      resetTokenExpiry: new Date(Date.now() + RESET_TOKEN_EXPIRY_MS),
+    await sb.updateUser(user.id, {
+      reset_token:        hashedToken,
+      reset_token_expiry: new Date(Date.now() + RESET_TOKEN_EXPIRY_MS).toISOString(),
     });
 
-    const resetUrl = `${_baseUrl(req)}/?resetToken=${rawToken}&userId=${user._id}`;
-
-    try {
-      const result = await mailService.sendPasswordReset(user.email, user.username, resetUrl);
-      if (result.ok) {
-        logger.info(`Şifre sıfırlama maili gönderildi: ${user.email}`);
-      } else {
-        logger.warn(`Şifre sıfırlama maili gönderilemedi: ${result.reason}`);
-      }
-    } catch (mailErr) {
-      logger.error('Mail hatası:', mailErr.message);
-    }
+    const resetUrl = `${_baseUrl(req)}/?resetToken=${rawToken}&userId=${user.id}`;
+    mailService.sendPasswordReset(user.email, user.username, resetUrl)
+      .then(r => { if (!r.ok) logger.warn('Şifre sıfırlama maili gönderilemedi:', r.reason); })
+      .catch(e => logger.error('Mail hatası:', e.message));
 
     res.json({ success: true, message: 'Eğer bu email kayıtlıysa, sıfırlama bağlantısı gönderildi' });
   } catch (err) {
@@ -226,7 +240,7 @@ async function forgotPassword(req, res) {
 // ── Reset Password ───────────────────────────────────────────────────────────
 async function resetPassword(req, res) {
   try {
-    if (!getConnectionStatus())
+    if (!sb.isReady())
       return res.status(503).json({ success: false, message: 'Veritabanı bağlı değil' });
 
     const { userId, token, newPassword } = req.body;
@@ -236,21 +250,18 @@ async function resetPassword(req, res) {
     const pErr = validatePassword(newPassword);
     if (pErr) return res.status(400).json({ success: false, message: pErr });
 
-    const hashedTok = crypto.createHash('sha256').update(token).digest('hex');
-    const user = await User.findOne({
-      _id: userId,
-      resetToken: hashedTok,
-      resetTokenExpiry: { $gt: new Date() },
-    }).select('+resetToken +resetTokenExpiry');
-
-    if (!user)
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await sb.findUserByResetToken(hashedToken);
+    if (!user || user.id !== userId)
       return res.status(400).json({ success: false, message: 'Geçersiz veya süresi dolmuş bağlantı' });
 
-    user.password        = newPassword;
-    user.resetToken      = null;
-    user.resetTokenExpiry = null;
-    user.refreshToken    = null;
-    await user.save();
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    await sb.updateUser(user.id, {
+      password_hash:      passwordHash,
+      reset_token:        null,
+      reset_token_expiry: null,
+      refresh_token:      null,
+    });
 
     logger.info(`Şifre sıfırlandı: ${user.username}`);
     res.json({ success: true, message: 'Şifreniz başarıyla değiştirildi. Yeniden giriş yapın.' });
@@ -263,15 +274,15 @@ async function resetPassword(req, res) {
 // ── Get Profile ──────────────────────────────────────────────────────────────
 async function getProfile(req, res) {
   try {
-    if (!getConnectionStatus())
+    if (!sb.isReady())
       return res.status(503).json({ success: false, message: 'Veritabanı bağlı değil' });
-    const user = await User.findById(req.user.id);
+    const user = await sb.findUserById(req.user.id);
     if (!user) return res.status(404).json({ success: false, message: 'Kullanıcı bulunamadı' });
-    res.json({ success: true, user: user.toPublicJSON() });
+    res.json({ success: true, user: userToPublic(user) });
   } catch (err) {
-    logger.error('Profile hatası:', err.message);
+    logger.error('GetProfile hatası:', err.message);
     res.status(500).json({ success: false, message: 'Sunucu hatası' });
   }
 }
 
-module.exports = { register, login, logout, refreshToken, forgotPassword, resetPassword, getProfile };
+module.exports = { register, login, logout, refreshToken, forgotPassword, resetPassword, getProfile, userToPublic };

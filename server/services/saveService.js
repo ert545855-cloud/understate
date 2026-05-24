@@ -1,46 +1,34 @@
-const mongoose = require('mongoose');
-const User = require('../models/User');
+/**
+ * Save Service — Supabase versiyonu
+ * MongoDB kaldırıldı, tüm game data saves supabaseService üzerinden.
+ */
+const sb = require('./supabaseService');
 const logger = require('../utils/logger');
-const { getConnectionStatus } = require('../database/connection');
 const { AUTOSAVE_INTERVAL } = require('../config/constants');
 
 const pendingSaves = new Map();
 
-const TOP_LEVEL_FIELDS = [
-  'level', 'xp', 'money', 'bankMoney', 'underCoin', 'hp',
-  'score', 'creditScore', 'meritPoints', 'loyaltyPoints',
-  'city', 'position', 'educationLevel', 'educationProgress',
-  'inventory', 'equippedItems', 'holdings', 'gameData',
-];
+async function saveUserGameData(userId, data) {
+  if (!sb.isReady() || !userId) return false;
+  return sb.saveUserGameData(userId, data);
+}
 
+// Hafif save (sadece lastSeen / isOnline)
+async function saveUser(userId, meta = {}) {
+  if (!sb.isReady() || !userId) return false;
+  const update = {};
+  if (meta.lastSeen !== undefined) update.last_login = new Date(meta.lastSeen).toISOString();
+  if (meta.isOnline  !== undefined) update.is_online  = meta.isOnline;
+  if (Object.keys(update).length === 0) return true;
+  return sb.updateUser(userId, update);
+}
+
+// Tam oyun verisi kaydet
 async function saveUserFull(userId, data) {
-  if (!getConnectionStatus() || !userId) return false;
-  if (!mongoose.isValidObjectId(userId)) return false; // skip non-MongoDB IDs (e.g. guest/admin_001)
-  try {
-    const updateFields = { lastLogin: new Date() };
-    for (const field of TOP_LEVEL_FIELDS) {
-      if (data[field] !== undefined) updateFields[field] = data[field];
-    }
-    await User.findByIdAndUpdate(userId, updateFields);
-    return true;
-  } catch (err) {
-    logger.error('Full save hatası:', err.message);
-    return false;
-  }
+  return saveUserGameData(userId, data);
 }
 
-async function saveUser(userId, gameData) {
-  if (!getConnectionStatus() || !userId) return false;
-  if (!mongoose.isValidObjectId(userId)) return false;
-  try {
-    await User.findByIdAndUpdate(userId, { gameData, lastLogin: new Date() });
-    return true;
-  } catch (err) {
-    logger.error('Save hatası:', err.message);
-    return false;
-  }
-}
-
+// 3 saniye debounce ile tasarruflu kayıt
 function scheduleSave(userId, data) {
   if (pendingSaves.has(userId)) clearTimeout(pendingSaves.get(userId).timer);
   const timer = setTimeout(async () => {
@@ -50,14 +38,15 @@ function scheduleSave(userId, data) {
   pendingSaves.set(userId, { timer, data });
 }
 
+// Otomatik kayıt — her AUTOSAVE_INTERVAL ms'de online oyuncuları kaydeder
 function startAutosave(io, getUserData) {
   setInterval(async () => {
-    const onlinePlayers = getUserData();
-    const entries = Object.entries(onlinePlayers);
+    const players = getUserData();
+    const entries = Object.entries(players);
     for (const [userId, data] of entries) {
       await saveUserFull(userId, data);
     }
-    if (entries.length > 0) logger.debug(`Autosave: ${entries.length} oyuncu`);
+    if (entries.length > 0) logger.debug(`Autosave: ${entries.length} oyuncu (Supabase)`);
   }, AUTOSAVE_INTERVAL);
 }
 

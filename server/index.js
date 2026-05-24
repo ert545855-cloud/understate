@@ -138,9 +138,11 @@ app.use(express.static(path.join(__dirname, '../'), {
 // --- Public config endpoint (safe to expose) ---
 app.get('/api/config', (req, res) => {
   res.json({
-    socketUrl: PUBLIC_URL || '',
-    env: process.env.NODE_ENV || 'development',
-    version: process.env.npm_package_version || '1.0.0',
+    socketUrl:       PUBLIC_URL || '',
+    env:             process.env.NODE_ENV || 'development',
+    version:         process.env.npm_package_version || '1.0.0',
+    supabaseUrl:     process.env.SUPABASE_URL     || '',
+    supabaseAnonKey: process.env.SUPABASE_ANON_KEY || '',
   });
 });
 
