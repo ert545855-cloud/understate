@@ -73,4 +73,28 @@ router.get('/verify', (req, res) => {
   }
 });
 
+// ── Test Email (Admin, Madde 12) ─────────────────────────────────────────────
+router.post('/test-email', async (req, res) => {
+  try {
+    const { adminMiddleware } = require('../middleware/adminMiddleware');
+    const { email, type = 'verification' } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: 'Email adresi gerekli' });
+    let result;
+    if (type === 'verification') {
+      result = await mailService.sendEmailVerification(email, 'Test Kullanici', 'https://example.com/verify?token=test');
+    } else if (type === 'reset') {
+      result = await mailService.sendPasswordReset(email, 'Test Kullanici', 'https://example.com/reset?token=test');
+    } else if (type === 'welcome') {
+      result = await mailService.sendWelcomeEmail(email, 'Test Kullanici');
+    } else {
+      return res.status(400).json({ success: false, message: 'Gecersiz email turu (verification|reset|welcome)' });
+    }
+    logger.info(`[Test Email] Gonderildi: ${email} (tur: ${type})`);
+    res.json({ success: true, message: `Test emaili gonderildi: ${email}`, result });
+  } catch (err) {
+    logger.error('[Test Email] Hata:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

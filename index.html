@@ -145,7 +145,7 @@
 
         // global_chat değişiklikleri
         sb.channel('chat_changes')
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'global_chat' }, (payload) => {
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload) => {
             try {
               const msg = payload.new;
               const channel = msg.channel || 'global';
@@ -294,7 +294,7 @@
 
         // Chat gönder (Supabase + Socket.IO)
         window._sbSendChat = function(msg) {
-          sb.from('global_chat').insert({
+          sb.from('chat_messages').insert({
             id: msg.id || undefined,
             sender_id: msg.senderId || null,
             sender: msg.sender || 'Anonim',
@@ -1020,10 +1020,14 @@ window._US_AUDIO_SRC = "audio/background.mp3";
     async function sendSubscriptionToServer(sub) {
       if (!sub) return;
       try {
-        await fetch('/api/push-subscribe', {
+        var token = localStorage.getItem('understate_token') || '';
+        await fetch('/api/push/subscribe', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(sub)
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({ subscription: sub })
         });
         console.log('[Push] Sunucuya kaydedildi ✓');
       } catch(e) {

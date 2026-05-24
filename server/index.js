@@ -20,13 +20,19 @@ const saveRoutes = require('./routes/save');
 const gameRoutes = require('./routes/game');
 const pushRoutes = require('./routes/push');
 const { router: adminRoutes, setIO: setAdminIO } = require('./routes/admin');
+const { router: electionRoutes, setIO: setElectionIO } = require('./routes/election');
 const { init: initPush } = require('./services/pushService');
 
 const app = express();
 const server = http.createServer(app);
 
-// --- Public URL / CORS origins ---
-const PUBLIC_URL = process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || null;
+// --- Public URL / CORS origins (Madde 16) ---
+const REPLIT_DEV_DOMAIN = process.env.REPLIT_DEV_DOMAIN
+  ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null;
+const PUBLIC_URL = process.env.PUBLIC_URL
+  || process.env.RENDER_EXTERNAL_URL
+  || REPLIT_DEV_DOMAIN
+  || null;
 const IS_PROD = process.env.NODE_ENV === 'production';
 
 const allowedOrigins = ['http://localhost:5000', 'http://localhost:3000'];
@@ -45,7 +51,7 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
-// --- Socket.IO ---
+// --- Socket.IO (Madde 15: bağlantı limitleri) ---
 const io = new Server(server, {
   cors: {
     origin: IS_PROD ? allowedOrigins : '*',
@@ -54,7 +60,27 @@ const io = new Server(server, {
   },
   pingTimeout: 60000,
   pingInterval: 25000,
-  maxHttpBufferSize: 2e6,
+  maxHttpBufferSize: 1e6,
+  connectTimeout: 10000,
+  transports: ['websocket', 'polling'],
+});
+
+// IP başına bağlantı limiti (max 10 eş zamanlı soket/IP)
+const ipConnections = new Map();
+io.use((socket, next) => {
+  const ip = socket.handshake.headers['x-forwarded-for']?.split(',')[0]?.trim()
+    || socket.handshake.address || 'unknown';
+  const count = ipConnections.get(ip) || 0;
+  if (count >= 10) {
+    return next(new Error('Çok fazla bağlantı'));
+  }
+  ipConnections.set(ip, count + 1);
+  socket.on('disconnect', () => {
+    const c = ipConnections.get(ip) || 1;
+    if (c <= 1) ipConnections.delete(ip);
+    else ipConnections.set(ip, c - 1);
+  });
+  next();
 });
 
 // --- Security headers via helmet ---
@@ -155,6 +181,36 @@ app.use('/.well-known', express.static(path.join(__dirname, '../.well-known'), {
   setHeaders: (res) => { res.setHeader('Content-Type', 'application/json'); }
 }));
 
+// --- Dynamic manifest.json (Madde 14: PWA domain güncel) ---
+app.get('/manifest.json', (req, res) => {
+  const host = PUBLIC_URL || `https://${req.headers.host}`;
+  res.setHeader('Content-Type', 'application/manifest+json');
+  res.json({
+    name: 'UNDERSTATE',
+    short_name: 'UNDERSTATE',
+    description: 'Cok oyunculu sehir ve devlet simulasyon oyunu',
+    display: 'standalone',
+    orientation: 'portrait-primary',
+    start_url: `${host}/`,
+    scope: `${host}/`,
+    background_color: '#0A1628',
+    theme_color: '#0A1628',
+    categories: ['games', 'strategy'],
+    lang: 'tr',
+    icons: [
+      { src: '/icon-72.png',  sizes: '72x72',   type: 'image/png', purpose: 'any maskable' },
+      { src: '/icon-96.png',  sizes: '96x96',   type: 'image/png', purpose: 'any maskable' },
+      { src: '/icon-128.png', sizes: '128x128', type: 'image/png', purpose: 'any maskable' },
+      { src: '/icon-144.png', sizes: '144x144', type: 'image/png', purpose: 'any maskable' },
+      { src: '/icon-152.png', sizes: '152x152', type: 'image/png', purpose: 'any maskable' },
+      { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+      { src: '/icon-384.png', sizes: '384x384', type: 'image/png', purpose: 'any maskable' },
+      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+    ],
+    prefer_related_applications: false,
+  });
+});
+
 // --- AdMob public config ---
 app.get('/api/admob-config', (req, res) => {
   const { getPublicAdConfig } = require('./config/admob');
@@ -169,6 +225,7 @@ app.use('/api/save', saveRoutes);
 app.use('/api/game', gameRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/election', electionRoutes);
 
 // --- Health check ---
 app.get('/health', (req, res) => {
@@ -205,6 +262,7 @@ app.use((err, req, res, next) => {
 // --- Init ---
 initSocket(io);
 setAdminIO(io);
+setElectionIO(io);
 startGameEngine(io);
 initPush();
 

@@ -1,4 +1,5 @@
 const logger = require('../utils/logger');
+const sb = require('./supabaseService');
 
 let _io = null;
 
@@ -98,37 +99,94 @@ function getRandomEvent() {
   return RANDOM_EVENTS[Math.floor(Math.random() * RANDOM_EVENTS.length)];
 }
 
-function startGameEngine(io) {
+// ── Supabase Persistence (Madde 10) ─────────────────────────────────────────
+
+async function loadEconomyFromDB() {
+  try {
+    if (!sb.isReady()) return;
+    const saved = await sb.getGameState('economy');
+    if (saved && saved.inflation !== undefined) {
+      state.economy = { ...state.economy, ...saved };
+      logger.info("[GameEngine] Ekonomi Supabase'den yuklendi");
+    }
+  } catch (err) {
+    logger.warn('[GameEngine] Ekonomi yukleme hatasi:', err.message);
+  }
+}
+
+async function saveEconomyToDB() {
+  try {
+    if (!sb.isReady()) return;
+    await sb.setGameState('economy', state.economy);
+  } catch (_) {}
+}
+
+async function saveGameEventToDB(event) {
+  try {
+    if (!sb.isReady()) return;
+    const admin = sb.getAdmin();
+    if (!admin) return;
+    await admin.from('game_events').insert([{
+      event_type: event.type,
+      title:      event.title,
+      message:    event.message,
+      effect:     event.type,
+      data:       event,
+    }]).catch(() => {});
+  } catch (_) {}
+}
+
+async function pushLeaderboard() {
+  try {
+    if (!_io || !sb.isReady()) return;
+    const data = await sb.getLeaderboardData(20);
+    if (data) _io.emit('leaderboardUpdate', data);
+  } catch (_) {}
+}
+
+// ── Engine Start ─────────────────────────────────────────────────────────────
+
+async function startGameEngine(io) {
   _io = io;
 
-  // Market her 30 saniyede güncelle
-  setInterval(() => {
+  // Supabase'den ekonomiyi yukle (Madde 10)
+  await loadEconomyFromDB();
+
+  // Market + economy tick her 30 saniyede
+  setInterval(async () => {
     if (!_io) return;
     state.tick++;
+
     const marketUpdates = tickMarket();
     _io.emit('marketSnapshot', marketUpdates);
 
-    // Her 5 dakikada ekonomi güncelle
+    // Her 5 dakikada ekonomi guncelle + kaydet
     if (state.tick % 10 === 0) {
       const econ = tickEconomy();
       _io.emit('economyUpdate', econ);
+      await saveEconomyToDB();
     }
 
     // Her 10 dakikada random event
     if (state.tick % 20 === 0 && Math.random() < 0.4) {
-      const event = getRandomEvent();
-      _io.emit('gameEvent', {
-        id: Date.now(),
-        type: event.effect,
-        title: event.title,
-        message: event.message,
+      const ev = getRandomEvent();
+      const gameEvent = {
+        id: Date.now(), type: ev.effect,
+        title: ev.title, message: ev.message,
         timestamp: Date.now(),
-      });
-      logger.debug(`Game event: ${event.title}`);
+      };
+      _io.emit('gameEvent', gameEvent);
+      await saveGameEventToDB(gameEvent);
+      logger.debug(`Game event: ${ev.title}`);
+    }
+
+    // Her 2 dakikada leaderboard push (Madde 5)
+    if (state.tick % 4 === 0) {
+      pushLeaderboard();
     }
   }, 30 * 1000);
 
-  // İlk market snapshot'ı hemen gönder (yeni bağlanan için)
+  // Ilk market snapshot hemen gonder
   setTimeout(() => {
     if (_io) {
       _io.emit('marketSnapshot', Object.values(state.market));
@@ -136,15 +194,10 @@ function startGameEngine(io) {
     }
   }, 3000);
 
-  logger.success('Game Engine başlatıldı (market + ekonomi simülasyonu)');
+  logger.success('Game Engine baslatildi (market + ekonomi + persistence) ✓');
 }
 
-function getMarketSnapshot() {
-  return Object.values(state.market);
-}
-
-function getEconomyState() {
-  return state.economy;
-}
+function getMarketSnapshot() { return Object.values(state.market); }
+function getEconomyState()   { return state.economy; }
 
 module.exports = { startGameEngine, getMarketSnapshot, getEconomyState };

@@ -35,6 +35,13 @@
   "server": {
     "androidScheme": "https",
     "cleartext": false,
-    "hostname": "understate.game"
+    "hostname": "understate.game",
+    "url": "https://ce43cb2b-461d-441f-b333-5888f9055766-00-isd6ukq0jhus.pike.replit.dev",
+    "allowNavigation": [
+      "*.replit.dev",
+      "*.supabase.co",
+      "fonts.googleapis.com",
+      "fonts.gstatic.com"
+    ]
   }
 }
