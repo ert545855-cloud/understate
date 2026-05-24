@@ -8137,6 +8137,7 @@ ${lawList}`,"Numara","number",{min:1,max:activeLaws.length});
     { id:"achievements", icon:"🏅",  label:t("achievements") },
     { id:"sinav",        icon:"📝",  label:"Sınavlar" },
     { id:"genelkurmay",  icon:"⚔️",  label:"Genelkurmay" },
+    { id:"army",         icon:"🪖",  label:"Ordu" },
     { id:"flash",        icon:"⚡",  label:"Flash Görev" },
     { id:"techtree",     icon:"🔬",  label:"Teknoloji Ağacı" },
     // ─── 🏙️ ŞEHİR VE ÇEVRE ─────────────────────────────────────
@@ -8477,7 +8478,7 @@ ${lawList}`,"Numara","number",{min:1,max:activeLaws.length});
           {(()=>{
             const groups = [
               {label:"🏠 Ana",        ids:["dashboard","profile","qolsettings","notifcenter","achievements","history","ai"]},
-              {label:"🏛️ Siyaset",    ids:["government","parliament","election_v4","election","parties","laws","anket","scandal","budget","campaign","alliances","interior","finance","trade","health","adalet","prestige","taxinfo","positionpanel"]},
+              {label:"🏛️ Siyaset",    ids:["government","parliament","election_v4","election","parties","laws","anket","scandal","budget","campaign","alliances","interior","finance","trade","health","adalet","prestige","taxinfo","positionpanel","genelkurmay","army"]},
               {label:"💼 Ekonomi",    ids:["holdings","bank","stock","market2","mining","fabrika","commodity","rawchain","tezgah","ixport","auction","crafting","luxury","sigorta","lottery","ortakliisler","vergimuhasebe"]},
               {label:"🕵️ Suç",       ids:["gangs","families","arazi","sehirsavasi","pvp","spy","court","police","paraliordu","kale","intlwar"]},
               {label:"🗣️ Sosyal",    ids:["social","globalchat","sehirchat","dm","members","newspaper","activityfeed"]},
