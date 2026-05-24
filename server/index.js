@@ -137,7 +137,6 @@ app.use(helmet({
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: false, limit: '2mb' }));
-app.use(generalLimiter);
 app.use(sanitizeInput);
 
 // HTTPS redirect in production
@@ -164,6 +163,9 @@ app.use(express.static(path.join(__dirname, '../'), {
     }
   },
 }));
+
+// --- Rate limiting for API routes only (not static assets) ---
+app.use('/api', generalLimiter);
 
 // --- Public config endpoint (safe to expose) ---
 app.get('/api/config', (req, res) => {

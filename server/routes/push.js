@@ -50,8 +50,7 @@ router.post('/broadcast', adminMiddleware, async (req, res) => {
     const { title, body, url } = req.body;
     if (!title || !body) return res.status(400).json({ success: false, message: 'title ve body gerekli' });
     if (!sb.isReady()) return res.json({ success: false, message: 'DB bağlı değil' });
-    const admin = sb.getAdmin();
-    const { data: users } = await admin.from('users').select('push_subscriptions').not('push_subscriptions', 'eq', '[]');
+    const { rows: users } = await sb.query("SELECT push_subscriptions FROM users WHERE push_subscriptions IS NOT NULL AND push_subscriptions != '[]'::jsonb");
     const allSubs = (users || []).flatMap(u => u.push_subscriptions || []);
     const payload = { title, body, icon: '/icon-192.png', badge: '/icon-72.png', url: url || '/' };
     const result = await sendPushToMany(allSubs, payload);

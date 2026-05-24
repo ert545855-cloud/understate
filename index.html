@@ -406,7 +406,7 @@ _advanceBar(10, 'Başlatılıyor...');
 
 // ── IndexedDB cache (fast reload after first visit) ──────────────────────────
 var IDB_NAME = 'us_cache_v2';
-var IDB_KEY  = 'compiled_v210_major';
+var IDB_KEY  = 'compiled_v212_fix';
 
 function idbGet(key, cb) {
   try {
@@ -454,19 +454,39 @@ function execCode(code) {
   } catch(e) { _showError('Kod calistirilamadi: ' + e.message); }
 }
 
-// Fetch src/app.js (pre-compiled), cache in IDB
+// Fetch src/app.js + new screen components, cache in IDB
+var SCREEN_FILES = [
+  'src/screens/PowerTriangleScreen.js',
+  'src/screens/TenderScreen.js',
+  'src/screens/UnionScreen.js',
+  'src/screens/GangTreasuryScreen.js',
+  'src/screens/PartyCenterScreen.js',
+  'src/screens/ArmyScreen.js',
+];
+
 function compileAndRun() {
   _advanceBar(82, 'Oyun yükleniyor...');
-  fetch('src/app.js?v=' + IDB_KEY)
-    .then(function(r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.text();
-    })
-    .then(function(compiled) {
+  var allFetches = SCREEN_FILES.map(function(f) {
+    return fetch(f + '?v=' + IDB_KEY)
+      .then(function(r) { return r.ok ? r.text() : ''; })
+      .catch(function() { return ''; });
+  });
+  allFetches.push(
+    fetch('src/app.js?v=' + IDB_KEY)
+      .then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      })
+  );
+  Promise.all(allFetches)
+    .then(function(results) {
+      var screenCode = results.slice(0, SCREEN_FILES.length).join('\n');
+      var appCode    = results[results.length - 1];
+      var combined   = screenCode + '\n' + appCode;
       _advanceBar(94, 'Önbelleğe kaydediliyor...');
-      idbSet(IDB_KEY, compiled, function() {
+      idbSet(IDB_KEY, combined, function() {
         _advanceBar(98, 'Başlatılıyor...');
-        execCode(compiled);
+        execCode(combined);
       });
     })
     .catch(function(err) { _showError('app.js yüklenemedi: ' + err.message); });

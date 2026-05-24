@@ -903,6 +903,7 @@ const NAV_GROUPS = [
       { id:'factory',    icon:'🏭', svgIcon:'factory',    label:'Fabrika',       rgb:'245,158,11' },
       { id:'mining',     icon:'⛏️',                       label:'Maden',         rgb:'161,97,40'  },
       { id:'education',  icon:'🎓', svgIcon:'education',  label:'Eğitim',        rgb:'59,130,246' },
+      { id:'unions',     icon:'🏭',                        label:'Sendikalar',    rgb:'16,185,129'  },
       { id:'daily',      icon:'📅',                        label:'Görevler',      rgb:'245,158,11' },
     ],
   },
@@ -919,6 +920,8 @@ const NAV_GROUPS = [
       { id:'tournament', icon:'🎯',                   label:'Turnuva',   rgb:'239,68,68'  },
       { id:'crisis',     icon:'🚨',                   label:'Kriz',      rgb:'239,68,68'  },
       { id:'crime',      icon:'⚖️', svgIcon:'law',   label:'Mahkeme',   rgb:'239,68,68'  },
+      { id:'gang_treasury', icon:'💰', label:'Çete Kasası',   rgb:'239,68,68'  },
+      { id:'army_system',   icon:'🪖', label:'Ordu Sistemi',  rgb:'239,68,68'  },
     ],
   },
   {
@@ -938,6 +941,9 @@ const NAV_GROUPS = [
       { id:'alliance',        icon:'🤝',                        label:'İttifak',    rgb:'96,165,250' },
       { id:'world',           icon:'🌍',                        label:'Dünya',      rgb:'59,130,246' },
       { id:'npcplayers',      icon:'🤖',                        label:'NPC',        rgb:'99,102,241' },
+      { id:'power_triangle', icon:'⚡', label:'Güç Üçgeni',    rgb:'245,200,66' },
+      { id:'tenders',        icon:'🏗️', label:'İhaleler',      rgb:'245,200,66' },
+      { id:'party_center',   icon:'🏛️', label:'Parti Merkezi', rgb:'167,139,250' },
       { id:'wiki',            icon:'📚',                        label:'Wiki',       rgb:'59,130,246' },
     ],
   },
@@ -10829,6 +10835,12 @@ function App() {
             {page==='yetkilerim'     && <YetkilerimPage    {...pageProps} />}
             {page==='election_events'&& <EventsPage        {...pageProps} />}
             {page==='teamwar'        && <TeamWarPage       {...pageProps} />}
+            {page==='power_triangle' && window.PowerTriangleScreen && React.createElement(window.PowerTriangleScreen, {cu:profile||{},setCurrentPage:setPage,families:(()=>{try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return [];}})(),gangs:(()=>{try{return JSON.parse(localStorage.getItem('rep_gangs')||'[]');}catch{return [];}})(),parties:(()=>{try{return JSON.parse(localStorage.getItem('rep_parties')||'[]');}catch{return [];}})(),allUsers:onlinePlayers||[]})}
+            {page==='tenders' && window.TenderScreen && React.createElement(window.TenderScreen, {cu:profile||{},setCurrentPage:setPage,families:(()=>{try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return [];}})(),allUsers:onlinePlayers||[]})}
+            {page==='unions' && window.UnionScreen && React.createElement(window.UnionScreen, {cu:profile||{},setCurrentPage:setPage,allUsers:onlinePlayers||[],families:(()=>{try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return [];}})()})}
+            {page==='gang_treasury' && window.GangTreasuryScreen && React.createElement(window.GangTreasuryScreen, {cu:profile||{},setCurrentPage:setPage,gangs:(()=>{try{return JSON.parse(localStorage.getItem('rep_gangs')||'[]');}catch{return [];}})(),allUsers:onlinePlayers||[]})}
+            {page==='party_center' && window.PartyCenterScreen && React.createElement(window.PartyCenterScreen, {cu:profile||{},setCurrentPage:setPage,parties:(()=>{try{return JSON.parse(localStorage.getItem('rep_parties')||'[]');}catch{return [];}})(),allUsers:onlinePlayers||[],families:(()=>{try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return [];}})()})}
+            {page==='army_system' && window.ArmyScreen && React.createElement(window.ArmyScreen, {cu:profile||{},setCurrentPage:setPage,allUsers:onlinePlayers||[]})}
           </div>
 
           <BottomNav page={page} onChange={setPage} items={navItems} notifMap={{ chat: notifications.filter(n=>n.type==='message'&&Date.now()-n.ts<300000).length }} />

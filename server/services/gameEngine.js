@@ -124,15 +124,10 @@ async function saveEconomyToDB() {
 async function saveGameEventToDB(event) {
   try {
     if (!sb.isReady()) return;
-    const admin = sb.getAdmin();
-    if (!admin) return;
-    await admin.from('game_events').insert([{
-      event_type: event.type,
-      title:      event.title,
-      message:    event.message,
-      effect:     event.type,
-      data:       event,
-    }]).catch(() => {});
+    await sb.query(
+      'INSERT INTO game_events (event_type, title, message, effect, data) VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING',
+      [event.type, event.title, event.message, event.type, JSON.stringify(event)]
+    ).catch(() => {});
   } catch (_) {}
 }
 
