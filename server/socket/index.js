@@ -12,6 +12,8 @@ const antiCheat = require('../utils/antiCheat');
 const logger = require('../utils/logger');
 const sb = require('../services/supabaseService');
 
+function getConnectionStatus() { return sb.isReady(); }
+
 function initSocket(io) {
   io.use(socketAuthMiddleware);
   io.use(createSocketRateLimitMiddleware(['ping', 'disconnect', 'connect', 'chatHistory']));
@@ -42,26 +44,18 @@ function initSocket(io) {
     socket.on('stateUpdate', (data) => {
       if (!socket.userId || !data) return;
       if (getConnectionStatus()) {
-        const allowed = ['level','xp','money','bankMoney','hp','score','city','position',
-                         'educationLevel','educationProgress','inventory','equippedItems',
-                         'holdings','gameData','underCoin','creditScore','meritPoints','loyaltyPoints'];
-        const update = {};
-        for (const k of allowed) {
-          if (data[k] !== undefined) update[k] = data[k];
-        }
-        if (Object.keys(update).length) {
-          _getUser().findByIdAndUpdate(socket.userId, update).catch(() => {});
-        }
+        const { scheduleSave } = require('../services/saveService');
+        scheduleSave(socket.userId, data);
       }
     });
 
     // Logout senkronizasyonu — isOnline=false + socketId temizle
     socket.on('userLogout', async () => {
       if (socket.userId && getConnectionStatus()) {
-        await _getUser().findByIdAndUpdate(socket.userId, {
-          isOnline: false,
-          socketId: null,
-          refreshToken: null,
+        await sb.updateUser(socket.userId, {
+          is_online: false,
+          socket_id: null,
+          refresh_token: null,
         }).catch(() => {});
         logger.info(`[Socket] Logout sync: ${socket.username}`);
       }
@@ -86,9 +80,9 @@ function initSocket(io) {
 
       // isOnline=false + socketId temizle
       if (socket.userId && getConnectionStatus()) {
-        await _getUser().findByIdAndUpdate(socket.userId, {
-          isOnline: false,
-          socketId: null,
+        await sb.updateUser(socket.userId, {
+          is_online: false,
+          socket_id: null,
         }).catch(() => {});
       }
 
