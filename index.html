@@ -72,6 +72,49 @@
 #mil-banner[style*="flex"] { animation:milBannerSlide 0.4s cubic-bezier(0.25,0.46,0.45,0.94) forwards, milBannerPulse 1.5s ease-in-out infinite; }
 </style>
 
+<!-- ═══ Meclis Banner ═══ -->
+<div id="mec-banner" style="
+  display:none;
+  position:fixed;
+  top:0; left:50%; transform:translateX(-50%);
+  width:min(100vw,480px);
+  z-index:9997;
+  background:linear-gradient(135deg,#050d1f 0%,#0a1f4a 50%,#050d1f 100%);
+  border-bottom:2px solid #60A5FA;
+  box-shadow:0 4px 32px rgba(96,165,250,0.45);
+  padding:0;
+  font-family:'DM Sans',sans-serif;
+">
+  <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;">
+    <span id="mec-banner-icon" style="font-size:1.5rem;flex-shrink:0;">🏛️</span>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:0.62rem;color:#60A5FA;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:1px;">⚑ MECLİS KARARI</div>
+      <div id="mec-banner-text" style="font-size:0.85rem;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+      <div id="mec-banner-sub" style="font-size:0.65rem;color:#94A3B8;margin-top:1px;"></div>
+    </div>
+    <button onclick="document.getElementById('mec-banner').style.display='none'" style="
+      background:rgba(255,255,255,0.08);border:none;border-radius:8px;
+      color:#94A3B8;font-size:0.85rem;cursor:'pointer';padding:4px 8px;flex-shrink:0;
+    ">✕</button>
+  </div>
+  <div id="mec-banner-bar" style="height:2px;background:#60A5FA;width:100%;transform-origin:left;"></div>
+</div>
+<style>
+@keyframes mecBannerSlide {
+  from { transform:translateX(-50%) translateY(-100%); opacity:0; }
+  to   { transform:translateX(-50%) translateY(0);    opacity:1; }
+}
+@keyframes mecBannerTimer {
+  from { transform:scaleX(1); }
+  to   { transform:scaleX(0); }
+}
+@keyframes mecBannerPulse {
+  0%,100% { box-shadow:0 4px 32px rgba(96,165,250,0.45); }
+  50%      { box-shadow:0 4px 48px rgba(96,165,250,0.8); }
+}
+</style>
+
+
 
 <!-- LOADING SCREEN -->
 <div id="loading-screen" style="position:fixed;inset:0;z-index:9999;background:#050505;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;font-family:'DM Sans',sans-serif;">
@@ -154,7 +197,7 @@ _advanceBar(10, 'Başlatılıyor...');
 
 // ── IndexedDB cache (fast reload after first visit) ──────────────────────────
 var IDB_NAME = 'us_cache_v2';
-var IDB_KEY  = 'compiled_v213_fixed';
+var IDB_KEY  = 'compiled_v214_meclis';
 
 function idbGet(key, cb) {
   try {
@@ -513,6 +556,33 @@ function boot() {
       applyStateUpdate('electionState', data);
     });
 
+    // ── Meclis decision banner ─────────────────────────────────────────────
+    function showMeclisBanner(payload) {
+      var b = document.getElementById('mec-banner');
+      if (!b) return;
+      document.getElementById('mec-banner-icon').textContent = payload.icon || '🏛️';
+      document.getElementById('mec-banner-text').textContent = payload.title || 'Meclis Kararı';
+      document.getElementById('mec-banner-sub').textContent  = '⚑ ' + (payload.party || 'Meclis') + ' — ' + (payload.by || '');
+      // If military banner visible, push meclis banner down
+      var milB = document.getElementById('mil-banner');
+      var offset = (milB && milB.style.display !== 'none') ? (milB.offsetHeight || 64) : 0;
+      b.style.top = offset + 'px';
+      // Reset and show
+      b.style.display = 'none';
+      void b.offsetWidth;
+      b.style.animation = 'mecBannerSlide 0.4s cubic-bezier(0.25,0.46,0.45,0.94) forwards, mecBannerPulse 1.5s ease-in-out 0.4s infinite';
+      var bar = document.getElementById('mec-banner-bar');
+      bar.style.animation = 'none';
+      void bar.offsetWidth;
+      bar.style.animation = 'mecBannerTimer 5s linear forwards';
+      b.style.display = 'flex';
+      b.style.flexDirection = 'column';
+      clearTimeout(window._mecBannerTimer);
+      window._mecBannerTimer = setTimeout(function() {
+        b.style.display = 'none';
+      }, 5000);
+    }
+
     // ── Military order banner ──────────────────────────────────────────────
     function showMilitaryBanner(order, chief) {
       var b = document.getElementById('mil-banner');
@@ -548,6 +618,10 @@ function boot() {
         // Show banner for military orders
         if (data && data.type === 'militaryOrder' && data.payload) {
           showMilitaryBanner(data.payload.order || {}, data.payload.chief || '');
+        }
+        // Show banner for Meclis decisions
+        if (data && data.type === 'meclisBanner' && data.payload) {
+          showMeclisBanner(data.payload);
         }
       } catch(e) {}
     });

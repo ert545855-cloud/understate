@@ -16,6 +16,16 @@ window.PartyCenterScreen = function PartyCenterScreen({ cu, parties, allUsers, f
   const [cabinet, setCabinet]     = React.useState(()=>S.load("cabinet",{}));
 
   const showMsg = (text, type="info") => { setMsg({text,type}); setTimeout(()=>setMsg(null),3000); };
+
+  const meclisBroadcast = (icon, title, by, party) => {
+    if (window._socket) {
+      window._socket.emit('gameEvent', {
+        type: 'meclisBanner',
+        payload: { icon, title, by: by || (cu && cu.username) || '?', party: party || (myParty && myParty.name) || 'Meclis' }
+      });
+    }
+  };
+
   const fmtMoney = (n) => { if(!n)return "₺0"; if(n>=1e9)return "₺"+(n/1e9).toFixed(1)+"Mlr"; if(n>=1e6)return "₺"+(n/1e6).toFixed(1)+"M"; if(n>=1e3)return "₺"+(n/1e3).toFixed(0)+"K"; return "₺"+n; };
 
   const partyArr = Array.isArray(parties)?parties:[];
@@ -52,6 +62,7 @@ window.PartyCenterScreen = function PartyCenterScreen({ cu, parties, allUsers, f
     const updated = [prop,...proposals];
     setProposals(updated); S.save("proposals",updated);
     setNewProp({title:"",description:"",type:"economy"});
+    meclisBroadcast("📜", "Yasa Teklifi: " + prop.title, prop.proposer, myParty.name);
     showMsg("Yasa teklifi sunuldu! ✓","success");
   };
 
@@ -67,6 +78,13 @@ window.PartyCenterScreen = function PartyCenterScreen({ cu, parties, allUsers, f
       return {...p,votes:{for:forV,against:againV},status};
     });
     setProposals(updated); S.save("proposals",updated);
+    // Broadcast when a proposal is decided
+    const decided = updated.find(p => p.id === id && (p.status === "passed" || p.status === "rejected"));
+    if (decided) {
+      const icon = decided.status === "passed" ? "✅" : "❌";
+      const label = decided.status === "passed" ? "KABUL EDİLDİ" : "REDDEDİLDİ";
+      meclisBroadcast(icon, decided.title + " — " + label, cu.username, myParty && myParty.name);
+    }
     showMsg("Oyunuz kaydedildi! ✓","success");
   };
 
@@ -85,6 +103,7 @@ window.PartyCenterScreen = function PartyCenterScreen({ cu, parties, allUsers, f
     if(!isLeader) return showMsg("Sadece lider atama yapabilir","error");
     const c = {...cabinet,[myParty?.id]:{...(cabinet[myParty?.id]||{}),[position]:username}};
     setCabinet(c); S.save("cabinet",c);
+    meclisBroadcast("🏅", username + " → " + position + " atandı", cu.username, myParty && myParty.name);
     showMsg(`${username} → ${position} atandı ✓`,"success");
   };
 
