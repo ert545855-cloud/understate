@@ -1,0 +1,74 @@
+Proje Yapısı Analizi
+Genel mimari oldukça düşünülmüş: Express + Socket.IO sunucusu, Supabase kalıcı depolama, JWT kimlik doğrulaması, Android/Capacitor desteği, PWA manifest, hız sınırlama, hile önleme modülü. Bunlar çok oyunculu için doğru seçimler.
+Çok oyunculu mod için yeterli mi?
+Kısmen evet. Socket.IO olacak, oda yönetimi, auth, Supabase gerçek zamanlı — bunlar sağlam. Ama kritik bir mimari sorun var: oyun mantığının tamamı (895 KB app.js) tarayıcıda çalışıyor ve localStorage'da durum geçerli. Sunucu sadece bu state'i diğer oyunculara yayın yapıyor. Bu, herhangi bir oyuncunun tarayıcı konsolundan localStorage.setItem('rep_economy', ...)görünen tüm oyunun manipüle edilebilir anlamında geliyor. Gerçek bir çok oyunculu oyun için kritik kararların (ekonomi değişiklikleri, savaş sonuçları, para transferleri) sunucu tarafında doğrulanması gerekiyor.
+
+ReactDOM CDN Hatası — Tanı ve Çözüm
+Sorunun kaynağı: index.html 'deki script onerrorfeature'ü, dosya yüklenemediğinde veya HTTP hatası _showError('ReactDOM CDN yüklenemedi')çağırıyor. Yaygın neden: bazı dağıtım ortamlarında (Replit, Render) /public/js/yolun statik servisin listelenmesiyle uyuşmaması.
+Çözüm — CDN geri dönüş oranları ekle:
+index.html'deki React scriptlerini şu şekilde güncelle:
+HTML<!-- Babel (JSX transform) -->
+<script src="/public/js/babel.min.js"
+  crossorigin="anonymous"
+  onerror="loadBabelFromCDN()"
+  onload="_advanceBar(25,'Babel ✓')"></script>
+
+<!-- React 18 -->
+<script src="/public/js/react.min.js"
+  crossorigin="anonymous"
+  onerror="loadReactFromCDN()"
+  onload="_advanceBar(40,'React ✓')"></script>
+
+<!-- ReactDOM 18 -->
+<script src="/public/js/react-dom.min.js"
+  crossorigin="anonymous"
+  onerror="loadReactDOMFromCDN()"
+  onload="_advanceBar(55,'ReactDOM ✓'); tryBoot();"></script>
+
+<script>
+function loadBabelFromCDN() {
+  var s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js';
+  s.crossOrigin = 'anonymous';
+  s.onload = function() { _advanceBar(25, 'Babel ✓ (CDN)'); };
+  s.onerror = function() { console.warn('Babel CDN de başarısız, JSX olmadan devam ediliyor'); };
+  document.head.appendChild(s);
+}
+
+function loadReactFromCDN() {
+  var s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js';
+  s.crossOrigin = 'anonymous';
+  s.onload = function() { _advanceBar(40, 'React ✓ (CDN)'); };
+  s.onerror = function() { _showError('React yüklenemedi. Lütfen sayfayı yenileyin.'); };
+  document.head.appendChild(s);
+}
+
+function loadReactDOMFromCDN() {
+  var s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js';
+  s.crossOrigin = 'anonymous';
+  s.onload = function() {
+    _advanceBar(55, 'ReactDOM ✓ (CDN)');
+    tryBoot();
+  };
+  s.onerror = function() { _showError('ReactDOM yüklenemedi. Lütfen sayfayı yenileyin.'); };
+  document.head.appendChild(s);
+}
+
+function tryBoot() {
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    boot();
+  } else {
+    document.addEventListener('DOMContentLoaded', boot);
+  }
+}
+</script>
+Ayrıca server/index.js'deki CSP ayarına cdnjs.cloudflare.com' un eklendiğinden emin ol (zaten var, ama kontrol et):
+jsscriptSrc: [
+  "'self'", "'unsafe-inline'", "'unsafe-eval'",
+  'blob:',
+  'https://cdnjs.cloudflare.com',  // ← zaten var ✓
+  ...
+],
+İkincil öneri: Uzun süreli app.jsxüretkenlik (2.2 MB!) Vite veya esbuild ile bir araya getirilerek aşamalı olarak paketlenip tek bir küçültülmüş dosya olarak sunulur, hem ReactDOM/Babel CDN'nin silinmesini ortadan kaldırır hem de tarayıcıda çalışma zamanı Babel dönüşümünü durdurma ilk elde edilebilir çok hızlandırır.

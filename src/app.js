@@ -899,7 +899,8 @@ const NAV_GROUPS = [
       { id:'farm',       icon:'🌾',                        label:'Tarım',         rgb:'34,197,94'  },
       { id:'livestock',  icon:'🐄',                        label:'Hayvancılık',   rgb:'16,185,129' },
       { id:'market',     icon:'🛒',                        label:'Market',        rgb:'236,72,153' },
-      { id:'holdings',   icon:'🏢',                        label:'Şirketler',     rgb:'245,158,11' },
+      { id:'holdings',        icon:'🏢',                        label:'Şirketler',     rgb:'245,158,11' },
+      { id:'economic_empire', icon:'🏢',                        label:'İmparatorluk',  rgb:'16,185,129'  },
       { id:'factory',    icon:'🏭', svgIcon:'factory',    label:'Fabrika',       rgb:'245,158,11' },
       { id:'mining',     icon:'⛏️',                       label:'Maden',         rgb:'161,97,40'  },
       { id:'education',  icon:'🎓', svgIcon:'education',  label:'Eğitim',        rgb:'59,130,246' },
@@ -919,8 +920,10 @@ const NAV_GROUPS = [
       { id:'spy',        icon:'🕵️',                  label:'İstihbarat',rgb:'139,92,246' },
       { id:'tournament', icon:'🎯',                   label:'Turnuva',   rgb:'239,68,68'  },
       { id:'crisis',     icon:'🚨',                   label:'Kriz',      rgb:'239,68,68'  },
-      { id:'army_system',   icon:'🪖', label:'Genelkurmay',  rgb:'239,68,68'  },
-      { id:'gang_treasury', icon:'💰', label:'Çete Kasası',   rgb:'239,68,68'  },
+      { id:'army_system',      icon:'🪖', label:'Genelkurmay',  rgb:'239,68,68'  },
+      { id:'independent_army', icon:'🪖', label:'Ordu Sistemi', rgb:'239,68,68'  },
+      { id:'protection_deals', icon:'🛡️', label:'Koruma',       rgb:'239,68,68'  },
+      { id:'gang_treasury',    icon:'💰', label:'Çete Kasası',  rgb:'239,68,68'  },
       { id:'crime',      icon:'⚖️', svgIcon:'law',   label:'Mahkeme',   rgb:'239,68,68'  },
     ],
   },
@@ -10841,6 +10844,9 @@ function App() {
             {page==='gang_treasury' && window.GangTreasuryScreen && React.createElement(window.GangTreasuryScreen, {cu:profile||{},setCurrentPage:setPage,gangs:(()=>{try{return JSON.parse(localStorage.getItem('rep_gangs')||'[]');}catch{return [];}})(),allUsers:onlinePlayers||[]})}
             {page==='party_center' && window.PartyCenterScreen && React.createElement(window.PartyCenterScreen, {cu:profile||{},setCurrentPage:setPage,parties:(()=>{try{return JSON.parse(localStorage.getItem('rep_parties')||'[]');}catch{return [];}})(),allUsers:onlinePlayers||[],families:(()=>{try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return [];}})()})}
             {page==='army_system' && window.ArmyScreen && React.createElement(window.ArmyScreen, {cu:profile||{},setCurrentPage:setPage,allUsers:onlinePlayers||[]})}
+            {page==='independent_army' && window.IndependentArmyScreen && React.createElement(window.IndependentArmyScreen, {cu:profile||{},setCurrentPage:setPage,allUsers:onlinePlayers||[],families:(()=>{try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return [];}})(),gangs:(()=>{try{return JSON.parse(localStorage.getItem('rep_gangs')||'[]');}catch{return [];}})(),parties:(()=>{try{return JSON.parse(localStorage.getItem('rep_parties')||'[]');}catch{return [];}})()})}
+            {page==='economic_empire' && window.EconomicEmpireScreen && React.createElement(window.EconomicEmpireScreen, {cu:profile||{},setCurrentPage:setPage,families:(()=>{try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return [];}})(),gangs:(()=>{try{return JSON.parse(localStorage.getItem('rep_gangs')||'[]');}catch{return [];}})(),parties:(()=>{try{return JSON.parse(localStorage.getItem('rep_parties')||'[]');}catch{return [];}})(),allUsers:onlinePlayers||[]})}
+            {page==='protection_deals' && window.ProtectionDealsScreen && React.createElement(window.ProtectionDealsScreen, {cu:profile||{},setCurrentPage:setPage,gangs:(()=>{try{return JSON.parse(localStorage.getItem('rep_gangs')||'[]');}catch{return [];}})(),families:(()=>{try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return [];}})(),allUsers:onlinePlayers||[]})}
           </div>
 
           <BottomNav page={page} onChange={setPage} items={navItems} notifMap={{ chat: notifications.filter(n=>n.type==='message'&&Date.now()-n.ts<300000).length }} />
