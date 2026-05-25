@@ -229,6 +229,104 @@ app.use('/api/push', pushRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/election', electionRoutes);
 
+// --- Game state endpoints (used by Socket Bridge) ---
+const db = require('./services/dbService');
+
+app.get('/api/state', async (req, res) => {
+  try {
+    const { getEconomyState } = require('./services/gameEngine');
+    const result = {};
+    const economy = getEconomyState();
+    if (economy) result.economy = economy;
+    try {
+      const { rows } = await db.query('SELECT key, value FROM game_state');
+      rows.forEach(r => { result[r.key] = r.value; });
+    } catch (_) {}
+    res.json(result);
+  } catch (err) {
+    res.json({});
+  }
+});
+
+app.get('/api/market', (req, res) => {
+  try {
+    const { getMarketSnapshot } = require('./services/gameEngine');
+    const market = getMarketSnapshot();
+    res.json(market || []);
+  } catch (err) {
+    res.json([]);
+  }
+});
+
+app.get('/api/parties', async (req, res) => {
+  try {
+    const { rows } = await db.query("SELECT value FROM game_state WHERE key = 'parties' LIMIT 1");
+    const parties = rows[0]?.value;
+    if (parties && typeof parties === 'object') {
+      return res.json(Object.values(parties));
+    }
+    res.json([]);
+  } catch (err) {
+    res.json([]);
+  }
+});
+
+app.get('/api/gangs', async (req, res) => {
+  try {
+    const { rows } = await db.query("SELECT value FROM game_state WHERE key = 'gangs' LIMIT 1");
+    const gangs = rows[0]?.value;
+    if (gangs && typeof gangs === 'object') {
+      return res.json(Object.values(gangs));
+    }
+    res.json([]);
+  } catch (err) {
+    res.json([]);
+  }
+});
+
+app.get('/api/inventory/:userId', async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT inventory FROM users WHERE id = $1 LIMIT 1', [req.params.userId]);
+    res.json(rows[0]?.inventory || []);
+  } catch (err) {
+    res.json([]);
+  }
+});
+
+app.get('/api/city-ownership', async (req, res) => {
+  try {
+    const { rows } = await db.query("SELECT value FROM game_state WHERE key = 'cityOwnership' LIMIT 1");
+    res.json(rows[0]?.value || {});
+  } catch (err) {
+    res.json({});
+  }
+});
+
+app.get('/api/vapid-public-key', (req, res) => {
+  res.setHeader('Content-Type', 'text/plain');
+  res.send(process.env.VAPID_PUBLIC_KEY || '');
+});
+
+app.post('/api/refresh-token', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const bodyToken = req.body?.refreshToken;
+    const token = bodyToken || (authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null);
+    if (!token) return res.status(401).json({ success: false });
+    const { verifyRefreshToken, signToken, signRefreshToken } = require('./config/jwt');
+    let decoded;
+    try { decoded = verifyRefreshToken(token); } catch { return res.status(401).json({ success: false }); }
+    const user = await db.findUserById(decoded.id);
+    if (!user) return res.status(401).json({ success: false });
+    const newToken = signToken({ id: user.id, username: user.username, role: user.role });
+    const newRefresh = signRefreshToken({ id: user.id });
+    await db.updateUser(user.id, { refresh_token: newRefresh });
+    res.json({ success: true, token: newToken, refreshToken: newRefresh });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
+});
+
 // --- Health check ---
 app.get('/health', (req, res) => {
   const { getConnectionStatus, getConnectionDetails } = require('./database/connection');
