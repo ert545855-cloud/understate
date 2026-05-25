@@ -968,6 +968,7 @@ const NAV_GROUPS = [
     rgb: '16,185,129',
     items: [
       { id:'jobs',       icon:'💼', svgIcon:'briefcase',  label:'İşler',        rgb:'16,185,129' },
+      { id:'kariyer',    icon:'🏗️',                        label:'Kariyer Çalışma', rgb:'245,158,11' },
       { id:'economy',    icon:'📊', svgIcon:'chart',       label:'Genel',         rgb:'16,185,129' },
       { id:'farm',       icon:'🌾',                        label:'Tarım',         rgb:'34,197,94'  },
       { id:'livestock',  icon:'🐄',                        label:'Hayvancılık',   rgb:'16,185,129' },
@@ -5603,12 +5604,10 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
   const [donateAmt, setDonateAmt] = useState('');
 
   const uid = profile?.uid || profile?.id;
-  const allGangs = gangs;
   const filteredGangs = typeFilter ? gangs.filter(g=>g.type===typeFilter) : gangs;
   const myGang = gangs.find(g => g.leaderId===uid || (g.members||[]).includes(uid));
   const isMyGangMatchFilter = myGang && (!typeFilter || myGang.type===typeFilter);
   const isGangLeader = !!uid && myGang?.leaderId === uid;
-  const effectiveType = typeFilter || gForm.type;
 
   const createGang = () => {
     if (!gForm.name.trim()) { showNotif('İsim gerekli','error'); return; }
@@ -5616,7 +5615,7 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
     if (profile?.party) { showNotif('🏛️ Parti üyeleri çete veya aile kuramazlar. Önce partiden ayrılın.','error'); return; }
     const actualType = typeFilter || gForm.type;
     const cost = actualType==='family' ? 5000000000 : 2000000000;
-    if ((profile?.money||0) < cost) { showNotif(`${gForm.type==='family'?'Aile kurmak için ₺5.000.000.000':'Çete kurmak için ₺2.000.000.000'} gerekli`,'error'); return; }
+    if ((profile?.money||0) < cost) { showNotif(`${actualType==='family'?'Aile kurmak için ₺5.000.000.000':'Çete kurmak için ₺2.000.000.000'} gerekli`,'error'); return; }
     const gang = {
       id:genId(), name:gForm.name.trim(), type:actualType, desc:gForm.desc,
       leaderId:uid, leaderName:profile?.username,
@@ -5869,10 +5868,10 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
       </div>
 
       {createModal && (
-        <Modal title={gForm.type==='gang'?'⚔️ Çete Kur':'👨‍👩‍👧‍👦 Aile Kur'} onClose={()=>{setCreateModal(false);setGForm({name:'',type:'gang',desc:''});}}>
+        <Modal title={(typeFilter||gForm.type)==='gang'?'⚔️ Çete Kur':'👨‍👩‍👧‍👦 Aile Kur'} onClose={()=>{setCreateModal(false);setGForm({name:'',type:'gang',desc:''});}}>
           <div style={{marginBottom:'0.85rem'}}>
             <div style={{fontSize:'0.72rem',color:'#5A7089',marginBottom:'0.4rem',fontWeight:700}}>İsim</div>
-            <input value={gForm.name} onChange={e=>setGForm(p=>({...p,name:e.target.value}))} placeholder={gForm.type==='gang'?'Çete adı...':'Aile adı...'} style={inpSt} />
+            <input value={gForm.name} onChange={e=>setGForm(p=>({...p,name:e.target.value}))} placeholder={(typeFilter||gForm.type)==='gang'?'Çete adı...':'Aile adı...'} style={inpSt} />
           </div>
           <div style={{marginBottom:'0.85rem'}}>
             <div style={{fontSize:'0.72rem',color:'#5A7089',marginBottom:'0.4rem',fontWeight:700}}>Açıklama (opsiyonel)</div>
@@ -5882,7 +5881,7 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
           <div style={{background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.2)',borderRadius:'10px',padding:'0.65rem',fontSize:'0.78rem',color:'#FCA5A5',marginBottom:'1rem'}}>
             💡 Kurmak için gereken: {fmtWord((typeFilter||gForm.type)==='family'?5000000000:2000000000)} • Bakiye: {fmtWord(profile?.money)}
           </div>
-          <Btn variant='danger' size='full' onClick={createGang}>{gForm.type==='gang'?'⚔️ Çeteyi Kur':'👨‍👩‍👧‍👦 Aileyi Kur'}</Btn>
+          <Btn variant='danger' size='full' onClick={createGang}>{(typeFilter||gForm.type)==='gang'?'⚔️ Çeteyi Kur':'👨‍👩‍👧‍👦 Aileyi Kur'}</Btn>
         </Modal>
       )}
 
@@ -10990,6 +10989,7 @@ function App() {
             {page==='dm'           && <DirectMessagesPage {...pageProps} />}
             {page==='taxgov'       && <TaxMunicipalityPage {...pageProps} />}
             {page==='jobs'         && <JobsPage        {...pageProps} />}
+            {page==='kariyer'      && <KariyerCalismaPage {...pageProps} />}
             {page==='citybuild'    && <CityBuildPage   {...pageProps} />}
             {page==='klanchat'     && <KlanChatPage    profile={profile} />}
             {page==='npcplayers'   && <NpcPlayersPage  {...pageProps} />}
@@ -11057,6 +11057,264 @@ function App() {
       </div>
     </ThemeCtx.Provider>
     </LangCtx.Provider>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// KARİYER ÇALIŞMA SİSTEMİ
+// ═══════════════════════════════════════════════════════
+const FACTORY_JOB_ROLES = {
+  textile:     [
+    { id:'tekstil_isci',    name:'Tekstil İşçisi',        icon:'🧵', salary:15000,  duration:4*3600000,  level:1  },
+    { id:'tekstil_usta',    name:'Usta Terzi',             icon:'✂️', salary:32000,  duration:8*3600000,  level:5  },
+  ],
+  food:        [
+    { id:'gida_isci',       name:'Gıda İşçisi',           icon:'🍞', salary:18000,  duration:3*3600000,  level:1  },
+    { id:'gida_sef',        name:'Üretim Şefi',            icon:'👨‍🍳', salary:42000, duration:8*3600000,  level:8  },
+  ],
+  steel:       [
+    { id:'celik_kaynak',    name:'Kaynakçı',               icon:'🔥', salary:26000,  duration:4*3600000,  level:1  },
+    { id:'celik_muhendis',  name:'Çelik Mühendisi',        icon:'⚙️', salary:58000,  duration:8*3600000,  level:12 },
+  ],
+  electronics: [
+    { id:'elekt_tekn',      name:'Elektronik Teknisyeni',  icon:'🔧', salary:36000,  duration:4*3600000,  level:5  },
+    { id:'elekt_usta',      name:'Elektronik Ustası',      icon:'💻', salary:75000,  duration:8*3600000,  level:15 },
+  ],
+  auto:        [
+    { id:'oto_montaj',      name:'Montaj İşçisi',          icon:'🚗', salary:48000,  duration:6*3600000,  level:5  },
+    { id:'oto_usta',        name:'Oto Ustası',              icon:'🏆', salary:95000,  duration:12*3600000, level:20 },
+  ],
+};
+
+const KARIYER_ICONS = { textile:'👕', food:'🍞', steel:'⚙️', electronics:'💻', auto:'🚗' };
+const KARIYER_COLORS = { textile:'#8B5CF6', food:'#F59E0B', steel:'#6B7280', electronics:'#3B82F6', auto:'#EF4444' };
+
+function KariyerCalismaPage({ profile, setProfile, showNotif }) {
+  const { dark } = useTheme();
+  const bg    = dark ? '#0F172A' : '#F8FAFC';
+  const card  = dark ? 'rgba(255,255,255,0.04)' : '#FFFFFF';
+  const bord  = dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
+
+  const [activeWork, setActiveWork] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('rep_kariyer_calisma') || 'null'); } catch { return null; }
+  });
+  const [tick, setTick] = useState(0);
+  const [factories, setFactories] = useLs('factories', []);
+  const [selFactory, setSelFactory] = useState(null);
+
+  useEffect(() => {
+    const t = setInterval(() => setTick(p => p + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const cu = profile || {};
+  const now = Date.now();
+
+  const fmtTime = (ms) => {
+    if (ms <= 0) return '✅ Tamamlandı';
+    const s = Math.ceil(ms / 1000);
+    if (s < 60) return `${s}s`;
+    if (s < 3600) return `${Math.floor(s / 60)}dk ${s % 60}s`;
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+    return `${h}sa ${m}dk`;
+  };
+
+  const startWork = (factory, role) => {
+    if (activeWork) { showNotif('⛔ Zaten aktif bir çalışman var! Önce tamamla.', 'error'); return; }
+    const pLevel = cu.level || 1;
+    if (pLevel < role.level) { showNotif(`🔒 Bu iş için Seviye ${role.level} gerekli!`, 'error'); return; }
+    const session = {
+      factoryId: factory.id, factoryName: factory.name, factoryOwner: factory.owner,
+      factoryIcon: factory.icon || KARIYER_ICONS[factory.type] || '🏭',
+      factoryType: factory.type, roleId: role.id, roleName: role.name, roleIcon: role.icon,
+      salary: role.salary, duration: role.duration,
+      startedAt: now, endsAt: now + role.duration,
+    };
+    localStorage.setItem('rep_kariyer_calisma', JSON.stringify(session));
+    setActiveWork(session);
+    setSelFactory(null);
+    showNotif(`✅ ${role.name} olarak çalışmaya başladın! Süre: ${fmtTime(role.duration)}`, 'success');
+  };
+
+  const collectSalary = () => {
+    if (!activeWork) return;
+    if (now < activeWork.endsAt) {
+      showNotif(`⏳ Daha ${fmtTime(activeWork.endsAt - now)} kaldı!`, 'error');
+      return;
+    }
+    const bonus = 1 + (cu.tradePoints || 0) * 0.0001;
+    const earned = Math.round(activeWork.salary * bonus);
+    const xpGain = Math.max(10, Math.floor(earned / 3000));
+    setProfile(p => {
+      const np = { ...p, money: (p.money || 0) + earned, xp: (p.xp || 0) + xpGain };
+      localStorage.setItem('rep_userProfile', JSON.stringify(np));
+      return np;
+    });
+    try {
+      const today = new Date().toDateString();
+      const dk = `day_${today}`;
+      const s = JSON.parse(localStorage.getItem('rep_dailyTaskState') || '{}');
+      s[dk] = { ...(s[dk] || {}), dailyJobCount: ((s[dk]?.dailyJobCount) || 0) + 1 };
+      localStorage.setItem('rep_dailyTaskState', JSON.stringify(s));
+    } catch(e) {}
+    localStorage.removeItem('rep_kariyer_calisma');
+    setActiveWork(null);
+    showNotif(`💰 ${fmtWord(earned)} maaş + ${xpGain} XP kazandın!`, 'success');
+  };
+
+  const cancelWork = () => {
+    localStorage.removeItem('rep_kariyer_calisma');
+    setActiveWork(null);
+    showNotif('❌ Çalışma iptal edildi.', 'info');
+  };
+
+  const availableFactories = factories.filter(f => f.owner !== cu.username);
+  const myFactory = factories.find(f => f.owner === cu.username);
+
+  const pct = activeWork
+    ? Math.min(100, Math.round(((now - activeWork.startedAt) / activeWork.duration) * 100))
+    : 0;
+  const done = activeWork && now >= activeWork.endsAt;
+
+  return (
+    <div style={{ padding: '1rem', background: bg, minHeight: '100%' }}>
+      <div style={{ fontFamily: "'Syne',sans-serif", fontSize: '1.1rem', fontWeight: 800, color: '#F59E0B', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>
+        🏗️ KARİYER ÇALIŞMA
+      </div>
+      <div style={{ fontSize: '0.75rem', color: '#5A7089', marginBottom: '1.25rem' }}>
+        Fabrikalarda iş al, maaş kazan. Aynı anda yalnızca bir işte çalışabilirsin.
+      </div>
+
+      {/* AKTİF İŞ KARTI */}
+      {activeWork && (
+        <div style={{ background: done ? 'rgba(16,185,129,0.08)' : 'rgba(245,158,11,0.07)', border: `1px solid ${done ? 'rgba(16,185,129,0.35)' : 'rgba(245,158,11,0.3)'}`, borderRadius: '18px', padding: '1.1rem', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem' }}>
+            <span style={{ fontSize: '2rem' }}>{activeWork.factoryIcon}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, color: dark ? '#E8EDF2' : '#1E293B', fontSize: '0.95rem' }}>{activeWork.roleName}</div>
+              <div style={{ fontSize: '0.72rem', color: '#5A7089' }}>{activeWork.factoryName} · Sahip: {activeWork.factoryOwner}</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontWeight: 800, color: '#10B981', fontSize: '1rem' }}>{fmtWord(activeWork.salary)}</div>
+              <div style={{ fontSize: '0.65rem', color: '#5A7089' }}>maaş</div>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '0.7rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#5A7089', marginBottom: '4px' }}>
+              <span>İlerleme</span>
+              <span style={{ fontWeight: 700, color: done ? '#10B981' : '#F59E0B' }}>
+                {done ? '✅ Tamamlandı!' : fmtTime(activeWork.endsAt - now) + ' kaldı'}
+              </span>
+            </div>
+            <div style={{ height: '6px', background: 'rgba(255,255,255,0.07)', borderRadius: '4px', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${pct}%`, background: done ? 'linear-gradient(90deg,#10B981,#34D399)' : 'linear-gradient(90deg,#F59E0B,#FBBF24)', borderRadius: '4px', transition: 'width 1s linear' }} />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button onClick={collectSalary} disabled={!done}
+              style={{ flex: 2, padding: '0.6rem', borderRadius: '12px', border: 'none', background: done ? 'linear-gradient(135deg,#10B981,#059669)' : 'rgba(255,255,255,0.05)', color: done ? '#fff' : '#3B4E63', fontFamily: "'DM Sans',sans-serif", fontWeight: 800, fontSize: '0.85rem', cursor: done ? 'pointer' : 'not-allowed' }}>
+              {done ? '💰 Maaşı Topla' : '⏳ Bekle...'}
+            </button>
+            <button onClick={cancelWork}
+              style={{ flex: 1, padding: '0.6rem', borderRadius: '12px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.07)', color: '#EF4444', fontFamily: "'DM Sans',sans-serif", fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
+              İptal
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* KENDİ FABRİKASI */}
+      {myFactory && !activeWork && (
+        <div style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '12px', padding: '0.8rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <span style={{ fontSize: '1.4rem' }}>{myFactory.icon || '🏭'}</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#F59E0B' }}>{myFactory.name}</div>
+            <div style={{ fontSize: '0.68rem', color: '#5A7089' }}>Bu senin fabrikandır — kendi fabrikanda çalışamazsın.</div>
+          </div>
+        </div>
+      )}
+
+      {/* FABRİKA LİSTESİ */}
+      {!activeWork && (
+        <div>
+          <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#5A7089', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>
+            {availableFactories.length === 0 ? 'Henüz başka fabrika yok' : `${availableFactories.length} Fabrika Mevcut`}
+          </div>
+
+          {availableFactories.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: '#3B4E63' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🏭</div>
+              <div style={{ fontSize: '0.85rem', marginBottom: '0.3rem' }}>Oyunda başka fabrika yok.</div>
+              <div style={{ fontSize: '0.72rem', color: '#2D3F54' }}>Diğer oyuncular fabrika kurduğunda buradan iş alabilirsin.</div>
+            </div>
+          )}
+
+          {availableFactories.map(factory => {
+            const roles = FACTORY_JOB_ROLES[factory.type] || [];
+            const color = KARIYER_COLORS[factory.type] || '#5A7089';
+            const expanded = selFactory === factory.id;
+            return (
+              <div key={factory.id} style={{ background: card, border: `1px solid ${expanded ? color + '44' : bord}`, borderRadius: '16px', marginBottom: '0.65rem', overflow: 'hidden' }}>
+                <button onClick={() => setSelFactory(expanded ? null : factory.id)}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.7rem', padding: '0.85rem', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                  <span style={{ fontSize: '1.7rem' }}>{factory.icon || KARIYER_ICONS[factory.type] || '🏭'}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 800, color: dark ? '#E8EDF2' : '#1E293B', fontSize: '0.9rem' }}>{factory.name}</div>
+                    <div style={{ fontSize: '0.68rem', color: '#5A7089', marginTop: '2px' }}>
+                      <span>Sahip: {factory.owner}</span>
+                      <span style={{ marginLeft: '0.5rem', color: color, fontWeight: 700 }}>Lv.{factory.level}</span>
+                      <span style={{ marginLeft: '0.5rem' }}>{roles.length} iş rolü</span>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '1rem', color: color, flexShrink: 0 }}>{expanded ? '▲' : '▼'}</span>
+                </button>
+
+                {expanded && (
+                  <div style={{ borderTop: `1px solid ${bord}`, padding: '0.75rem' }}>
+                    <div style={{ fontSize: '0.68rem', color: '#5A7089', marginBottom: '0.6rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Mevcut İş Rolleri</div>
+                    {roles.map(role => {
+                      const playerLevel = cu.level || 1;
+                      const locked = playerLevel < role.level;
+                      return (
+                        <div key={role.id} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.6rem 0.5rem', borderRadius: '10px', background: locked ? 'rgba(255,255,255,0.01)' : 'rgba(255,255,255,0.03)', marginBottom: '0.4rem', opacity: locked ? 0.55 : 1 }}>
+                          <span style={{ fontSize: '1.4rem', flexShrink: 0 }}>{role.icon}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: dark ? '#E8EDF2' : '#1E293B' }}>{role.name}</div>
+                            <div style={{ fontSize: '0.65rem', color: '#5A7089', marginTop: '2px', display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                              <span style={{ color: '#10B981', fontWeight: 700 }}>💰 {fmtWord(role.salary)}</span>
+                              <span>⏱ {fmtTime(role.duration)}</span>
+                              {locked && <span style={{ color: '#EF4444', fontWeight: 700 }}>🔒 Lv.{role.level}</span>}
+                            </div>
+                          </div>
+                          <button onClick={() => !locked && startWork(factory, role)} disabled={locked}
+                            style={{ padding: '0.4rem 0.85rem', borderRadius: '10px', border: 'none', background: locked ? 'rgba(255,255,255,0.04)' : `${color}22`, color: locked ? '#3B4E63' : color, fontFamily: "'DM Sans',sans-serif", fontWeight: 800, fontSize: '0.75rem', cursor: locked ? 'not-allowed' : 'pointer', flexShrink: 0, border: `1px solid ${locked ? 'transparent' : color + '44'}` }}>
+                            {locked ? '🔒' : 'Başla'}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* BİLGİ KUTUSU */}
+      <div style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)', borderRadius: '12px', padding: '0.8rem', marginTop: '1rem' }}>
+        <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#3B82F6', marginBottom: '0.35rem' }}>ℹ️ Nasıl Çalışır?</div>
+        <div style={{ fontSize: '0.68rem', color: '#5A7089', lineHeight: 1.6 }}>
+          • Bir fabrikayı seç ve iş rolü başlat<br/>
+          • Aynı anda sadece bir iş yapabilirsin<br/>
+          • Süre dolunca maaşını topla<br/>
+          • Kendi fabrikanda çalışamazsın<br/>
+          • Ticaret puanın maaşına bonus ekler
+        </div>
+      </div>
+    </div>
   );
 }
 
