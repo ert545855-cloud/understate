@@ -20,303 +20,6 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 
-    
-    <!-- Supabase bridge: credentials loaded via /api/config -->
-    
-    <!-- Supabase Client SDK -->
-    <script src="/js/supabase.min.js"></script>
-
-    <!-- Supabase Bridge: Firebase'in yerini alır, fb-sync olaylarını sürdürür -->
-    <script>
-    (function() {
-      'use strict';
-
-      // ── Supabase istemcisini başlat ─────────────────────────────────────────
-      async function initSupabase() {
-        try {
-          const cfg = await fetch('/api/config').then(r => r.json());
-          if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
-            console.warn('[Supabase] Config eksik, devre dışı.');
-            return;
-          }
-
-          const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
-            realtime: { params: { eventsPerSecond: 10 } }
-          });
-          window._sb = sb;
-          console.log('[Supabase] İstemci hazır ✓');
-
-          // ── İlk veri yükleme (game_state) ────────────────────────────────
-          loadInitialState(sb);
-
-          // ── Supabase Realtime kanalları ──────────────────────────────────
-          subscribeToRealtime(sb);
-
-          // ── Firebase flush yerine Supabase kayıt ────────────────────────
-          hookIntoFlush(sb);
-
-        } catch(e) {
-          console.warn('[Supabase] Başlatma hatası:', e.message);
-        }
-      }
-
-      // ── Supabase'den ilk state yükle ──────────────────────────────────────
-      async function loadInitialState(sb) {
-        try {
-          // game_state tablosundan tüm anahtarları al
-          const { data: stateRows } = await sb.from('game_state').select('key, value');
-          if (stateRows && stateRows.length > 0) {
-            stateRows.forEach(({ key, value }) => {
-              try {
-                const incoming = JSON.stringify(value);
-                const curr = localStorage.getItem('rep_' + key);
-                if (curr === incoming) return;
-                localStorage.setItem('rep_' + key, incoming);
-                window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key, value } }));
-              } catch(e) {}
-            });
-            console.log('[Supabase] State yüklendi ✓ —', stateRows.length, 'anahtar');
-          }
-
-          // economy tablosundan ekonomi verisi
-          const { data: ecoRow } = await sb.from('economy').select('data').eq('id', 'main').single();
-          if (ecoRow && ecoRow.data && Object.keys(ecoRow.data).length > 0) {
-            const ecoKeys = ['economy','stockMarket','marketDemand','commodities'];
-            ecoKeys.forEach(k => {
-              if (ecoRow.data[k] !== undefined) {
-                try {
-                  localStorage.setItem('rep_' + k, JSON.stringify(ecoRow.data[k]));
-                  window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: k, value: ecoRow.data[k] } }));
-                } catch(e) {}
-              }
-            });
-            console.log('[Supabase] Ekonomi yüklendi ✓');
-          }
-
-          // partiler
-          const { data: parties } = await sb.from('parties').select('*');
-          if (parties && parties.length > 0) {
-            const partyMap = {};
-            parties.forEach(p => { partyMap[p.id] = p; });
-            localStorage.setItem('rep_parties', JSON.stringify(partyMap));
-            window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: 'parties', value: partyMap } }));
-            console.log('[Supabase] Partiler yüklendi ✓ —', parties.length);
-          }
-
-          // çeteler
-          const { data: gangs } = await sb.from('gangs').select('*');
-          if (gangs && gangs.length > 0) {
-            const gangMap = {};
-            gangs.forEach(g => { gangMap[g.id] = g; });
-            localStorage.setItem('rep_gangs', JSON.stringify(gangMap));
-            window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: 'gangs', value: gangMap } }));
-            console.log('[Supabase] Çeteler yüklendi ✓ —', gangs.length);
-          }
-
-          // aktif olaylar
-          const { data: events } = await sb.from('game_events')
-            .select('*').eq('active', true).order('created_at', { ascending: false }).limit(50);
-          if (events && events.length > 0) {
-            localStorage.setItem('rep_gameEvents', JSON.stringify(events));
-            window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: 'gameEvents', value: events } }));
-          }
-
-        } catch(e) {
-          console.warn('[Supabase] İlk yükleme hatası:', e.message);
-        }
-      }
-
-      // ── Supabase Realtime abonelikleri ────────────────────────────────────
-      function subscribeToRealtime(sb) {
-        // game_state değişiklikleri
-        sb.channel('game_state_changes')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'game_state' }, (payload) => {
-            try {
-              const { key, value } = payload.new || {};
-              if (!key) return;
-              const incoming = JSON.stringify(value);
-              if (localStorage.getItem('rep_' + key) === incoming) return;
-              localStorage.setItem('rep_' + key, incoming);
-              window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key, value } }));
-              console.log('[Supabase RT] State güncellendi →', key);
-            } catch(e) {}
-          })
-          .subscribe();
-
-        // global_chat değişiklikleri
-        sb.channel('chat_changes')
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload) => {
-            try {
-              const msg = payload.new;
-              const channel = msg.channel || 'global';
-              let current = [];
-              try { current = JSON.parse(localStorage.getItem('rep_' + channel) || '[]'); } catch(e) {}
-              if (!Array.isArray(current)) current = [];
-              const formatted = {
-                id: msg.id,
-                sender: msg.sender,
-                senderId: msg.sender_id,
-                message: msg.message,
-                gifUrl: msg.gif_url,
-                sticker: msg.sticker,
-                channel: msg.channel,
-                ts: msg.ts || Date.now()
-              };
-              if (!current.find(m => m.id === formatted.id)) {
-                current.push(formatted);
-                if (current.length > 200) current = current.slice(-200);
-                localStorage.setItem('rep_' + channel, JSON.stringify(current));
-                window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: channel, value: current } }));
-              }
-            } catch(e) {}
-          })
-          .subscribe();
-
-        // players (liderlik, online)
-        sb.channel('players_changes')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, (payload) => {
-            try {
-              window.dispatchEvent(new CustomEvent('player-updated', { detail: { data: payload.new } }));
-            } catch(e) {}
-          })
-          .subscribe();
-
-        // stock_market
-        sb.channel('market_changes')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_market' }, (payload) => {
-            try {
-              const company = payload.new;
-              if (!company) return;
-              let market = {};
-              try { market = JSON.parse(localStorage.getItem('rep_stockMarket') || '{}'); } catch(e) {}
-              market[company.company_id] = company;
-              localStorage.setItem('rep_stockMarket', JSON.stringify(market));
-              window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: 'stockMarket', value: market } }));
-              console.log('[Supabase RT] Market güncellendi →', company.name);
-            } catch(e) {}
-          })
-          .subscribe();
-
-        // game_events
-        sb.channel('event_changes')
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'game_events' }, (payload) => {
-            try {
-              const event = payload.new;
-              let events = [];
-              try { events = JSON.parse(localStorage.getItem('rep_gameEvents') || '[]'); } catch(e) {}
-              events.unshift(event);
-              if (events.length > 50) events = events.slice(0, 50);
-              localStorage.setItem('rep_gameEvents', JSON.stringify(events));
-              window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: 'gameEvents', value: events } }));
-              window.dispatchEvent(new CustomEvent('new-game-event', { detail: event }));
-            } catch(e) {}
-          })
-          .subscribe();
-
-        // economy
-        sb.channel('economy_changes')
-          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'economy' }, (payload) => {
-            try {
-              const ecoData = payload.new?.data || {};
-              Object.entries(ecoData).forEach(([k, v]) => {
-                const incoming = JSON.stringify(v);
-                if (localStorage.getItem('rep_' + k) === incoming) return;
-                localStorage.setItem('rep_' + k, incoming);
-                window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: k, value: v } }));
-              });
-            } catch(e) {}
-          })
-          .subscribe();
-
-        console.log('[Supabase RT] 5 kanal aktif ✓ (state, chat, players, market, events)');
-      }
-
-      // ── Firebase flush'u Supabase'e yönlendir ────────────────────────────
-      function hookIntoFlush(sb) {
-        const STATE_KEYS = [
-          'users','economy','stockMarket','parties','gangs','holdings',
-          'laws','lawProposals','cabinet','ohal','elections','electionState',
-          'taxSystem','coupSystem','cityMap','gameEvents','prisonList',
-          'auctionItems','courtCases','realEstate','alliances','referendums',
-          'marketDemand','commodities','energyMarket','marketCrisis','cityStats','cityWelfare'
-        ];
-
-        const _origFlush = window._fbScheduleFlush;
-        window._fbScheduleFlush = function(key) {
-          // Eski Firebase flush devam etsin (backward compat)
-          if (_origFlush) _origFlush(key);
-
-          // Aynı zamanda Supabase'e de kaydet
-          if (key && STATE_KEYS.includes(key)) {
-            const value = window._fbPendingWrites && window._fbPendingWrites[key];
-            if (value !== undefined) {
-              setTimeout(() => {
-                sb.from('game_state').upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' })
-                  .then(() => {})
-                  .catch(e => console.warn('[Supabase Flush]', key, e.message));
-              }, 500);
-            }
-          }
-        };
-
-        // Oyuncu kaydet fonksiyonunu global hale getir
-        window._sbSavePlayer = function(playerData) {
-          if (!playerData || !playerData.userId) return;
-          sb.from('players').upsert({
-            id: playerData.userId,
-            username: playerData.username,
-            level: playerData.level || 1,
-            money: playerData.money || 0,
-            city: playerData.city || '',
-            gender: playerData.gender || 'erkek',
-            avatar: playerData.avatar || null,
-            party: playerData.party || null,
-            gang: playerData.gang || null,
-            stats: playerData.stats || {},
-            inventory: playerData.inventory || [],
-            last_seen: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'id' }).catch(() => {});
-        };
-
-        // Liderlik tablosu
-        window._sbGetLeaderboard = async function(limit = 50) {
-          try {
-            const { data } = await sb.from('players')
-              .select('id, username, level, money, city, gang, party, stats, last_seen')
-              .order('money', { ascending: false })
-              .limit(limit);
-            return data || [];
-          } catch(e) {
-            return [];
-          }
-        };
-
-        // Chat gönder (Supabase + Socket.IO)
-        window._sbSendChat = function(msg) {
-          sb.from('chat_messages').insert({
-            id: msg.id || undefined,
-            sender_id: msg.senderId || null,
-            sender: msg.sender || 'Anonim',
-            message: msg.message || '',
-            gif_url: msg.gifUrl || null,
-            sticker: msg.sticker || null,
-            channel: msg.channel || 'global',
-            ts: msg.ts || Date.now()
-          }).catch(() => {});
-        };
-
-        console.log('[Supabase] Flush hook aktif ✓ — veriler otomatik kaydediliyor');
-      }
-
-      // Sayfa yüklenince başlat
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initSupabase);
-      } else {
-        initSupabase();
-      }
-    })();
-    </script>
 
     <!-- App Styles -->
     <link rel="stylesheet" href="css/styles.css?v=205">
@@ -406,7 +109,7 @@ _advanceBar(10, 'Başlatılıyor...');
 
 // ── IndexedDB cache (fast reload after first visit) ──────────────────────────
 var IDB_NAME = 'us_cache_v2';
-var IDB_KEY  = 'compiled_v212_fix';
+var IDB_KEY  = 'compiled_v213_fixed';
 
 function idbGet(key, cb) {
   try {
@@ -514,7 +217,7 @@ function boot() {
 </script>
 
 <!-- Socket.IO Client -->
-<script src="/public/js/socket.io.min.js" crossorigin="anonymous"></script>
+<script src="/public/js/socket.io.min.js"></script>
 
 <!-- Socket.IO Oyun Köprüsü: Firebase yerine Socket.IO + Supabase REST -->
 <script>
@@ -945,19 +648,16 @@ function boot() {
 
 <!-- Babel (JSX transform) -->
 <script src="/public/js/babel.min.js"
-  crossorigin="anonymous"
   onerror="console.warn('Babel CDN failed')"
   onload="_advanceBar(25,'Babel ✓')"></script>
 
 <!-- React 18 -->
 <script src="/public/js/react.min.js"
-  crossorigin="anonymous"
   onerror="_showError('React CDN yüklenemedi')"
   onload="_advanceBar(40,'React ✓')"></script>
 
 <!-- ReactDOM 18 -->
 <script src="/public/js/react-dom.min.js"
-  crossorigin="anonymous"
   onerror="_showError('ReactDOM CDN yüklenemedi')"
   onload="_advanceBar(55,'ReactDOM ✓'); if(document.readyState==='complete'||document.readyState==='interactive'){boot();}else{document.addEventListener('DOMContentLoaded',boot);}"></script>
 

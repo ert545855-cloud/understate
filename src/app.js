@@ -919,9 +919,9 @@ const NAV_GROUPS = [
       { id:'spy',        icon:'🕵️',                  label:'İstihbarat',rgb:'139,92,246' },
       { id:'tournament', icon:'🎯',                   label:'Turnuva',   rgb:'239,68,68'  },
       { id:'crisis',     icon:'🚨',                   label:'Kriz',      rgb:'239,68,68'  },
-      { id:'crime',      icon:'⚖️', svgIcon:'law',   label:'Mahkeme',   rgb:'239,68,68'  },
+      { id:'army_system',   icon:'🪖', label:'Genelkurmay',  rgb:'239,68,68'  },
       { id:'gang_treasury', icon:'💰', label:'Çete Kasası',   rgb:'239,68,68'  },
-      { id:'army_system',   icon:'🪖', label:'Ordu Sistemi',  rgb:'239,68,68'  },
+      { id:'crime',      icon:'⚖️', svgIcon:'law',   label:'Mahkeme',   rgb:'239,68,68'  },
     ],
   },
   {
@@ -941,9 +941,9 @@ const NAV_GROUPS = [
       { id:'alliance',        icon:'🤝',                        label:'İttifak',    rgb:'96,165,250' },
       { id:'world',           icon:'🌍',                        label:'Dünya',      rgb:'59,130,246' },
       { id:'npcplayers',      icon:'🤖',                        label:'NPC',        rgb:'99,102,241' },
+      { id:'party_center',   icon:'🏛️', label:'Meclis',        rgb:'167,139,250' },
       { id:'power_triangle', icon:'⚡', label:'Güç Üçgeni',    rgb:'245,200,66' },
       { id:'tenders',        icon:'🏗️', label:'İhaleler',      rgb:'245,200,66' },
-      { id:'party_center',   icon:'🏛️', label:'Parti Merkezi', rgb:'167,139,250' },
       { id:'wiki',            icon:'📚',                        label:'Wiki',       rgb:'59,130,246' },
     ],
   },
@@ -12592,7 +12592,7 @@ class ErrorBoundary extends React.Component {
       }, '\u26a0\ufe0f Beklenmedik Bir Hata Olu\u015ftu'),
       React.createElement('p', {
         style: { color: '#8BA0B8', fontSize: '13px', maxWidth: '320px', lineHeight: 1.5 }
-      }, 'Oyun ekran\u0131 y�klenirken bir sorun ya\u015fand\u0131. A\u015fa\u011f\u0131daki butona basarak tekrar deneyebilirsin.'),
+      }, 'Oyun ekran\u0131 y�klenirken bir sorun ya\u015fand\u0131. A\u015fa\u011f\u0131daki butona basarak tekrar deneyebilirsin.'),
       this.state.error && React.createElement('div', {
         style: {
           background: card, border: '1px solid rgba(231,76,60,0.3)', borderRadius: '10px',
@@ -12619,7 +12619,7 @@ class ErrorBoundary extends React.Component {
             border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px',
             padding: '12px 24px', fontSize: '14px', fontWeight: 600, cursor: 'pointer'
           }
-        }, '\ud83d\uddd1\ufe0f �nbelle\u011fi Temizle & Yenile')
+        }, '\ud83d\uddd1\ufe0f �nbelle\u011fi Temizle & Yenile')
       ),
       this.state.retryCount > 0 && React.createElement('p', {
         style: { color: '#5A7089', fontSize: '11px' }
