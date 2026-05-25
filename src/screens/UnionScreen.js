@@ -33,6 +33,8 @@ window.UnionScreen = function UnionScreen({ cu, allUsers, families, setCurrentPa
     if(!newUnion.name.trim()) return showMsg("Sendika adı zorunlu","error");
     if(myUnion) return showMsg("Zaten bir sendikaya üyesiniz","error");
     if(unions.find(u=>u.name.toLowerCase()===newUnion.name.trim().toLowerCase())) return showMsg("Bu isimde bir sendika zaten var","error");
+    const allUsers = (() => { try { return JSON.parse(localStorage.getItem('rep_users')||'[]'); } catch{return [];} })();
+    if(allUsers.length < 10) return showMsg(`Sendika kurabilmek için oyunda en az 10 oyuncu olmalı (şu an: ${allUsers.length})`, "error");
     const u = {
       id:"un_"+Date.now(),
       name:newUnion.name.trim(),

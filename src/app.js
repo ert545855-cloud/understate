@@ -680,7 +680,17 @@ function AuthScreen({ onLogin }) {
           </form>
         </div>
 
-        <div style={{marginTop:'1.5rem',color:'rgba(255,255,255,0.2)',fontSize:'0.68rem',textAlign:'center',position:'relative',zIndex:1,letterSpacing:'0.08em'}}>
+        {/* Language Selector */}
+        <div style={{marginTop:'1rem',display:'flex',alignItems:'center',justifyContent:'center',gap:'0.5rem',position:'relative',zIndex:2}}>
+          {[['🇹🇷','tr'],['🇬🇧','en'],['🇩🇪','de'],['🇦🇿','az']].map(([flag,code])=>(
+            <button key={code} type="button"
+              onClick={()=>{ try { const p=JSON.parse(localStorage.getItem('rep_userProfile')||'{}'); p.lang=code; localStorage.setItem('rep_userProfile',JSON.stringify(p)); } catch(e){} localStorage.setItem('rep_uiLang',code); window.dispatchEvent(new CustomEvent('lang-change',{detail:{lang:code}})); }}
+              style={{width:'38px',height:'38px',borderRadius:'50%',border:'2px solid rgba(255,255,255,0.15)',background:'rgba(0,0,0,0.4)',fontSize:'1.3rem',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.15s',backdropFilter:'blur(4px)'}}
+              title={code.toUpperCase()}
+            >{flag}</button>
+          ))}
+        </div>
+        <div style={{marginTop:'0.75rem',color:'rgba(255,255,255,0.2)',fontSize:'0.68rem',textAlign:'center',position:'relative',zIndex:1,letterSpacing:'0.08em'}}>
           🔒 UnderState • Güvenli Giriş
         </div>
       </div>
@@ -980,7 +990,7 @@ const NAV_GROUPS = [
       { id:'army',       icon:'⚔️',                   label:'Ordu',      rgb:'239,68,68'  },
       { id:'pvp',        icon:'🥊',                   label:'Dövüş',     rgb:'239,68,68'  },
       { id:'gang',       icon:'🔫', svgIcon:'weapon', label:'Çete',      rgb:'239,68,68'  },
-      { id:'spy',        icon:'🕵️',                  label:'İstihbarat',rgb:'139,92,246' },
+      { id:'family',     icon:'👨‍👩‍👧‍👦',                  label:'Aile',      rgb:'245,158,11' },
       { id:'tournament', icon:'🎯',                   label:'Turnuva',   rgb:'239,68,68'  },
       { id:'crisis',     icon:'🚨',                   label:'Kriz',      rgb:'239,68,68'  },
       { id:'army_system',      icon:'🪖', label:'Genelkurmay',  rgb:'239,68,68'  },
@@ -1942,6 +1952,10 @@ function AdminPage({ profile, showNotif, onNavigate }) {
     if (!amt || amt <= 0) { setMsg('Geçerli bir UC miktarı girin'); return; }
     const updated = allUsers.map(x => x.id===u.id ? {...x, underCoin:(x.underCoin||0)+amt} : x);
     saveUsers(updated);
+    const currentUserId = localStorage.getItem('userId');
+    if (currentUserId === u.id) {
+      try { const p=JSON.parse(localStorage.getItem('rep_userProfile')||'{}'); const np={...p,underCoin:(p.underCoin||0)+amt}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); window.dispatchEvent(new CustomEvent('fb-sync',{detail:{key:'userProfile',value:np}})); } catch(e){}
+    }
     if (selectedUser?.id === u.id) setSelectedUser({...selectedUser, underCoin:(selectedUser.underCoin||0)+amt});
     setGiftUC('');
     setMsg(`✅ ${u.username} kullanıcısına ${amt} UC verildi`);
@@ -2899,7 +2913,7 @@ function EconomyPage({ profile, setProfile, showNotif, initialSub }) {
     if (Date.now() < farm.harvestAt) { showNotif('Henüz hasat zamanı değil!', 'error'); return; }
     setFarms(farms.map(f => f.id===farm.id ? {...f, harvested:true} : f));
     setProfile(p => { const np={...p, money:(p.money||0)+farm.earn, xp:(p.xp||0)+50}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
-    try { const today=new Date().toDateString(); const dk=`day_${today}`; const s=JSON.parse(localStorage.getItem('dailyTaskState')||'{}'); s[dk]={...(s[dk]||{}),dailyFarmCount:((s[dk]?.dailyFarmCount)||0)+1}; localStorage.setItem('dailyTaskState',JSON.stringify(s)); } catch(e){}
+    try { const today=new Date().toDateString(); const dk=`day_${today}`; const s=JSON.parse(localStorage.getItem('rep_dailyTaskState')||'{}'); s[dk]={...(s[dk]||{}),dailyFarmCount:((s[dk]?.dailyFarmCount)||0)+1}; localStorage.setItem('rep_dailyTaskState',JSON.stringify(s)); } catch(e){}
     showNotif(`🌾 +${fmtM(farm.earn)} hasat edildi!`, 'success');
   };
 
@@ -3782,7 +3796,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
       return {...l, votes:newV, status:(newV.yes>newV.no&&total>=3)?'passed':l.status};
     }));
     setProfile(p => { const np={...p,xp:(p.xp||0)+50}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
-    try { const today=new Date().toDateString(); const dk=`day_${today}`; const s=JSON.parse(localStorage.getItem('dailyTaskState')||'{}'); s[dk]={...(s[dk]||{}),dailyVoteCount:((s[dk]?.dailyVoteCount)||0)+1}; localStorage.setItem('dailyTaskState',JSON.stringify(s)); } catch(e){}
+    try { const today=new Date().toDateString(); const dk=`day_${today}`; const s=JSON.parse(localStorage.getItem('rep_dailyTaskState')||'{}'); s[dk]={...(s[dk]||{}),dailyVoteCount:((s[dk]?.dailyVoteCount)||0)+1}; localStorage.setItem('rep_dailyTaskState',JSON.stringify(s)); } catch(e){}
     showNotif(`🗳️ ${choice==='yes'?'Evet':'Hayır'} oyunuz kaydedildi`, 'success');
   };
 
@@ -3820,7 +3834,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
     setElections(e => ({...e, votes:{...(e.votes||{}),[profile.uid]:candidateUid}, candidates:(e.candidates||[]).map(c=>c.uid===candidateUid?{...c,votes:(c.votes||0)+voteWeight}:c)}));
     setProfile(p => { const np={...p,xp:(p.xp||0)+100}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
     // Günlük görev
-    try { const today=new Date().toDateString(); const dk=`day_${today}`; const s=JSON.parse(localStorage.getItem('dailyTaskState')||'{}'); s[dk]={...(s[dk]||{}),dailyVoteCount:((s[dk]?.dailyVoteCount)||0)+1}; localStorage.setItem('dailyTaskState',JSON.stringify(s)); } catch(e){}
+    try { const today=new Date().toDateString(); const dk=`day_${today}`; const s=JSON.parse(localStorage.getItem('rep_dailyTaskState')||'{}'); s[dk]={...(s[dk]||{}),dailyVoteCount:((s[dk]?.dailyVoteCount)||0)+1}; localStorage.setItem('rep_dailyTaskState',JSON.stringify(s)); } catch(e){}
     const bonusInfo = [tradeRank<=50?`Ticaret #${tradeRank}`:null, eduBonus>0?`Eğitim +${eduBonus}`:null, ucBonus>0?`UC +${ucBonus}`:null].filter(Boolean).join(', ');
     showNotif(`🗳️ Oyunuz kullanıldı! (${voteWeight}x katsayı${bonusInfo?` — ${bonusInfo}`:''})`, 'success');
   };
@@ -4642,7 +4656,7 @@ function WeaponSystem({ profile, setProfile, showNotif, myGang, gangs, setGangs,
   const gangPowerBonus = myWeapons * 5;
 
   const buyWeapons = () => {
-    if (!myGang) { showNotif('Silah almak için çeteye katıl!', 'error'); return; }
+    if (!myGang) { showNotif('Silah almak için bir çete veya aileye katıl!', 'error'); return; }
     if (!isGangLeader) { showNotif('Silah sadece lider tarafından alınabilir!', 'error'); return; }
     const qty = Math.max(1, parseInt(buyQty) || 1);
     const total = qty * WEAPON_COST;
@@ -4681,7 +4695,7 @@ function WeaponSystem({ profile, setProfile, showNotif, myGang, gangs, setGangs,
       </div>
 
       {!myGang ? (
-        <div style={{textAlign:'center',padding:'2rem',color:'#5A7089',fontSize:'0.85rem'}}>Silah almak için bir çeteye katıl!</div>
+        <div style={{textAlign:'center',padding:'2rem',color:'#5A7089',fontSize:'0.85rem'}}>Silah almak için bir çete veya aileye katıl!</div>
       ) : (
         <>
           <div style={{background:card,border:`1px solid ${border}`,borderRadius:'14px',padding:'1rem',marginBottom:'0.65rem'}}>
@@ -5576,7 +5590,7 @@ function TeamWarPage({ profile, setProfile, showNotif }) {
 // ═══════════════════════════════════════════════════════
 // ÇETE / AİLE SAYFASI
 // ═══════════════════════════════════════════════════════
-function GangPage({ profile, setProfile, showNotif }) {
+function GangPage({ profile, setProfile, showNotif, typeFilter }) {
   const [gangs, setGangs] = useLs('gangs', []);
   const [sub, setSub] = useState('gangs');
   const [createModal, setCreateModal] = useState(false);
@@ -5589,17 +5603,22 @@ function GangPage({ profile, setProfile, showNotif }) {
   const [donateAmt, setDonateAmt] = useState('');
 
   const uid = profile?.uid || profile?.id;
+  const allGangs = gangs;
+  const filteredGangs = typeFilter ? gangs.filter(g=>g.type===typeFilter) : gangs;
   const myGang = gangs.find(g => g.leaderId===uid || (g.members||[]).includes(uid));
+  const isMyGangMatchFilter = myGang && (!typeFilter || myGang.type===typeFilter);
   const isGangLeader = !!uid && myGang?.leaderId === uid;
+  const effectiveType = typeFilter || gForm.type;
 
   const createGang = () => {
     if (!gForm.name.trim()) { showNotif('İsim gerekli','error'); return; }
     if (myGang) { showNotif('Zaten bir çeteye/aileye üyesin','error'); return; }
     if (profile?.party) { showNotif('🏛️ Parti üyeleri çete veya aile kuramazlar. Önce partiden ayrılın.','error'); return; }
-    const cost = gForm.type==='family' ? 5000000000 : 2000000000;
+    const actualType = typeFilter || gForm.type;
+    const cost = actualType==='family' ? 5000000000 : 2000000000;
     if ((profile?.money||0) < cost) { showNotif(`${gForm.type==='family'?'Aile kurmak için ₺5.000.000.000':'Çete kurmak için ₺2.000.000.000'} gerekli`,'error'); return; }
     const gang = {
-      id:genId(), name:gForm.name.trim(), type:gForm.type, desc:gForm.desc,
+      id:genId(), name:gForm.name.trim(), type:actualType, desc:gForm.desc,
       leaderId:uid, leaderName:profile?.username,
       members:[uid], memberCount:1, treasury:0,
       power:10, territory:0, reputation:0, createdAt:Date.now()
@@ -5670,9 +5689,14 @@ function GangPage({ profile, setProfile, showNotif }) {
   };
 
   const inpSt = {width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'10px',padding:'0.65rem 0.9rem',color:'#E8EDF2',fontFamily:"'DM Sans',sans-serif",fontSize:'16px',outline:'none',boxSizing:'border-box'};
-  const subItems = myGang
-    ? [{id:'gangs',label:'⚔️ Liste'},{id:'management',label:'⚙️ Yönetim'},{id:'attack',label:'🥊 Suç'},{id:'territory',label:'🗺️ Bölge'},{id:'weapons',label:'🔫 Silah'}]
-    : [{id:'gangs',label:'⚔️ Çeteler'},{id:'attack',label:'🥊 Suç'},{id:'territory',label:'🗺️ Bölge'}];
+  const isFamily = typeFilter==='family';
+  const subItems = isMyGangMatchFilter
+    ? (isFamily
+        ? [{id:'gangs',label:'👨‍👩‍👧‍👦 Liste'},{id:'management',label:'⚙️ Yönetim'},{id:'weapons',label:'🔫 Silah'}]
+        : [{id:'gangs',label:'⚔️ Liste'},{id:'management',label:'⚙️ Yönetim'},{id:'attack',label:'🥊 Suç'},{id:'territory',label:'🗺️ Bölge'},{id:'weapons',label:'🔫 Silah'}])
+    : (isFamily
+        ? [{id:'gangs',label:'👨‍👩‍👧‍👦 Aileler'}]
+        : [{id:'gangs',label:'⚔️ Çeteler'},{id:'attack',label:'🥊 Suç'},{id:'territory',label:'🗺️ Bölge'}]);
 
   return (
     <div>
@@ -5714,12 +5738,12 @@ function GangPage({ profile, setProfile, showNotif }) {
               </div>
             )}
             {!myGang && (
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.5rem',marginBottom:'0.75rem'}}>
-                <Btn variant='danger' size='sm' onClick={()=>{setGForm(p=>({...p,type:'gang'}));setCreateModal(true);}}>⚔️ Çete Kur (₺50K)</Btn>
-                <Btn variant='ghost' size='sm' onClick={()=>{setGForm(p=>({...p,type:'family'}));setCreateModal(true);}}>👨‍👩‍👧‍👦 Aile Kur (₺100K)</Btn>
+              <div style={{marginBottom:'0.75rem'}}>
+                {!isFamily && <Btn variant='danger' size='sm' style={{width:'100%',marginBottom:'0.4rem'}} onClick={()=>{setGForm(p=>({...p,type:'gang'}));setCreateModal(true);}}>⚔️ Çete Kur (₺2 Mlr)</Btn>}
+                {isFamily && <Btn variant='ghost' size='sm' style={{width:'100%'}} onClick={()=>{setGForm(p=>({...p,type:'family'}));setCreateModal(true);}}>👨‍👩‍👧‍👦 Aile Kur (₺5 Mlr)</Btn>}
               </div>
             )}
-            {gangs.map(gang => (
+            {filteredGangs.map(gang => (
               <Card key={gang.id} style={{marginBottom:'0.5rem',padding:'0.85rem',border:`1px solid ${gang.id===myGang?.id?'rgba(239,68,68,0.3)':gang.type==='family'?'rgba(245,158,11,0.15)':'rgba(239,68,68,0.1)'}`}}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                   <div>
@@ -5733,7 +5757,7 @@ function GangPage({ profile, setProfile, showNotif }) {
                 </div>
               </Card>
             ))}
-            {gangs.length===0 && <div style={{textAlign:'center',color:'#3B4E63',padding:'2rem',fontSize:'0.85rem'}}>Henüz çete yok. İlk sen kur! ⚔️</div>}
+            {filteredGangs.length===0 && <div style={{textAlign:'center',color:'#3B4E63',padding:'2rem',fontSize:'0.85rem'}}>{isFamily?'Henüz aile yok. İlk sen kur! 👨‍👩‍👧‍👦':'Henüz çete yok. İlk sen kur! ⚔️'}</div>}
           </div>
         )}
 
@@ -5856,7 +5880,7 @@ function GangPage({ profile, setProfile, showNotif }) {
               style={{width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'10px',padding:'0.65rem 0.9rem',color:'#E8EDF2',fontFamily:"'DM Sans',sans-serif",fontSize:'14px',outline:'none',resize:'none',boxSizing:'border-box'}} />
           </div>
           <div style={{background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.2)',borderRadius:'10px',padding:'0.65rem',fontSize:'0.78rem',color:'#FCA5A5',marginBottom:'1rem'}}>
-            💡 Kurmak {fmtWord(gForm.type==='gang'?50000:100000)} gerektirir. Bakiye: {fmtWord(profile?.money)}
+            💡 Kurmak için gereken: {fmtWord((typeFilter||gForm.type)==='family'?5000000000:2000000000)} • Bakiye: {fmtWord(profile?.money)}
           </div>
           <Btn variant='danger' size='full' onClick={createGang}>{gForm.type==='gang'?'⚔️ Çeteyi Kur':'👨‍👩‍👧‍👦 Aileyi Kur'}</Btn>
         </Modal>
@@ -8719,8 +8743,49 @@ function FootballPage({ profile, setProfile, showNotif }) {
           <div style={{fontWeight:700,color:'#F59E0B',marginBottom:'0.5rem'}}>🔄 Transfer Pazarı</div>
           {!myClub&&<div style={{color:'#EF4444',fontSize:'0.85rem'}}>Önce bir kulüp kurman gerekiyor!</div>}
           {myClub&&<div>
-            <div style={{fontSize:'0.85rem',color:'#bbb',marginBottom:'0.75rem'}}>Bütçe: <strong style={{color:'#10B981'}}>₺{(myClub.budget||0).toLocaleString()}</strong></div>
-            <button onClick={transferPlayer} style={{width:'100%',padding:'0.7rem',background:'rgba(245,158,11,0.12)',border:'1px solid rgba(245,158,11,0.3)',borderRadius:'8px',color:'#F59E0B',cursor:'pointer',fontWeight:700,fontFamily:'inherit',fontSize:'0.9rem'}}>🔄 Rastgele Oyuncu Satın Al (₺250,000)</button>
+            <div style={{fontSize:'0.85rem',color:'#bbb',marginBottom:'0.75rem'}}>Kulüp Bütçesi: <strong style={{color:'#10B981'}}>₺{(myClub.budget||0).toLocaleString()}</strong></div>
+            <div style={{display:'flex',flexDirection:'column',gap:'0.4rem'}}>
+              {[
+                {name:'Yusuf Erdoğan',  pos:'Forvet',    rating:88, price:1500000, nat:'🇹🇷'},
+                {name:'Lucas Silva',    pos:'Orta Saha', rating:85, price:1200000, nat:'🇧🇷'},
+                {name:'Kerem Aktaş',    pos:'Defans',    rating:82, price:900000,  nat:'🇹🇷'},
+                {name:'Ivan Petrov',    pos:'Kaleci',    rating:80, price:750000,  nat:'🇷🇺'},
+                {name:'Marco Bianchi',  pos:'Kanat',     rating:79, price:700000,  nat:'🇮🇹'},
+                {name:'Emre Güneş',    pos:'Defans',    rating:77, price:500000,  nat:'🇹🇷'},
+                {name:'Carlos Mendez', pos:'Forvet',    rating:75, price:450000,  nat:'🇦🇷'},
+                {name:'Burak Yıldız', pos:'Orta Saha', rating:73, price:350000,  nat:'🇹🇷'},
+                {name:'Ahmed Hassan',   pos:'Defans',    rating:71, price:300000,  nat:'🇪🇬'},
+                {name:'Cem Polat',      pos:'Kaleci',    rating:69, price:200000,  nat:'🇹🇷'},
+                {name:'Deniz Arslan',   pos:'Kanat',     rating:67, price:150000,  nat:'🇹🇷'},
+                {name:'Faruk Yılmaz',  pos:'Forvet',    rating:65, price:100000,  nat:'🇹🇷'},
+              ].map((p,i)=>{
+                const alreadyOwned = (myClub.players||[]).some(pl=>pl.name===p.name);
+                const canAfford = (myClub.budget||0) >= p.price;
+                return (
+                  <div key={i} style={{display:'flex',alignItems:'center',gap:'0.6rem',padding:'0.6rem 0.75rem',background:'rgba(255,255,255,0.03)',border:`1px solid ${alreadyOwned?'rgba(16,185,129,0.3)':'rgba(255,255,255,0.07)'}`,borderRadius:'10px'}}>
+                    <div style={{fontSize:'1.1rem'}}>{p.nat}</div>
+                    <div style={{flex:1}}>
+                      <div style={{fontWeight:700,color:'#E8EDF2',fontSize:'0.85rem'}}>{p.name}</div>
+                      <div style={{fontSize:'0.65rem',color:'#5A7089'}}>{p.pos} • <span style={{color:p.rating>=85?'#FFD700':p.rating>=75?'#10B981':'#60A5FA',fontWeight:700}}>{p.rating} puan</span></div>
+                    </div>
+                    <div style={{textAlign:'right',flexShrink:0}}>
+                      <div style={{fontSize:'0.72rem',color:'#F59E0B',fontWeight:700}}>₺{(p.price/1000).toFixed(0)}K</div>
+                      {alreadyOwned
+                        ? <div style={{fontSize:'0.62rem',color:'#10B981',fontWeight:700}}>✅ Kadroda</div>
+                        : <button onClick={()=>{
+                            if(!canAfford){showNotif('Yetersiz bütçe!','error');return;}
+                            setClubs(prev=>prev.map(c=>c.id===myClub.id?{...c,players:[...(c.players||[]),{name:p.name,pos:p.pos,rating:p.rating}],budget:(c.budget||0)-p.price,rating:Math.round(((c.rating||70)*Math.max(1,(c.players||[]).length)+p.rating)/(Math.max(1,(c.players||[]).length)+1))}:c));
+                            showNotif(`✅ ${p.name} transfer edildi! (${p.rating} puan) -₺${(p.price/1000).toFixed(0)}K`,'success');
+                          }}
+                          style={{padding:'0.25rem 0.6rem',background:canAfford?'rgba(245,158,11,0.15)':'rgba(255,255,255,0.03)',border:`1px solid ${canAfford?'rgba(245,158,11,0.35)':'rgba(255,255,255,0.08)'}`,borderRadius:'6px',color:canAfford?'#F59E0B':'#3B4E63',cursor:canAfford?'pointer':'default',fontWeight:700,fontSize:'0.7rem',fontFamily:'inherit'}}>
+                          Satın Al
+                        </button>
+                      }
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>}
         </div>
       </div>)}
@@ -8990,7 +9055,7 @@ function MiningPage({ profile, setProfile, showNotif }) {
     const newRes = {...myResources,[res.id]:(myResources[res.id]||0)+amount};
     setMineData(prev=>({...prev,[cu.id]:newRes}));
     setCooldowns(prev=>({...prev,[cu.id+'_'+res.id]:now}));
-    try { const today=new Date().toDateString(); const dk=`day_${today}`; const s=JSON.parse(localStorage.getItem('dailyTaskState')||'{}'); s[dk]={...(s[dk]||{}),dailyMineCount:((s[dk]?.dailyMineCount)||0)+1}; localStorage.setItem('dailyTaskState',JSON.stringify(s)); } catch(e){}
+    try { const today=new Date().toDateString(); const dk=`day_${today}`; const s=JSON.parse(localStorage.getItem('rep_dailyTaskState')||'{}'); s[dk]={...(s[dk]||{}),dailyMineCount:((s[dk]?.dailyMineCount)||0)+1}; localStorage.setItem('rep_dailyTaskState',JSON.stringify(s)); } catch(e){}
     showNotif(`✅ ${amount}x ${res.name} kazandın! (${res.icon})`,'success');
   };
 
@@ -9487,6 +9552,7 @@ function PvpPage({ profile, setProfile, showNotif }) {
     const battle = {id:Date.now(),attacker:cu.username,defender:target.username,result:won?'win':'loss',stolen,date:new Date().toLocaleDateString('tr-TR')};
     setBattles(prev=>[battle,...prev].slice(0,50));
     setPvpCooldown(prev=>({...prev,[cu.id]:now}));
+    try { const today=new Date().toDateString(); const dk=`day_${today}`; const s=JSON.parse(localStorage.getItem('rep_dailyTaskState')||'{}'); s[dk]={...(s[dk]||{}),dailyPvpCount:((s[dk]?.dailyPvpCount)||0)+1}; localStorage.setItem('rep_dailyTaskState',JSON.stringify(s)); } catch(e){}
     if (won) {
       updateUser({money:(cu.money||0)+stolen, hp:Math.max(0,(cu.hp||100)-hpLost), meritPoints:(cu.meritPoints||0)+10});
       const newUsers = allUsers.map(u => u.id===target.id ? {...u,money:Math.max(0,(u.money||0)-stolen)} : u);
@@ -9908,8 +9974,10 @@ function LeaderboardPage({ profile, onNavigate }) {
     {id:'xp',    label:'⭐ XP',      key:'xp'},
     {id:'merit', label:'🏅 Liyakat', key:'meritPoints'},
     {id:'trade', label:'🤝 Ticaret', key:'tradePoints'},
-    {id:'level', label:'📈 Seviye',  key:'level'},
-    {id:'edu',   label:'🎓 Eğitim',  key:'educationProgress'},
+    {id:'level',     label:'📈 Seviye',  key:'level'},
+    {id:'edu',       label:'🎓 Eğitim',  key:'educationProgress'},
+    {id:'influence', label:'⚡ Etki',    key:'influencePoints'},
+    {id:'military',  label:'🪖 Askeri',  key:'militaryPoints'},
   ];
   const [tab, setTab] = useState('money');
   const activeTab = TABS.find(t=>t.id===tab);
@@ -10896,7 +10964,8 @@ function App() {
             {page==='market'       && <StorePage       {...pageProps} />}
             {page==='politics'     && <PoliticsPage    {...pageProps} />}
             {page==='holdings'     && <HoldingsPage    {...pageProps} />}
-            {page==='gang'         && <GangPage        {...pageProps} />}
+            {page==='gang'         && <GangPage        {...pageProps} typeFilter='gang' />}
+            {page==='family'       && <GangPage        {...pageProps} typeFilter='family' />}
             {page==='alliance'     && <AlliancePage    {...pageProps} />}
             {page==='world'        && <WorldPage       profile={profile} onNavigate={setPage} />}
             {page==='admin'        && <AdminPage       profile={profile} showNotif={showNotif} onNavigate={setPage} />}
@@ -11048,9 +11117,9 @@ function JobsPage({ profile, setProfile, showNotif }) {
     try {
       const today = new Date().toDateString();
       const dk = `day_${today}`;
-      const s = JSON.parse(localStorage.getItem('dailyTaskState')||'{}');
+      const s = JSON.parse(localStorage.getItem('rep_dailyTaskState')||'{}');
       s[dk] = {...(s[dk]||{}), dailyJobCount:((s[dk]?.dailyJobCount)||0)+1};
-      localStorage.setItem('dailyTaskState', JSON.stringify(s));
+      localStorage.setItem('rep_dailyTaskState', JSON.stringify(s));
     } catch(e){}
     const ucMsg = ucGain > 0 ? ` +${ucGain} UC` : '';
     showNotif(`${job.emoji} +${fmtWord(job.earn)} kazandın! +${xpGain} XP${ucMsg}`, 'success');
@@ -11632,6 +11701,7 @@ function DirectMessagesPage({ profile, setProfile, showNotif }) {
   const [messages, setMessages] = useLs('rep_directMessages', []);
   const [convWith, setConvWith] = useState(null);
   const [input, setInput] = useState('');
+  const [dmSearch, setDmSearch] = useState('');
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [gifSearch, setGifSearch] = useState('');
   const [giphyResults, setGiphyResults] = useState([]);
@@ -11701,7 +11771,7 @@ function DirectMessagesPage({ profile, setProfile, showNotif }) {
     if (!textOverride) setInput('');
     setShowGifPicker(false);
     setTimeout(()=>msgsEndRef.current?.scrollIntoView({behavior:'smooth'}), 50);
-    try { const today=new Date().toDateString(); const dk=`day_${today}`; const s=JSON.parse(localStorage.getItem('dailyTaskState')||'{}'); s[dk]={...(s[dk]||{}),dailyChatCount:((s[dk]?.dailyChatCount)||0)+1}; localStorage.setItem('dailyTaskState',JSON.stringify(s)); } catch(e){}
+    try { const today=new Date().toDateString(); const dk=`day_${today}`; const s=JSON.parse(localStorage.getItem('rep_dailyTaskState')||'{}'); s[dk]={...(s[dk]||{}),dailyChatCount:((s[dk]?.dailyChatCount)||0)+1}; localStorage.setItem('rep_dailyTaskState',JSON.stringify(s)); } catch(e){}
   };
 
   // Listen for incoming real-time DMs from socket and update local state
@@ -11805,8 +11875,15 @@ function DirectMessagesPage({ profile, setProfile, showNotif }) {
             <div style={{fontFamily:"'Syne',sans-serif",fontSize:'1.1rem',fontWeight:900,color:'#E8EDF2'}}>ÖZEL MESAJLAR</div>
             {totalUnread>0 && <div style={{background:'rgba(59,130,246,0.15)',border:'1px solid rgba(59,130,246,0.3)',borderRadius:'20px',padding:'0.2rem 0.75rem',display:'inline-block',fontSize:'0.72rem',color:'#60A5FA',marginTop:'0.3rem',fontWeight:700}}>{totalUnread} okunmamış</div>}
           </div>
-          {contacts.length===0 && <div style={{textAlign:'center',color:'#3B4E63',padding:'2rem',fontSize:'0.85rem'}}>Henüz başka oyuncu yok.</div>}
-          {contacts.map(user=>{
+          {/* Kişi Arama */}
+          <div style={{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.6rem',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'12px',padding:'0 0.85rem'}}>
+            <span style={{color:'#3B4E63'}}>🔍</span>
+            <input value={dmSearch} onChange={e=>setDmSearch(e.target.value)} placeholder="Oyuncu ara..."
+              style={{flex:1,background:'none',border:'none',outline:'none',color:'#E8EDF2',fontFamily:"'DM Sans',sans-serif",fontSize:'15px',padding:'0.6rem 0'}} />
+            {dmSearch && <button onClick={()=>setDmSearch('')} style={{background:'none',border:'none',color:'#5A7089',cursor:'pointer',fontSize:'1rem',padding:'2px'}}>✕</button>}
+          </div>
+          {contacts.filter(u=>!dmSearch||u.username?.toLowerCase().includes(dmSearch.toLowerCase())||u.city?.toLowerCase().includes(dmSearch.toLowerCase())).length===0&&<div style={{textAlign:'center',color:'#3B4E63',padding:'2rem',fontSize:'0.85rem'}}>Oyuncu bulunamadı.</div>}
+          {contacts.filter(u=>!dmSearch||u.username?.toLowerCase().includes(dmSearch.toLowerCase())||u.city?.toLowerCase().includes(dmSearch.toLowerCase())).map(user=>{
             const lastMsg = getConvMsgs(user.id).slice(-1)[0];
             const u = unread(user.id);
             return (
@@ -12426,7 +12503,7 @@ function IntlTradePage({ profile, setProfile, showNotif }) {
     // Günlük görev sayacı
     const today = new Date().toDateString();
     const dk = `day_${today}`;
-    try { const s=JSON.parse(localStorage.getItem('dailyTaskState')||'{}'); s[dk]={...(s[dk]||{}),dailyTradeCount:(s[dk]?.dailyTradeCount||0)+1}; localStorage.setItem('dailyTaskState',JSON.stringify(s)); } catch(e){}
+    try { const s=JSON.parse(localStorage.getItem('rep_dailyTaskState')||'{}'); s[dk]={...(s[dk]||{}),dailyTradeCount:(s[dk]?.dailyTradeCount||0)+1}; localStorage.setItem('rep_dailyTaskState',JSON.stringify(s)); } catch(e){}
   };
 
   const collectRoute = (route) => {

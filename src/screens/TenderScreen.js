@@ -8,7 +8,26 @@ window.TenderScreen = function TenderScreen({ cu, families, allUsers, setCurrent
     save: (k, v)   => { try { localStorage.setItem("us_tender_"+k, JSON.stringify(v)); } catch {} },
   };
 
-  const [tenders, setTenders] = React.useState(()=>S.load("list", []));
+  const AUTO_TENDERS = [
+    {title:"Karayolu Altyapı Projesi",description:"300 km'lik çift yönlü otoyol yapımı",startBid:5000000},
+    {title:"Hastane İnşaatı",description:"500 yataklı devlet hastanesi yapımı",startBid:8000000},
+    {title:"Liman Genişletme İhalesi",description:"Ana liman kapasitesinin 3 katına çıkarılması",startBid:12000000},
+    {title:"Enerji Santrali Kurulumu",description:"Yenilenebilir enerji santrali inşaatı",startBid:20000000},
+    {title:"Şehir Metro Hattı",description:"Yeni metro hattı yapım ve işletme ihalesi",startBid:35000000},
+    {title:"Tarımsal Sulama Projesi",description:"5.000 dönümlük arazi için sulama sistemi",startBid:3000000},
+    {title:"Okul Yenileme Projesi",description:"50 devlet okulunun yenilenmesi",startBid:7000000},
+  ];
+  const initTenders = React.useCallback(()=>{
+    const stored = S.load("list", null);
+    if(stored) return stored;
+    const now2 = Date.now();
+    return AUTO_TENDERS.slice(0,4).map((t,i)=>({
+      id:"t_auto_"+i, ...t, presidentId:"Sistem", currentBid:t.startBid,
+      currentBidder:null, bids:[], status:"open",
+      endsAt:now2+(24+i*12)*3600000, controlInterval:8, lastControl:null, missedControls:0, createdAt:now2,
+    }));
+  }, []);
+  const [tenders, setTenders] = React.useState(()=>initTenders());
   const [tab, setTab]         = React.useState("list");
   const [newTender, setNewTender] = React.useState({title:"",description:"",startBid:"",durationHours:"24"});
   const [bidInput, setBidInput]   = React.useState({});

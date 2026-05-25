@@ -1,0 +1,2 @@
+- [UNDERSTATE stack & architecture](understate-stack.md) — Babel-standalone React monolith (src/app.js ~12800 lines), external screens as window globals in src/screens/*.js.
+- [UNDERSTATE localStorage conventions](understate-localstorage.md) — All useLs() keys use rep_ prefix; daily task state key is rep_dailyTaskState; user profile is rep_userProfile.

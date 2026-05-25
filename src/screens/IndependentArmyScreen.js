@@ -118,7 +118,7 @@ window.IndependentArmyScreen = function IndependentArmyScreen({ cu, allUsers, fa
     if(!isEnlisted) return showMsg("Göreve başlamak için orduda kayıtlı olmanız gerekiyor","error");
     if(missionActive) return showMsg("Aktif göreviniz var","error");
     if(myOrg) return showMsg(`${myOrg} üyeliğiyle görev yapamazsınız. Önce örgütten ayrılın.`,"error");
-    if(rankIdx(mySoldier.rank)<rankIdx(m.minRank)) return showMsg(`Bu görev için en az ${RANKS.find(r=>r.id===m.minRank)?.label} gerekli`,"error");
+    // Level/rank check removed — all enlisted soldiers can attempt any mission
     const upd = {...missions,[cu.username]:{missionId:m.id,title:m.title,start:now,end:now+m.dur,rewardMP:m.rewardMP,rewardMoney:m.rewardMoney,collected:false}};
     setMissions(upd); S.save("missions",upd);
     showMsg(`"${m.title}" görevi başladı!`,"success");
@@ -201,6 +201,7 @@ window.IndependentArmyScreen = function IndependentArmyScreen({ cu, allUsers, fa
         {tabBtn("overview","Genel","📊")}
         {tabBtn("my","Kariyerim","🎖️")}
         {tabBtn("missions","Görevler","🎯")}
+        {tabBtn("ranking","Sıralama","🏆")}
         {tabBtn("command","Komuta","⚔️")}
         {tabBtn("budget","Bütçe","💰")}
         {tabBtn("rules","Kurallar","📋")}
@@ -347,32 +348,75 @@ window.IndependentArmyScreen = function IndependentArmyScreen({ cu, allUsers, fa
       {/* GÖREVLER */}
       {tab==="missions"&&(
         <div>
-          {MISSIONS.map(m=>{
-            const unlocked = isEnlisted && rankIdx(mySoldier?.rank)>=rankIdx(m.minRank);
-            const reqRank  = RANKS.find(r=>r.id===m.minRank);
-            return (
-              <div key={m.id} style={{...card,opacity:unlocked?1:0.55,borderLeft:`3px solid ${unlocked?"#EF4444":"rgba(255,255,255,0.1)"}`}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"0.4rem"}}>
-                  <div>
-                    <div style={{fontWeight:700,fontSize:"0.88rem",color:"#E8EDF2"}}>{m.icon} {m.title}</div>
-                    <div style={{fontSize:"0.68rem",color:"#5E7390",marginTop:"0.1rem"}}>Min: {reqRank?.label} · {Math.floor(m.dur/3600000)}s</div>
+          {!isEnlisted&&<div style={{...card,textAlign:"center",color:"#5E7390",padding:"1.5rem"}}>Görev yapmak için önce orduya katılın.</div>}
+          {missionActive&&(
+            <div style={{...card,border:"1px solid rgba(245,158,11,0.3)",background:"rgba(245,158,11,0.06)"}}>
+              <div style={{fontWeight:700,color:"#F59E0B",marginBottom:"0.25rem"}}>⏳ Aktif Görev: {myMission.title}</div>
+              <div style={{fontSize:"0.75rem",color:"#8899AA"}}>Tamamlanma: {fmtTime(myMission.end-now)}</div>
+            </div>
+          )}
+          {missionDone&&(
+            <div style={{...card,border:"1px solid rgba(16,185,129,0.3)",background:"rgba(16,185,129,0.06)"}}>
+              <div style={{fontWeight:700,color:"#10B981",marginBottom:"0.5rem"}}>✅ Görev Tamamlandı: {myMission.title}</div>
+              <button className="btn btn-primary" style={{width:"100%"}} onClick={collectMission}>🎖️ Ödülü Topla (+{myMission.rewardMP} MP)</button>
+            </div>
+          )}
+          {MISSIONS.map(m=>(
+            <div key={m.id} style={{...card,borderLeft:`3px solid ${!missionActive&&!missionDone&&isEnlisted?"#EF4444":"rgba(255,255,255,0.1)"}`}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"0.4rem"}}>
+                <div>
+                  <div style={{fontWeight:700,fontSize:"0.88rem",color:"#E8EDF2"}}>{m.icon} {m.title}</div>
+                  <div style={{fontSize:"0.68rem",color:"#5E7390",marginTop:"0.1rem"}}>Süre: {Math.floor(m.dur/3600000)}s · Tüm rütbeler</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:"0.75rem",color:"#EF4444",fontWeight:700}}>+{m.rewardMP} MP</div>
+                  <div style={{fontSize:"0.68rem",color:"#10B981"}}>{fmtMoney(m.rewardMoney)}</div>
+                </div>
+              </div>
+              {isEnlisted&&!missionActive&&!missionDone&&(
+                <button className="btn btn-primary" style={{width:"100%",fontSize:"0.75rem"}} onClick={()=>startMission(m)}>
+                  🎯 Göreve Başla
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* SIRALAMA */}
+      {tab==="ranking"&&(
+        <div>
+          <div style={card}>
+            <div className="card-title" style={{marginBottom:"0.75rem"}}>🏆 Askeri Puan Sıralaması</div>
+            {allSoldierList.length===0&&<div style={{textAlign:"center",color:"#5E7390",padding:"1rem"}}>Henüz askere kayıtlı yok.</div>}
+            {allSoldierList.sort((a,b)=>(b.mp||0)-(a.mp||0)).map((s,i)=>{
+              const rankData = RANKS.find(r=>r.id===s.rank)||RANKS[0];
+              const isMe = s.username===cu?.username;
+              return (
+                <div key={s.username} style={{display:"flex",alignItems:"center",gap:"0.65rem",padding:"0.6rem",borderRadius:10,marginBottom:"0.3rem",background:isMe?"rgba(239,68,68,0.08)":"rgba(255,255,255,0.02)",border:`1px solid ${isMe?"rgba(239,68,68,0.25)":"rgba(255,255,255,0.04)"}`}}>
+                  <span style={{fontFamily:"JetBrains Mono,monospace",fontWeight:700,color:i===0?"#FFD700":i===1?"#C0C0C0":i===2?"#CD7F32":"#5E7390",minWidth:24,fontSize:"0.75rem"}}>#{i+1}</span>
+                  <span style={{fontSize:"1rem"}}>{rankData.icon}</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:700,color:isMe?"#FCA5A5":"#E8EDF2",fontSize:"0.85rem"}}>{s.username}{isMe?" (sen)":""}</div>
+                    <div style={{fontSize:"0.65rem",color:"#5E7390"}}>{rankData.label} · {s.missions||0} görev</div>
                   </div>
                   <div style={{textAlign:"right"}}>
-                    <div style={{fontSize:"0.75rem",color:"#EF4444",fontWeight:700}}>+{m.rewardMP} MP</div>
-                    <div style={{fontSize:"0.68rem",color:"#10B981"}}>{fmtMoney(m.rewardMoney)}</div>
+                    <div style={{fontWeight:700,color:"#EF4444",fontSize:"0.82rem",fontFamily:"JetBrains Mono,monospace"}}>{(s.mp||0).toLocaleString()}</div>
+                    <div style={{fontSize:"0.55rem",color:"#5E7390"}}>MP</div>
                   </div>
                 </div>
-                {unlocked&&!missionActive&&!missionDone&&(
-                  <button className="btn btn-primary" style={{width:"100%",fontSize:"0.75rem"}} onClick={()=>startMission(m)}>
-                    🎯 Göreve Başla
-                  </button>
-                )}
-                {!unlocked&&(
-                  <div style={{fontSize:"0.68rem",color:"#5E7390"}}>🔒 {reqRank?.label} rütbesi gerekli</div>
-                )}
+              );
+            })}
+          </div>
+          {isEnlisted&&(
+            <div style={{...card,background:"rgba(239,68,68,0.05)",border:"1px solid rgba(239,68,68,0.2)"}}>
+              <div style={{fontSize:"0.8rem",color:"#FCA5A5",fontWeight:700,marginBottom:"0.25rem"}}>📊 Senin Sıran</div>
+              <div style={{fontSize:"0.72rem",color:"#8899AA"}}>
+                #{allSoldierList.sort((a,b)=>(b.mp||0)-(a.mp||0)).findIndex(s=>s.username===cu.username)+1} / {allSoldierList.length} asker ·{" "}
+                {(mySoldier.mp||0).toLocaleString()} MP · {myRankData.label}
               </div>
-            );
-          })}
+            </div>
+          )}
         </div>
       )}
 

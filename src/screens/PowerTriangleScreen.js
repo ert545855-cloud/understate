@@ -154,7 +154,7 @@ window.PowerTriangleScreen = function PowerTriangleScreen({ cu, families, gangs,
               <li>Partilere siyasi fon sağlarlar</li>
               <li>Sendikalarla toplu sözleşme yaparlar</li>
             </ul>
-            <button className="btn btn-primary" style={{marginTop:"0.75rem",width:"100%"}} onClick={()=>setCurrentPage("families")}>
+            <button className="btn btn-primary" style={{marginTop:"0.75rem",width:"100%"}} onClick={()=>setCurrentPage("family")}>
               👪 Aile Sistemine Git
             </button>
           </div>
@@ -190,7 +190,7 @@ window.PowerTriangleScreen = function PowerTriangleScreen({ cu, families, gangs,
               <li>Üyelerine maaş öderler</li>
               <li>Fabrikalara sabotaj yapabilirler</li>
             </ul>
-            <button className="btn btn-primary" style={{marginTop:"0.75rem",width:"100%"}} onClick={()=>setCurrentPage("gangs")}>
+            <button className="btn btn-primary" style={{marginTop:"0.75rem",width:"100%"}} onClick={()=>setCurrentPage("gang")}>
               🔫 Çete Sistemine Git
             </button>
           </div>
