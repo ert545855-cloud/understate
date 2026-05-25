@@ -1,7 +1,7 @@
 // UNDERSTATE Service Worker v2.0
 // Handles: offline cache, background sync, push notifications, app icons
 
-const CACHE_NAME = 'understate-v3';
+const CACHE_NAME = 'understate-v4';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
