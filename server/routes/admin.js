@@ -163,6 +163,36 @@ router.post('/users/bulk/money', adminMiddleware, async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
+router.post('/users/:userId/role', adminMiddleware, async (req, res) => {
+  try {
+    const { role } = req.body;
+    const validRoles = ['admin', 'user', 'vip'];
+    if (!validRoles.includes(role)) return res.status(400).json({ success: false, message: 'Geçersiz rol' });
+    if (!sb.isReady()) return res.json({ success: false, message: 'DB bağlı değil' });
+    const user = await sb.findUserById(req.params.userId);
+    if (!user) return res.status(404).json({ success: false, message: 'Kullanıcı bulunamadı' });
+    await sb.updateUser(user.id, { role });
+    if (_io && user.socket_id) _io.to(user.socket_id).emit('roleUpdate', { role, from: 'admin', timestamp: Date.now() });
+    res.json({ success: true, username: user.username, role });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+});
+
+router.post('/assign-position', adminMiddleware, async (req, res) => {
+  try {
+    const { userId, position, username } = req.body;
+    if (!userId || !position) return res.status(400).json({ success: false, message: 'userId ve position zorunlu' });
+    if (sb.isReady()) {
+      const user = await sb.findUserById(userId);
+      if (user) {
+        await sb.updateUser(userId, { position });
+        if (_io && user.socket_id) _io.to(user.socket_id).emit('positionUpdate', { position, from: 'admin', timestamp: Date.now() });
+        if (_io) _io.emit('cabinetUpdate', { username: username || user.username, position, timestamp: Date.now() });
+      }
+    }
+    res.json({ success: true, message: `${username || userId} → ${position} atandı` });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+});
+
 router.get('/health', (req, res) => {
   const stats = monitoring.getStats(roomManager.getAllRooms().length);
   const online = getOnlineGamePlayers();

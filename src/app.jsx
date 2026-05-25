@@ -835,6 +835,7 @@ function AdminPanel({allUsers,setAllUsers,notify,cu,user,economy,setEconomy,gang
   React.useEffect(() => {
     _refreshAdminData();
     _fetchServerStats();
+    const statsInterval = setInterval(()=>{ _fetchServerStats(); }, 30000);
     // Her 15 saniyede bir online listeyi güncelle
     const interval = setInterval(()=>{
       fetch('/api/game/online').then(r=>r.ok?r.json():Promise.resolve({count:0,players:[]})).then(res=>{const list=res.players||[];
@@ -877,6 +878,7 @@ function AdminPanel({allUsers,setAllUsers,notify,cu,user,economy,setEconomy,gang
       window._socket.on("usersSnapshot", _onUsersSnapshot);
     }
     return () => {
+      clearInterval(statsInterval);
       clearInterval(interval);
       if(window._socket){
         window._socket.off("playerUpdate", _onPlayerUpdate);
@@ -1018,7 +1020,14 @@ function AdminPanel({allUsers,setAllUsers,notify,cu,user,economy,setEconomy,gang
                     : <button style={{padding:"0.38rem 0.7rem",borderRadius:7,border:"1px solid rgba(16,185,129,0.4)",background:"rgba(16,185,129,0.1)",color:"#10B981",cursor:"pointer",fontSize:"0.75rem",fontWeight:700,minHeight:36,WebkitTapHighlightColor:"transparent"}}
                         onClick={()=>unbanUser(u.id)}>✅ Ban Kaldır</button>}
                   {u.role!=="admin"&&<button style={{padding:"0.38rem 0.7rem",borderRadius:7,border:"1px solid rgba(139,92,246,0.4)",background:"rgba(139,92,246,0.1)",color:"#A78BFA",cursor:"pointer",fontSize:"0.75rem",fontWeight:700,minHeight:36,WebkitTapHighlightColor:"transparent"}}
-                    onClick={()=>{setAllUsers(prev=>(Array.isArray(prev)?prev:[]).map(uu=>uu.id===u.id?{...uu,role:"admin"}:uu));notify(`✅ ${u.username} admin yapıldı!`);}}>⚡ Admin Yap</button>}
+                    onClick={()=>{
+    setAllUsers(prev=>(Array.isArray(prev)?prev:[]).map(uu=>uu.id===u.id?{...uu,role:"admin"}:uu));
+    const _jwt=localStorage.getItem('us_jwt');
+    if(_jwt&&u.id&&String(u.id).length>10){
+      fetch('/api/admin/users/'+u.id+'/role',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_jwt},body:JSON.stringify({role:'admin'})}).catch(()=>{});
+    }
+    notify(`✅ ${u.username} admin yapıldı!`);
+  }}>⚡ Admin Yap</button>}
                   <button style={{padding:"0.38rem 0.7rem",borderRadius:7,border:"1px solid rgba(236,72,153,0.4)",background:"rgba(236,72,153,0.1)",color:"#F472B6",cursor:"pointer",fontSize:"0.75rem",fontWeight:700,minHeight:36,WebkitTapHighlightColor:"transparent"}}
                     onClick={async()=>{const days=await gPrompt("VIP Ver","Kaç gün VIP verilsin?","30","number",{min:1,default:"30"});const d=parseInt(days);if(isNaN(d)||d<=0)return;const expiry=Date.now()+d*24*3600000;setAllUsers(prev=>(Array.isArray(prev)?prev:[]).map(uu=>uu.id===u.id?{...uu,premium:true,premiumExpiry:expiry,vip:true}:uu));notify(`✅ ${u.username} → ${d} gün VIP verildi!`);}}>💎 VIP Ver</button>
                   <button style={{padding:"0.38rem 0.7rem",borderRadius:7,border:"1px solid rgba(245,200,66,0.4)",background:"rgba(245,200,66,0.1)",color:"#F5C842",cursor:"pointer",fontSize:"0.75rem",fontWeight:700,minHeight:36,WebkitTapHighlightColor:"transparent"}}
@@ -1283,6 +1292,12 @@ function AdminPanel({allUsers,setAllUsers,notify,cu,user,economy,setEconomy,gang
                           saveCabinet(nc);
                           setAllUsers(prev=>(Array.isArray(prev)?prev:[]).map(u=>u.username===uname?{...u,position:pos.title}:u));
                           setAssignInput(p=>({...p,[pos.key]:""}));
+                          if(window._socket) window._socket.emit('stateUpdate',{cabinet:nc});
+                          const _jwtM=localStorage.getItem('us_jwt');
+                          const _tgtU=allUsers.find(u=>u.username===uname);
+                          if(_jwtM&&_tgtU&&String(_tgtU.id).length>10){
+                            fetch('/api/admin/assign-position',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_jwtM},body:JSON.stringify({userId:_tgtU.id,position:pos.title,username:uname})}).catch(()=>{});
+                          }
                           notify(`✅ ${uname} → ${pos.title} atandı!`);
                         }} style={{padding:"0.38rem 0.75rem",borderRadius:8,border:"1px solid rgba(255,215,0,0.4)",background:"rgba(255,215,0,0.1)",color:"#FFD700",cursor:"pointer",fontWeight:700,fontSize:"0.78rem",minHeight:34,WebkitTapHighlightColor:"transparent"}}>Ata</button>
                       </div>
@@ -2232,8 +2247,25 @@ function OrtakliIslerPage({cu, allUsers, setAllUsers, collabRequests, setCollabR
         {aTab==="server"&&(
           <div>
             <div style={{display:"flex",gap:"0.5rem",marginBottom:"0.75rem",flexWrap:"wrap"}}>
-              <button onClick={_fetchServerStats} style={{padding:"0.4rem 0.9rem",borderRadius:8,border:"1px solid rgba(0,201,255,0.4)",background:"rgba(0,201,255,0.1)",color:"#00C9FF",cursor:"pointer",fontSize:"0.78rem",fontWeight:700,minHeight:36}}>🔄 Yenile</button>
+              <button onClick={()=>{_fetchServerStats();notify("Yenilendi!");}} style={{padding:"0.4rem 0.9rem",borderRadius:8,border:"1px solid rgba(0,201,255,0.4)",background:"rgba(0,201,255,0.1)",color:"#00C9FF",cursor:"pointer",fontSize:"0.78rem",fontWeight:700,minHeight:36}}>🔄 Yenile</button>
               <button onClick={async()=>{const m=await gPrompt("Sunucu Duyurusu","Tüm oyunculara gönderilecek mesaj:","Mesaj");if(m)_serverBroadcast(m);}} style={{padding:"0.4rem 0.9rem",borderRadius:8,border:"1px solid rgba(255,184,0,0.4)",background:"rgba(255,184,0,0.1)",color:"#FFB800",cursor:"pointer",fontSize:"0.78rem",fontWeight:700,minHeight:36}}>📢 Duyuru Gönder</button>
+              <button onClick={async()=>{
+                const t=await gPrompt("Push Bildirim","Gönderilecek bildirim mesajı:","Mesaj");
+                if(!t) return;
+                const _jwt=localStorage.getItem('us_jwt');
+                if(!_jwt) return notify("JWT bulunamadı!");
+                fetch('/api/push/broadcast',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_jwt},body:JSON.stringify({title:"UNDERSTATE",body:t,url:"/"})})
+                  .then(r=>r.json()).then(d=>notify(d.success?"✅ Push gönderildi! ("+d.sent+" cihaz)":"❌ "+d.message)).catch(e=>notify("❌ "+e.message));
+              }} style={{padding:"0.4rem 0.9rem",borderRadius:8,border:"1px solid rgba(139,92,246,0.4)",background:"rgba(139,92,246,0.1)",color:"#A78BFF",cursor:"pointer",fontSize:"0.78rem",fontWeight:700,minHeight:36}}>🔔 Push Gönder</button>
+              <button onClick={async()=>{
+                const _jwt=localStorage.getItem('us_jwt');
+                if(!_jwt) return;
+                const r=await gPrompt("Test Email","Email adresi:","test@example.com");
+                if(!r) return;
+                const t=await gPrompt("Email Türü","Tür (verification/reset/welcome):","verification");
+                fetch('/api/auth/test-email',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_jwt},body:JSON.stringify({email:r,type:t||'verification'})})
+                  .then(res=>res.json()).then(d=>notify(d.success?"✅ Test emaili gönderildi!":"❌ "+d.message)).catch(()=>notify("❌ Email gönderilmedi"));
+              }} style={{padding:"0.4rem 0.9rem",borderRadius:8,border:"1px solid rgba(16,185,129,0.4)",background:"rgba(16,185,129,0.1)",color:"#10B981",cursor:"pointer",fontSize:"0.78rem",fontWeight:700,minHeight:36}}>📧 Test Email</button>
             </div>
             {serverStats&&(
               <div style={{background:"#0D1020",border:"1px solid rgba(255,255,255,0.08)",borderRadius:12,padding:"1rem",marginBottom:"0.75rem"}}>
@@ -2290,6 +2322,51 @@ function OrtakliIslerPage({cu, allUsers, setAllUsers, collabRequests, setCollabR
                 ))}
               </div>
             </div>
+            {/* Seçim Yönetimi - Server */}
+            {(()=>{
+              const [srvElections, setSrvElections] = React.useState([]);
+              const [srvLoading, setSrvLoading] = React.useState(false);
+              const loadElections = () => {
+                setSrvLoading(true);
+                fetch('/api/election').then(r=>r.json()).then(d=>{setSrvElections(d.data||[]);setSrvLoading(false);}).catch(()=>setSrvLoading(false));
+              };
+              React.useEffect(()=>{loadElections();},[]);
+              return (
+                <div style={{background:"#0D1020",border:"1px solid rgba(255,255,255,0.08)",borderRadius:12,padding:"1rem",marginTop:"0.75rem"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"0.6rem"}}>
+                    <div style={{fontWeight:700,color:"#fff",fontSize:"0.85rem"}}>🗳️ Sunucu Seçimleri ({srvElections.length})</div>
+                    <div style={{display:"flex",gap:"0.4rem"}}>
+                      <button onClick={loadElections} style={{padding:"0.28rem 0.6rem",borderRadius:6,border:"1px solid rgba(0,201,255,0.35)",background:"rgba(0,201,255,0.08)",color:"#00C9FF",cursor:"pointer",fontSize:"0.68rem",fontWeight:700,minHeight:28}}>🔄</button>
+                      <button onClick={async()=>{
+                        const type=await gPrompt("Seçim Tipi","Seçim türü (cumhurbaskani/baskan/meclis/vali):","meclis");
+                        if(!type) return;
+                        const hrs=await gPrompt("Süre","Kaç saat sürsün?","24","number",{min:1,default:"24"});
+                        const _jwt=localStorage.getItem('us_jwt');
+                        if(!_jwt) return;
+                        fetch('/api/election/create',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_jwt},body:JSON.stringify({type,candidates:[],durationHours:parseInt(hrs)||24})})
+                          .then(r=>r.json()).then(d=>{if(d.success){notify("✅ Seçim başlatıldı!");loadElections();}else notify("❌ "+d.message);}).catch(()=>{});
+                      }} style={{padding:"0.28rem 0.65rem",borderRadius:6,border:"1px solid rgba(16,185,129,0.35)",background:"rgba(16,185,129,0.08)",color:"#10B981",cursor:"pointer",fontSize:"0.68rem",fontWeight:700,minHeight:28}}>+ Yeni Seçim</button>
+                    </div>
+                  </div>
+                  {srvLoading&&<div style={{textAlign:"center",color:"#5E7390",fontSize:"0.8rem",padding:"0.5rem"}}>Yükleniyor...</div>}
+                  {!srvLoading&&srvElections.length===0&&<div style={{textAlign:"center",color:"#5E7390",fontSize:"0.8rem",padding:"0.5rem"}}>Aktif seçim yok</div>}
+                  {srvElections.map(el=>(
+                    <div key={el.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"0.5rem",background:"rgba(255,215,0,0.04)",borderRadius:8,marginBottom:"0.3rem",border:"1px solid rgba(255,215,0,0.1)"}}>
+                      <div>
+                        <div style={{fontWeight:700,fontSize:"0.8rem",color:"#FFD700"}}>{el.type}</div>
+                        <div style={{fontSize:"0.65rem",color:"#aaa"}}>{el.city||"—"} · {new Date(el.ends_at).toLocaleString("tr-TR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</div>
+                      </div>
+                      <button onClick={()=>{
+                        const _jwt=localStorage.getItem('us_jwt');
+                        if(!_jwt) return;
+                        fetch('/api/election/'+el.id+'/end',{method:'POST',headers:{'Authorization':'Bearer '+_jwt}})
+                          .then(r=>r.json()).then(d=>{if(d.success){notify("✅ Seçim bitti! Kazanan: "+(d.winner||"eşit"));loadElections();}else notify("❌ "+d.message);}).catch(()=>{});
+                      }} style={{padding:"0.28rem 0.6rem",borderRadius:6,border:"1px solid rgba(239,68,68,0.35)",background:"rgba(239,68,68,0.08)",color:"#EF4444",cursor:"pointer",fontSize:"0.68rem",fontWeight:700,minHeight:28}}>⏹ Bitir</button>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         )}
                   {aTab==="milletvekili"&&(()=>{
@@ -6510,12 +6587,22 @@ const [cityBudgets, setCityBudgets] = useState(()=>S.load("cityBudgets",{}));
     const updated = (Array.isArray(allUsers)?allUsers:[]).map(u=>u.id===uid?{...u,banned:true,banReason:reason}:u);
     setAllUsers(updated);
     _adminEmitUsers(updated);
+    const _jwt=localStorage.getItem('us_jwt');
+    if(_jwt&&uid&&String(uid).length>10){
+      fetch('/api/admin/ban/'+uid,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_jwt},body:JSON.stringify({reason})})
+        .then(r=>r.json()).then(d=>{if(d.success)notify("✅ "+d.message);}).catch(()=>{});
+    }
     notify("✅ Kullanıcı banlandı!");
   };
   const unbanUser = (uid) => {
     const updated = (Array.isArray(allUsers)?allUsers:[]).map(u=>u.id===uid?{...u,banned:false,banReason:null}:u);
     setAllUsers(updated);
     _adminEmitUsers(updated);
+    const _jwt=localStorage.getItem('us_jwt');
+    if(_jwt&&uid&&String(uid).length>10){
+      fetch('/api/admin/unban/'+uid,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_jwt},body:JSON.stringify({})})
+        .then(r=>r.json()).then(d=>{if(d.success)notify("✅ "+d.message);}).catch(()=>{});
+    }
     notify("✅ Ban kaldırıldı!");
   };
   const addMoney = async (uid) => {
