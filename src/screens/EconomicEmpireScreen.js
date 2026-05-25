@@ -20,6 +20,20 @@ window.EconomicEmpireScreen = function EconomicEmpireScreen({ cu, families, gang
   const [form, setForm] = React.useState({name:"",type:"fabrika",budget:""});
   const now = Date.now();
 
+  // Socket listener — çete saldırısı gelince varlığı "underAttack" yap
+  React.useEffect(() => {
+    const sock = window._socket;
+    if (!sock) return;
+    const handler = (evt) => {
+      const mark = (a) => a.id===evt.assetId ? {...a,underAttack:true,lastAttacker:evt.gangName,lastAttackAt:evt.timestamp} : a;
+      setHoldings(prev  => { const upd = prev.map(mark);  S.save("holdings",upd);  return upd; });
+      setFactories(prev => { const upd = prev.map(mark);  S.save("factories",upd); return upd; });
+      setCompanies(prev => { const upd = prev.map(mark);  S.save("companies",upd); return upd; });
+    };
+    sock.on('gang:assetAttacked', handler);
+    return () => { sock.off('gang:assetAttacked', handler); };
+  }, []);
+
   const showMsg = (text, type="info") => { setMsg({text,type}); setTimeout(()=>setMsg(null),3500); };
   const fmtMoney = (n) => { if(!n)return "₺0"; if(n>=1e9)return "₺"+(n/1e9).toFixed(1)+"Mlr"; if(n>=1e6)return "₺"+(n/1e6).toFixed(1)+"M"; if(n>=1e3)return "₺"+(n/1e3).toFixed(0)+"K"; return "₺"+n; };
 
