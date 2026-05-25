@@ -378,85 +378,162 @@ function AuthScreen({ onLogin }) {
 
   const _hashPass = (raw) => { try { return btoa(unescape(encodeURIComponent(raw + '_us_salt_2024'))); } catch(e) { return raw; } };
 
-  const doLogin = () => {
-    if (!f.username.trim() || !f.password) { setErr('Kullanıcı adı / e-posta ve şifre gerekli'); return; }
-    setLoading(true); setErr('');
-    const uname = f.username.trim();
-    const users = getUsers();
-    if (uname === 'admin' && f.password === 'admin123') {
-      let adminUser = users.find(u => u.username === 'admin' || u.role === 'admin');
-      if (!adminUser) {
-        adminUser = {
-          id:'admin_001', uid:'admin_001', username:'admin', password:_hashPass('admin123'),
-          email:'admin@understate.tr', city:'Ankara', gender:'erkek',
-          money:999999999, bankMoney:999999999, bank:999999999, underCoin:99999,
-          xp:999999, level:99, meritPoints:9999, loyaltyPoints:9999, hp:100,
-          role:'admin', isAdmin:true, banned:false, premium:true, vip:true,
-          educationLevel:'Profesör', educationCompleted:true, educationProgress:4000,
-          eduPackage:true, eduPackageExpiry:Date.now()+365*24*60*60*1000,
-          packages:{edu:true},
-          registeredAt:Date.now(), lastOnline:Date.now(),
-          loginStreak:1, lastLoginDate:new Date().toDateString(),
-          createdAt:new Date().toLocaleDateString('tr-TR'),
-          achievements:[], inventory:{}, badges:[],
-          stats:{trades:0,messages:0,crimes:0,votes:0,battles:0,farm:0},
-          skills:{trade:0,politics:0,crime:0,military:0,farming:0}
-        };
-      } else {
-        adminUser = {...adminUser, role:'admin', banned:false, password:_hashPass('admin123'),
-          money:999999999999, bankMoney:999999999999, bank:999999999999, underCoin:99999,
-          educationLevel:'Profesör', educationCompleted:true, educationProgress:4000,
-          eduPackage:true, eduPackageExpiry:Date.now()+365*24*60*60*1000,
-          packages:{...(adminUser.packages||{}),edu:true}
-        };
-      }
-      saveUsers(users.map(u=>(u.username==='admin'||u.role==='admin')?adminUser:u).concat(users.find(u=>u.username==='admin'||u.role==='admin')?[]:[adminUser]));
-      localStorage.setItem('userId', adminUser.id);
-      localStorage.setItem('rep_userProfile', JSON.stringify(adminUser));
-      try {
-        if(typeof io !== 'undefined' && !window._socket) {
-          window._socket = io(window.location.origin, {reconnection:true,reconnectionAttempts:10,transports:['websocket','polling']});
-          window._socket.on('connect', ()=>console.log('✓ Socket.IO bağlandı'));
-          window._socket.on('onlineCount', (cnt)=>window.dispatchEvent(new CustomEvent('fb-sync',{detail:{key:'onlineCount',value:cnt}})));
-        }
-        if(window._socket) window._socket.emit('playerJoin', {userId:adminUser.id, username:adminUser.username, level:adminUser.level||1, city:adminUser.city||'', gender:adminUser.gender||'erkek', money:adminUser.money||0, party:adminUser.party||null, gang:adminUser.gang||null});
-      } catch(e) {}
-      setLoading(false);
-      onLogin(adminUser);
-      return;
-    }
-    const hashedInput = _hashPass(f.password);
-    const found = users.find(u => (u.username === uname || (u.email && u.email.toLowerCase() === uname.toLowerCase())) && (u.password === hashedInput || u.password === f.password));
-    if (!found) { setErr('Kullanıcı adı veya şifre hatalı'); setLoading(false); return; }
-    if (found.banned) { setErr('Bu hesap banlanmıştır: ' + (found.banReason||'Kural ihlali')); setLoading(false); return; }
-    let finalUser = { ...found, lastOnline: Date.now(), online: true };
-    if (found.password === f.password) { finalUser.password = hashedInput; }
-    saveUsers(users.map(u => u.id === found.id ? finalUser : u));
-    localStorage.setItem('userId', found.id);
-    localStorage.setItem('rep_userProfile', JSON.stringify(finalUser));
+  const _setupSocket = (user) => {
     try {
       if(typeof io !== 'undefined' && !window._socket) {
         window._socket = io(window.location.origin, {reconnection:true,reconnectionAttempts:10,transports:['websocket','polling']});
-        window._socket.on('connect', ()=>console.log('✓ Socket.IO bağlandı'));
+        window._socket.on('connect', ()=>console.log('✓ Socket.IO çözümlendi'));
         window._socket.on('onlineCount', (cnt)=>window.dispatchEvent(new CustomEvent('fb-sync',{detail:{key:'onlineCount',value:cnt}})));
       }
-      if(window._socket) window._socket.emit('playerJoin', {userId:found.id, username:found.username, level:finalUser.level||1, city:finalUser.city||'', gender:finalUser.gender||'erkek', money:finalUser.money||0, party:finalUser.party||null, gang:finalUser.gang||null});
+      if(window._socket) window._socket.emit('playerJoin', {userId:user.id, username:user.username, level:user.level||1, city:user.city||'', gender:user.gender||'erkek', money:user.money||0, party:user.party||null, gang:user.gang||null});
     } catch(e) {}
+  };
+
+  const _mapServerUser = (u, extra={}) => ({
+    id:u.id, uid:u.id, username:u.username, email:u.email||'',
+    city:extra.city||u.city||'İstanbul', gender:extra.gender||u.gender||'erkek',
+    money:extra.money!==undefined?extra.money:(u.money||10000),
+    bankMoney:extra.bankMoney!==undefined?extra.bankMoney:(u.bankMoney||5000),
+    bank:extra.bank!==undefined?extra.bank:(u.bankMoney||5000),
+    underCoin:u.underCoin||50, xp:u.xp||0, level:u.level||1,
+    meritPoints:u.meritPoints||0, loyaltyPoints:u.loyaltyPoints||100, hp:u.hp||100,
+    health:u.hp||100, happiness:85, energy:100,
+    role:u.role||'user', isAdmin:u.role==='admin', banned:u.banned||false,
+    premium:false, vip:false,
+    educationLevel:u.educationLevel||'İlköğretim',
+    educationCompleted:(u.educationProgress||0)>=100,
+    educationProgress:u.educationProgress||0,
+    packages:{}, achievements:u.achievements||[],
+    inventory:u.inventory||{}, badges:[],
+    stats:u.stats||{trades:0,messages:0,crimes:0,votes:0,battles:0,farm:0},
+    skills:u.skills||{trade:0,politics:0,crime:0,military:0,farming:0},
+    registeredAt:u.createdAt?new Date(u.createdAt).getTime():Date.now(),
+    lastOnline:Date.now(), loginStreak:1, lastLoginDate:new Date().toDateString(),
+    createdAt:u.createdAt?new Date(u.createdAt).toLocaleDateString('tr-TR'):'',
+    gameData:u.gameData||{}, ...extra
+  });
+
+  const doLogin = async () => {
+    if (!f.username.trim() || !f.password) { setErr('Kullanıcı adı / e-posta ve şifre gerekli'); return; }
+    setLoading(true); setErr('');
+    const uname = f.username.trim();
+
+    // ── Admin bypass (local) ──────────────────────────────────────────
+    if (uname === 'admin' && f.password === 'admin123') {
+      const users = getUsers();
+      let adminUser = users.find(u => u.username==='admin'||u.role==='admin');
+      if (!adminUser) adminUser = {
+        id:'admin_001', uid:'admin_001', username:'admin', password:_hashPass('admin123'),
+        email:'admin@understate.tr', city:'Ankara', gender:'erkek',
+        money:999999999, bankMoney:999999999, bank:999999999, underCoin:99999,
+        xp:999999, level:99, meritPoints:9999, loyaltyPoints:9999, hp:100,
+        role:'admin', isAdmin:true, banned:false, premium:true, vip:true,
+        educationLevel:'Profeör', educationCompleted:true, educationProgress:4000,
+        eduPackage:true, packages:{edu:true}, registeredAt:Date.now(), lastOnline:Date.now(),
+        loginStreak:1, lastLoginDate:new Date().toDateString(),
+        createdAt:new Date().toLocaleDateString('tr-TR'),
+        achievements:[], inventory:{}, badges:[],
+        stats:{trades:0,messages:0,crimes:0,votes:0,battles:0,farm:0},
+        skills:{trade:0,politics:0,crime:0,military:0,farming:0}
+      };
+      saveUsers(users.find(u=>u.username==='admin'||u.role==='admin')
+        ? users.map(u=>(u.username==='admin'||u.role==='admin')?adminUser:u)
+        : [...users, adminUser]);
+      localStorage.setItem('userId', adminUser.id);
+      localStorage.setItem('rep_userProfile', JSON.stringify(adminUser));
+      _setupSocket(adminUser);
+      setLoading(false); onLogin(adminUser); return;
+    }
+
+    // ── Server API login ─────────────────────────────────────────────────────────
+    try {
+      const res  = await fetch('/api/auth/login', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ username:uname, password:f.password })
+      });
+      const data = await res.json();
+      if (data.success) {
+        const profile = _mapServerUser(data.user);
+        localStorage.setItem('us_jwt', data.token);
+        if (data.refreshToken) localStorage.setItem('us_refresh', data.refreshToken);
+        localStorage.setItem('userId', profile.id);
+        localStorage.setItem('rep_userProfile', JSON.stringify(profile));
+        _setupSocket(profile);
+        setLoading(false); onLogin(profile); return;
+      }
+      setErr(data.message || 'Giriş başarısız');
+      setLoading(false); return;
+    } catch(netErr) {
+      console.warn('[Login] Sunucu ulaşılamıyor, localStorage deneniyor:', netErr.message);
+    }
+
+    // ── localStorage fallback (ağ sor. / çevrimed.) ────────────────────────────────────────────────────────────
+    const users  = getUsers();
+    const hashed = _hashPass(f.password);
+    const found  = users.find(u =>
+      (u.username===uname || (u.email && u.email.toLowerCase()===uname.toLowerCase())) &&
+      (u.password===hashed || u.password===f.password)
+    );
+    if (!found) { setErr('Kullanıcı adı veya şifre hatalı'); setLoading(false); return; }
+    if (found.banned) { setErr('Bu hesap banlanmıştır: '+(found.banReason||'Kural ihlali')); setLoading(false); return; }
+    let finalUser = { ...found, lastOnline:Date.now(), online:true };
+    if (found.password===f.password) finalUser.password = hashed;
+    saveUsers(users.map(u => u.id===found.id ? finalUser : u));
+    localStorage.setItem('userId', found.id);
+    localStorage.setItem('rep_userProfile', JSON.stringify(finalUser));
+    _setupSocket(finalUser);
     setLoading(false);
     onLogin(finalUser);
   };
 
-  const doRegister = () => {
-    if (!f.username.trim() || !f.password) { setErr('Kullanıcı adı ve şifre gerekli'); return; }
-    if (f.username.length < 3) { setErr('Kullanıcı adı en az 3 karakter'); return; }
-    if (f.password.length < 6) { setErr('Şifre en az 6 karakter'); return; }
-    if (!f.email.trim()) { setErr('E-posta adresi zorunludur'); return; }
+  const doRegister = async () => {
+    if (!f.username.trim() || !f.password)    { setErr('Kullanıcı adı ve şifre gerekli'); return; }
+    if (f.username.length < 3)                 { setErr('Kullanıcı adı en az 3 karakter'); return; }
+    if (f.password.length < 6)                 { setErr('Şifre en az 6 karakter'); return; }
+    if (!f.email.trim())                       { setErr('E-posta adresi zorunludur'); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) { setErr('Geçerli bir e-posta adresi girin'); return; }
     setLoading(true); setErr('');
     const uname = f.username.trim();
+
+    // ── Server API register ───────────────────────────────────────────────────────────
+    try {
+      const res  = await fetch('/api/auth/register', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ username:uname, email:f.email.trim(), password:f.password })
+      });
+      const data = await res.json();
+      if (data.success) {
+        const profile = _mapServerUser(data.user, {
+          city:f.city||'İstanbul',
+          gender:f.gender==='female'?'kadin':'erkek',
+          money:10000, bankMoney:5000, bank:5000, underCoin:50
+        });
+        localStorage.setItem('us_jwt', data.token);
+        if (data.refreshToken) localStorage.setItem('us_refresh', data.refreshToken);
+        localStorage.setItem('userId', profile.id);
+        localStorage.setItem('rep_userProfile', JSON.stringify(profile));
+        try {
+          await fetch('/api/save', {
+            method:'POST',
+            headers:{'Content-Type':'application/json','Authorization':'Bearer '+data.token},
+            body:JSON.stringify({ money:10000, bank:5000, level:1, xp:0,
+              city:f.city||'İstanbul', under_coin:50, health:100,
+              stats:profile.stats, inventory:{}, achievements:[] })
+          });
+        } catch(_) {}
+        _setupSocket(profile);
+        setLoading(false); onLogin(profile); return;
+      }
+      setErr(data.message || 'Kayıt başarısız');
+      setLoading(false); return;
+    } catch(netErr) {
+      console.warn('[Register] Sunucu ulaşılamıyor, localStorage deneniyor:', netErr.message);
+    }
+
+    // ── localStorage fallback ────────────────────────────────────────────────────────────
     const users = getUsers();
-    if (users.find(u => u.username === uname)) { setErr('Bu kullanıcı adı zaten alınmış'); setLoading(false); return; }
-    const id = 'user_' + Date.now();
+    if (users.find(u => u.username===uname)) { setErr('Bu kullanıcı adı zaten alınmış'); setLoading(false); return; }
+    const id = 'user_'+Date.now();
     const profile = {
       id, uid:id, username:uname, password:_hashPass(f.password),
       email:f.email.trim(), city:f.city, gender:f.gender==='female'?'kadin':'erkek',
@@ -471,24 +548,10 @@ function AuthScreen({ onLogin }) {
       stats:{trades:0,messages:0,crimes:0,votes:0,battles:0,farm:0},
       skills:{trade:0,politics:0,crime:0,military:0,farming:0}
     };
-    const updatedUsers = [...users, profile];
-    saveUsers(updatedUsers);
-    if(window._fb && window._fb.rtdb) {
-      try {
-        const gid = window._gameId || 'understate_main_server';
-        window._fb.rtdb.ref('games/'+gid+'/realtime/users').set(updatedUsers);
-      } catch(e) {}
-    }
+    saveUsers([...users, profile]);
     localStorage.setItem('userId', id);
     localStorage.setItem('rep_userProfile', JSON.stringify(profile));
-    try {
-      if(typeof io !== 'undefined' && !window._socket) {
-        window._socket = io(window.location.origin, {reconnection:true,reconnectionAttempts:10,transports:['websocket','polling']});
-        window._socket.on('connect', ()=>console.log('✓ Socket.IO bağlandı'));
-        window._socket.on('onlineCount', (cnt)=>window.dispatchEvent(new CustomEvent('fb-sync',{detail:{key:'onlineCount',value:cnt}})));
-      }
-      if(window._socket) window._socket.emit('playerJoin', {userId:id, username:uname, level:1, city:f.city||'', gender:f.gender==='female'?'kadin':'erkek', money:10000, party:null, gang:null});
-    } catch(e) {}
+    _setupSocket(profile);
     setLoading(false);
     onLogin(profile);
   };
@@ -10639,6 +10702,39 @@ function App() {
     window.addEventListener('fb-sync', h);
     return () => window.removeEventListener('fb-sync', h);
   }, []);
+
+  // ── Auto-save: sync game state to PostgreSQL every 30 seconds ──────────────
+  useEffect(() => {
+    if (!authed) return;
+    const doAutoSave = async () => {
+      try {
+        const jwt = localStorage.getItem('us_jwt');
+        if (!jwt) return;
+        const p = profile;
+        if (!p || !p.id) return;
+        const payload = {
+          money:        typeof p.money    === 'number' ? p.money    : 0,
+          bank:         typeof p.bank     === 'number' ? p.bank     : (p.bankMoney||0),
+          level:        typeof p.level    === 'number' ? p.level    : 1,
+          xp:           typeof p.xp       === 'number' ? p.xp       : 0,
+          city:         p.city    || 'İstanbul',
+          under_coin:   typeof p.underCoin === 'number' ? p.underCoin : 0,
+          health:       typeof p.hp       === 'number' ? p.hp       : 100,
+          stats:        p.stats       || {},
+          achievements: p.achievements || [],
+          inventory:    p.inventory   || {},
+          game_data:    p.gameData    || {},
+        };
+        await fetch('/api/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+          body: JSON.stringify(payload),
+        });
+      } catch(_) {}
+    };
+    const iv = setInterval(doAutoSave, 30000);
+    return () => clearInterval(iv);
+  }, [authed, profile]);
 
   const [onlinePlayers, setOnlinePlayers] = useState([]);
   const [incomingDm, setIncomingDm] = useState(null);
