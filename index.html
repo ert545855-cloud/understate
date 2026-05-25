@@ -197,7 +197,7 @@ _advanceBar(10, 'Başlatılıyor...');
 
 // ── IndexedDB cache (fast reload after first visit) ──────────────────────────
 var IDB_NAME = 'us_cache_v2';
-var IDB_KEY  = 'compiled_v214_meclis';
+var IDB_KEY  = 'compiled_v215_meclis';
 
 function idbGet(key, cb) {
   try {
@@ -225,24 +225,27 @@ function idbSet(key, val, cb) {
   } catch(e) { if (cb) cb(); }
 }
 
-function execCode(code) {
+function execCompiledCode(code) {
   try {
-    var transformed = code;
-    if (window.Babel) {
-      try {
-        transformed = Babel.transform(code, { presets: ['react'], sourceType: 'script' }).code;
-      } catch(te) {
-        console.warn('Babel transform failed, trying raw:', te.message);
-      }
-    }
-    var blob = new Blob([transformed], { type: 'application/javascript' });
+    var blob = new Blob([code], { type: 'application/javascript' });
     var url  = URL.createObjectURL(blob);
     var s    = document.createElement('script');
     s.src    = url;
-    s.onload = function() { URL.revokeObjectURL(url); };
+    s.onload  = function() { URL.revokeObjectURL(url); };
     s.onerror = function() { URL.revokeObjectURL(url); _showError('Kod yuklenemedi'); };
     document.body.appendChild(s);
   } catch(e) { _showError('Kod calistirilamadi: ' + e.message); }
+}
+
+function execCode(code) {
+  if (!window.Babel) { execCompiledCode(code); return; }
+  try {
+    var transformed = Babel.transform(code, { presets: ['react'], sourceType: 'script' }).code;
+    execCompiledCode(transformed);
+  } catch(te) {
+    console.warn('Babel transform failed:', te.message);
+    _showError('Babel derleyici hatası: ' + te.message.slice(0, 120));
+  }
 }
 
 // Fetch src/app.js + new screen components, cache in IDB
@@ -257,6 +260,16 @@ var SCREEN_FILES = [
   'src/screens/ProtectionDealsScreen.js',
   'src/screens/IndependentArmyScreen.js',
 ];
+
+function _babelOne(src) {
+  if (!src || !window.Babel) return src || '';
+  try {
+    return Babel.transform(src, { presets: ['react'], sourceType: 'script' }).code;
+  } catch(te) {
+    console.warn('Babel tek dosya derlemesi başarısız:', te.message);
+    return src;
+  }
+}
 
 function compileAndRun() {
   _advanceBar(82, 'Oyun yükleniyor...');
@@ -274,13 +287,16 @@ function compileAndRun() {
   );
   Promise.all(allFetches)
     .then(function(results) {
-      var screenCode = results.slice(0, SCREEN_FILES.length).join('\n');
-      var appCode    = results[results.length - 1];
-      var combined   = screenCode + '\n' + appCode;
-      _advanceBar(94, 'Önbelleğe kaydediliyor...');
+      _advanceBar(88, 'JSX derleniyor...');
+      var compiledParts = results.map(function(src, i) {
+        _advanceBar(88 + Math.floor(i / results.length * 6), 'Derleniyor ' + (i + 1) + '/' + results.length + '...');
+        return _babelOne(src);
+      });
+      var combined = compiledParts.join('\n');
+      _advanceBar(95, 'Önbelleğe kaydediliyor...');
       idbSet(IDB_KEY, combined, function() {
         _advanceBar(98, 'Başlatılıyor...');
-        execCode(combined);
+        execCompiledCode(combined);
       });
     })
     .catch(function(err) { _showError('app.js yüklenemedi: ' + err.message); });
@@ -298,7 +314,7 @@ function boot() {
     clearTimeout(bootTimeout);
     if (cached) {
       _advanceBar(95, '⚡ Önbellekten yükleniyor...');
-      setTimeout(function() { execCode(cached); }, 30);
+      setTimeout(function() { execCompiledCode(cached); }, 30);
     } else {
       _advanceBar(78, '⏳ İlk açılış yükleniyor...');
       compileAndRun();
