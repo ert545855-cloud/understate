@@ -872,6 +872,10 @@ function tryBoot() {
 window._US_AUDIO_SRC = "audio/background.mp3";
 </script>
 
+<!-- Main Application Script -->
+<script src="/src/app.js" 
+  onerror="_showError('Ana uygulama dosyası yüklenemedi (app.js)')"
+  onload="_advanceBar(90,'Uygulama ✓')"></script>
 
 <!-- ═══════════════════════════════════════════════════════════════
      SERVICE WORKER + JWT AUTO-REFRESH + ERROR BOUNDARY + ADMOB
