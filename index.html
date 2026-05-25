@@ -28,6 +28,51 @@
 
 <div id="root"></div>
 
+<!-- ═══ Military Order Banner ═══ -->
+<div id="mil-banner" style="
+  display:none;
+  position:fixed;
+  top:0; left:50%; transform:translateX(-50%);
+  width:min(100vw,480px);
+  z-index:9998;
+  background:linear-gradient(135deg,#1a0000 0%,#3d0000 50%,#1a0000 100%);
+  border-bottom:2px solid #EF4444;
+  box-shadow:0 4px 32px rgba(239,68,68,0.5);
+  padding:0;
+  animation:milBannerSlide 0.4s cubic-bezier(0.25,0.46,0.45,0.94) forwards;
+  font-family:'DM Sans',sans-serif;
+">
+  <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;">
+    <span id="mil-banner-icon" style="font-size:1.5rem;flex-shrink:0;">🪖</span>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:0.62rem;color:#EF4444;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:1px;">⚡ ASKERİ EMİR</div>
+      <div id="mil-banner-text" style="font-size:0.85rem;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+      <div id="mil-banner-sub" style="font-size:0.65rem;color:#94A3B8;margin-top:1px;"></div>
+    </div>
+    <button onclick="document.getElementById('mil-banner').style.display='none'" style="
+      background:rgba(255,255,255,0.08);border:none;border-radius:8px;
+      color:#94A3B8;font-size:0.85rem;cursor:pointer;padding:4px 8px;flex-shrink:0;
+    ">✕</button>
+  </div>
+  <div id="mil-banner-bar" style="height:2px;background:#EF4444;width:100%;transform-origin:left;animation:milBannerTimer 6s linear forwards;"></div>
+</div>
+<style>
+@keyframes milBannerSlide {
+  from { transform:translateX(-50%) translateY(-100%); opacity:0; }
+  to   { transform:translateX(-50%) translateY(0);    opacity:1; }
+}
+@keyframes milBannerTimer {
+  from { transform:scaleX(1); }
+  to   { transform:scaleX(0); }
+}
+@keyframes milBannerPulse {
+  0%,100% { box-shadow:0 4px 32px rgba(239,68,68,0.5); }
+  50%      { box-shadow:0 4px 48px rgba(239,68,68,0.8); }
+}
+#mil-banner[style*="flex"] { animation:milBannerSlide 0.4s cubic-bezier(0.25,0.46,0.45,0.94) forwards, milBannerPulse 1.5s ease-in-out infinite; }
+</style>
+
+
 <!-- LOADING SCREEN -->
 <div id="loading-screen" style="position:fixed;inset:0;z-index:9999;background:#050505;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;font-family:'DM Sans',sans-serif;">
   <div style="font-family:'Syne',sans-serif;font-size:clamp(1.6rem,5vw,2.5rem);letter-spacing:0.35rem;display:flex;align-items:baseline;">
@@ -468,6 +513,29 @@ function boot() {
       applyStateUpdate('electionState', data);
     });
 
+    // ── Military order banner ──────────────────────────────────────────────
+    function showMilitaryBanner(order, chief) {
+      var b = document.getElementById('mil-banner');
+      if (!b) return;
+      document.getElementById('mil-banner-icon').textContent  = order.icon || '🪖';
+      document.getElementById('mil-banner-text').textContent  = order.label || 'Askeri Emir';
+      document.getElementById('mil-banner-sub').textContent   = '🪖 Genelkurmay Başkanı ' + (chief || '?') + ' tarafından verildi';
+      // Reset animation
+      b.style.display = 'none';
+      void b.offsetWidth;
+      var bar = document.getElementById('mil-banner-bar');
+      bar.style.animation = 'none';
+      void bar.offsetWidth;
+      bar.style.animation = 'milBannerTimer 6s linear forwards';
+      b.style.display = 'flex';
+      b.style.flexDirection = 'column';
+      // Auto-dismiss after 6s
+      clearTimeout(window._milBannerTimer);
+      window._milBannerTimer = setTimeout(function() {
+        b.style.display = 'none';
+      }, 6000);
+    }
+
     _socket.on('gameEvent', function(data) {
       try {
         var events = [];
@@ -477,6 +545,10 @@ function boot() {
         localStorage.setItem('rep_gameEvents', JSON.stringify(events));
         window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: 'gameEvents', value: events } }));
         window.dispatchEvent(new CustomEvent('new-game-event', { detail: data }));
+        // Show banner for military orders
+        if (data && data.type === 'militaryOrder' && data.payload) {
+          showMilitaryBanner(data.payload.order || {}, data.payload.chief || '');
+        }
       } catch(e) {}
     });
 
