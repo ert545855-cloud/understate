@@ -1,7 +1,6 @@
 /**
- * DB Service — Replit PostgreSQL versiyonu
- * Supabase yerine Replit'in dahili PostgreSQL veritabanı kullanılır.
- * Aynı arayüz korunur (isReady, findUserById, vb.)
+ * DB Service — Replit PostgreSQL
+ * Tüm oyun entity'leri için tam CRUD + real-time multiplayer desteği
  */
 const { Pool } = require('pg');
 const logger = require('../utils/logger');
@@ -15,7 +14,7 @@ const pool = new Pool({
 });
 
 pool.on('error', (err) => {
-  logger.error('[DB] Beklenmeyen pool hatası:', err.message);
+  logger.error('[DB] Pool hatası:', err.message);
 });
 
 function isReady() {
@@ -25,8 +24,7 @@ function isReady() {
 async function query(text, params) {
   const client = await pool.connect();
   try {
-    const result = await client.query(text, params);
-    return result;
+    return await client.query(text, params);
   } finally {
     client.release();
   }
@@ -150,7 +148,7 @@ async function getLeaderboardData(size = 100) {
   }
 }
 
-// ── CHAT MESSAGES ────────────────────────────────────────────────────────────
+// ── CHAT MESSAGES ─────────────────────────────────────────────────────────────
 
 async function saveChatMessage({ channel, message, sender, userId, filtered, msgId }) {
   try {
@@ -179,7 +177,7 @@ async function getChannelHistory(channel, limit = 50) {
   } catch (err) { logger.warn('[DB] getChannelHistory:', err.message); return []; }
 }
 
-// ── GAME STATE ───────────────────────────────────────────────────────────────
+// ── GAME STATE (KV Store) ─────────────────────────────────────────────────────
 
 async function getGameState(key) {
   try {
@@ -198,7 +196,187 @@ async function setGameState(key, value) {
   } catch (err) { logger.warn('[DB] setGameState:', err.message); return false; }
 }
 
-// ── USER SAVE (game data) ────────────────────────────────────────────────────
+// Toplu game state okuma (performans optimizasyonu)
+async function getFullGameState(keys) {
+  try {
+    const wantedKeys = keys || ['gangs','parties','alliances','elections','elections_multi','laws','announcements','cabinet','gangTerritories'];
+    const placeholders = wantedKeys.map((_, i) => `$${i + 1}`).join(', ');
+    const { rows } = await query(
+      `SELECT key, value FROM game_state WHERE key IN (${placeholders})`,
+      wantedKeys
+    );
+    const result = {};
+    for (const row of rows) result[row.key] = row.value;
+    return result;
+  } catch (err) { logger.warn('[DB] getFullGameState:', err.message); return {}; }
+}
+
+// ── GANGS ────────────────────────────────────────────────────────────────────
+
+async function getGangs() {
+  const data = await getGameState('gangs');
+  return Array.isArray(data) ? data : [];
+}
+
+async function setGangs(gangs) {
+  return setGameState('gangs', Array.isArray(gangs) ? gangs : []);
+}
+
+async function upsertGang(gang) {
+  if (!gang?.id) return false;
+  const gangs = await getGangs();
+  const idx = gangs.findIndex(g => g.id === gang.id);
+  if (idx >= 0) gangs[idx] = { ...gangs[idx], ...gang, updatedAt: Date.now() };
+  else gangs.push({ ...gang, createdAt: Date.now(), updatedAt: Date.now() });
+  return setGangs(gangs);
+}
+
+async function deleteGang(gangId) {
+  const gangs = await getGangs();
+  return setGangs(gangs.filter(g => g.id !== gangId));
+}
+
+// ── PARTIES ──────────────────────────────────────────────────────────────────
+
+async function getParties() {
+  const data = await getGameState('parties');
+  return Array.isArray(data) ? data : [];
+}
+
+async function setParties(parties) {
+  return setGameState('parties', Array.isArray(parties) ? parties : []);
+}
+
+async function upsertParty(party) {
+  if (!party?.id) return false;
+  const parties = await getParties();
+  const idx = parties.findIndex(p => p.id === party.id);
+  if (idx >= 0) parties[idx] = { ...parties[idx], ...party, updatedAt: Date.now() };
+  else parties.push({ ...party, createdAt: Date.now(), updatedAt: Date.now() });
+  return setParties(parties);
+}
+
+async function deleteParty(partyId) {
+  const parties = await getParties();
+  return setParties(parties.filter(p => p.id !== partyId));
+}
+
+// ── ALLIANCES ────────────────────────────────────────────────────────────────
+
+async function getAlliances() {
+  const data = await getGameState('alliances');
+  return Array.isArray(data) ? data : [];
+}
+
+async function setAlliances(alliances) {
+  return setGameState('alliances', Array.isArray(alliances) ? alliances : []);
+}
+
+// ── ELECTIONS ────────────────────────────────────────────────────────────────
+
+async function getElections() {
+  const data = await getGameState('elections');
+  return data || { phase: 'idle', candidates: [], votes: {}, results: null };
+}
+
+async function setElections(elections) {
+  return setGameState('elections', elections);
+}
+
+async function getElectionsMulti() {
+  const data = await getGameState('elections_multi');
+  return data || {};
+}
+
+async function setElectionsMulti(data) {
+  return setGameState('elections_multi', data);
+}
+
+// ── LAWS ─────────────────────────────────────────────────────────────────────
+
+async function getLaws() {
+  const data = await getGameState('laws');
+  return Array.isArray(data) ? data : [];
+}
+
+async function setLaws(laws) {
+  return setGameState('laws', Array.isArray(laws) ? laws : []);
+}
+
+// ── ANNOUNCEMENTS ─────────────────────────────────────────────────────────────
+
+async function getAnnouncements() {
+  const data = await getGameState('announcements');
+  return Array.isArray(data) ? data : [];
+}
+
+async function setAnnouncements(anns) {
+  return setGameState('announcements', Array.isArray(anns) ? anns : []);
+}
+
+// ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
+
+async function saveNotification(notif) {
+  try {
+    await query(
+      `INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, false, NOW())
+       ON CONFLICT (id) DO NOTHING`,
+      [
+        notif.id || `notif_${Date.now()}`,
+        notif.userId || null,
+        notif.type || 'info',
+        (notif.title || notif.msg || '').slice(0, 200),
+        (notif.body || '').slice(0, 500),
+        JSON.stringify(notif.data || {}),
+      ]
+    );
+    return true;
+  } catch (err) { logger.warn('[DB] saveNotification:', err.message); return false; }
+}
+
+async function getNotifications(userId, limit = 30) {
+  try {
+    const { rows } = await query(
+      `SELECT * FROM notifications
+       WHERE (user_id = $1 OR user_id IS NULL)
+       ORDER BY created_at DESC LIMIT $2`,
+      [userId, limit]
+    );
+    return rows;
+  } catch { return []; }
+}
+
+async function markNotificationsRead(userId) {
+  try {
+    await query('UPDATE notifications SET read = true WHERE user_id = $1', [userId]);
+    return true;
+  } catch { return false; }
+}
+
+// ── CABINET ───────────────────────────────────────────────────────────────────
+
+async function getCabinet() {
+  const data = await getGameState('cabinet');
+  return data || {};
+}
+
+async function setCabinet(cabinet) {
+  return setGameState('cabinet', cabinet);
+}
+
+// ── GANG TERRITORIES ─────────────────────────────────────────────────────────
+
+async function getGangTerritories() {
+  const data = await getGameState('gangTerritories');
+  return data || {};
+}
+
+async function setGangTerritories(territories) {
+  return setGameState('gangTerritories', territories);
+}
+
+// ── USER SAVE (game data) ─────────────────────────────────────────────────────
 
 const SAVEABLE = ['level','xp','money','bank_money','under_coin','hp','score',
   'credit_score','merit_points','loyalty_points','city','position_tag',
@@ -242,18 +420,42 @@ async function getUserCount() {
   try {
     const { rows } = await query('SELECT COUNT(*) as count FROM users');
     return Number(rows[0]?.count || 0);
-  } catch (err) { return 0; }
+  } catch { return 0; }
 }
 
 module.exports = {
   isReady, query, pool,
+  // Users
   findUserById, findUserByUsername, findUserByEmail, findUserByUsernameOrEmail,
   createUser, updateUser,
   findUserByResetToken, findUserByVerifyToken,
+  // Leaderboard
   getLeaderboardData,
+  // Chat
   saveChatMessage, getChannelHistory,
-  getGameState, setGameState,
+  // Game State (KV)
+  getGameState, setGameState, getFullGameState,
+  // Gangs
+  getGangs, setGangs, upsertGang, deleteGang,
+  // Parties
+  getParties, setParties, upsertParty, deleteParty,
+  // Alliances
+  getAlliances, setAlliances,
+  // Elections
+  getElections, setElections, getElectionsMulti, setElectionsMulti,
+  // Laws
+  getLaws, setLaws,
+  // Announcements
+  getAnnouncements, setAnnouncements,
+  // Notifications
+  saveNotification, getNotifications, markNotificationsRead,
+  // Cabinet
+  getCabinet, setCabinet,
+  // Territories
+  getGangTerritories, setGangTerritories,
+  // User game data
   saveUserGameData,
+  // Admin
   getAllUsers, getUserCount,
   SUPABASE_URL: '',
   SUPABASE_ANON_KEY: '',

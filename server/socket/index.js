@@ -73,30 +73,6 @@ function initSocket(io) {
       if (typeof cb === 'function') cb({ time: Date.now() });
     });
 
-    // ── Çete varlık saldırısı (manuel, lider/yönetici başlatır) ────────────
-    socket.on('gang:attackAsset', (data) => {
-      if (!socket.userId || !data) return;
-      try {
-        const payloadSize = Buffer.byteLength(JSON.stringify(data), 'utf8');
-        if (payloadSize > 4096) return;
-      } catch { return; }
-      if (typeof data.assetId !== 'string' || typeof data.assetName !== 'string') return;
-      const payload = {
-        attackId:   `atk_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
-        assetId:    String(data.assetId).slice(0, 64),
-        assetName:  String(data.assetName).slice(0, 80),
-        assetType:  String(data.assetType || 'asset').slice(0, 20),
-        familyId:   String(data.familyId  || '').slice(0, 64),
-        familyName: String(data.familyName|| '').slice(0, 80),
-        gangId:     String(data.gangId    || '').slice(0, 64),
-        gangName:   String(data.gangName  || '').slice(0, 80),
-        attacker:   socket.username || 'Bilinmeyen',
-        timestamp:  Date.now(),
-      };
-      io.emit('gang:assetAttacked', payload);
-      logger.info(`[Attack] ${socket.username} → "${payload.assetName}" (${payload.familyName})`);
-    });
-
     socket.on('disconnect', async (reason) => {
       monitoring.decrement('connectedSockets');
       monitoring.increment('totalDisconnections');

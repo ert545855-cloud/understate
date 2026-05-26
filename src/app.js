@@ -2023,6 +2023,7 @@ function AdminPage({ profile, showNotif, onNavigate }) {
     };
     const newAnns = [ann, ...announcements].slice(0, 50);
     setAnnouncements(newAnns);
+    try{window._socket?.emit('announcement:new',{announcement:ann});window._socket?.emit('announcement:sync',{announcements:newAnns});}catch(e){}
     setAnnouncement(''); setAnnTitle(''); setAnnImage('');
     setMsg('✅ Duyuru yayınlandı');
     showNotif?.('📢 Sistem duyurusu yayınlandı', 'info');
@@ -3671,7 +3672,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
       members:[profile?.uid], memberCount:1, treasury:0,
       support:5+Math.floor(Math.random()*10), createdAt:Date.now()
     };
-    setParties([...parties, party]);
+    setParties(prev => { const next=[...prev, party]; try{window._socket?.emit('party:create',{party});window._socket?.emit('party:sync',{parties:next});}catch(e){}; return next; });
     setProfile(p => { const np={...p,party:party.id,money:(p.money||0)-PARTY_CREATE_COST}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
     setCreateModal(false);
     showNotif(`🏛️ ${pForm.name} partisi kuruldu!`, 'success');
@@ -3684,8 +3685,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
       const myG = allGs.find(g=>g.id===profile.gang);
       if (myG) { showNotif(`${myG.type==='family'?'👨‍👩‍👧‍👦 Aile':'⚔️ Çete'} üyeleri partiye katılamaz. Önce ayrılın.`, 'error'); return; }
     }
-    const updated = parties.map(p => p.id===party.id ? {...p, members:[...(p.members||[]),profile.uid], memberCount:(p.memberCount||0)+1, support:Math.min(100,(p.support||0)+2)} : p);
-    setParties(updated);
+    setParties(prev => { const next=prev.map(p => p.id===party.id ? {...p, members:[...(p.members||[]),profile.uid], memberCount:(p.memberCount||0)+1, support:Math.min(100,(p.support||0)+2)} : p); try{window._socket?.emit('party:join',{partyId:party.id});window._socket?.emit('party:sync',{parties:next});}catch(e){}; return next; });
     setProfile(p => { const np={...p,party:party.id}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
     showNotif(`✅ ${party.name} partisine katıldın`, 'success');
   };
@@ -3693,8 +3693,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
   const leaveParty = () => {
     if (!myParty) return;
     if (isLeader) { showNotif('Lider partiden ayrılamaz. Önce liderliği devret.', 'error'); return; }
-    const updated = parties.map(p => p.id===myParty.id ? {...p, members:(p.members||[]).filter(m=>m!==profile.uid), memberCount:Math.max(0,(p.memberCount||1)-1)} : p);
-    setParties(updated);
+    setParties(prev => { const next=prev.map(p => p.id===myParty.id ? {...p, members:(p.members||[]).filter(m=>m!==profile.uid), memberCount:Math.max(0,(p.memberCount||1)-1)} : p); try{window._socket?.emit('party:leave',{partyId:myParty.id});window._socket?.emit('party:sync',{parties:next});}catch(e){}; return next; });
     setProfile(p => { const np={...p,party:null}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
     showNotif('Partiden ayrıldın', 'info');
   };
@@ -3721,7 +3720,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
 
   const disbandParty = () => {
     if (!isLeader) return;
-    setParties(prev => prev.filter(p => p.id !== myParty.id));
+    setParties(prev => { const next=prev.filter(p => p.id !== myParty.id); try{window._socket?.emit('party:sync',{parties:next});}catch(e){}; return next; });
     setProfile(pr => { const np={...pr,party:null}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
     setDisbandConfirm(false);
     showNotif('🏛️ Parti feshedildi','info');
@@ -3783,7 +3782,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
       votes:{yes:0,no:0,voters:{}}, status:'voting', createdAt:Date.now(),
       expiresAt:Date.now()+3*24*60*60*1000
     };
-    setLaws([...laws, law]);
+    setLaws(prev => { const next=[...prev, law]; try{window._socket?.emit('law:propose',{law});window._socket?.emit('law:sync',{laws:next});}catch(e){}; return next; });
     setLawModal(false); setLawForm({title:'',desc:'',category:'vergi'});
     showNotif(`⚖️ "${law.title}" yasası oylamaya açıldı!`, 'success');
   };
@@ -3804,7 +3803,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
   const registerCandidate = () => {
     if (elections.candidates?.some(c=>c.uid===profile?.uid)) { showNotif('Zaten adaysın','error'); return; }
     if (!myParty) { showNotif('Aday olmak için parti üyesi olun','error'); return; }
-    setElections(e => ({...e, candidates:[...(e.candidates||[]),{uid:profile.uid,username:profile.username,party:myParty.name,partyId:myParty.id,votes:0,slogan:'Değişim için oyunuzu isterim!'}]}));
+    setElections(e => { const next={...e, candidates:[...(e.candidates||[]),{uid:profile.uid,username:profile.username,party:myParty.name,partyId:myParty.id,votes:0,slogan:'Değişim için oyunuzu isterim!'}]}; try{window._socket?.emit('election:sync',{elections:next});}catch(ex){}; return next; });
     showNotif('🗳️ Devlet başkanlığı adaylığın kaydedildi!', 'success');
   };
 
@@ -3832,7 +3831,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
     // UC katsayı bonusu
     const ucBonus = profile?.voteMultiplier || 0;
     voteWeight += ucBonus;
-    setElections(e => ({...e, votes:{...(e.votes||{}),[profile.uid]:candidateUid}, candidates:(e.candidates||[]).map(c=>c.uid===candidateUid?{...c,votes:(c.votes||0)+voteWeight}:c)}));
+    setElections(e => { const next={...e, votes:{...(e.votes||{}),[profile.uid]:candidateUid}, candidates:(e.candidates||[]).map(c=>c.uid===candidateUid?{...c,votes:(c.votes||0)+voteWeight}:c)}; try{window._socket?.emit('election:sync',{elections:next});}catch(ex){}; return next; });
     setProfile(p => { const np={...p,xp:(p.xp||0)+100}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
     // Günlük görev
     try { const today=new Date().toDateString(); const dk=`day_${today}`; const s=JSON.parse(localStorage.getItem('rep_dailyTaskState')||'{}'); s[dk]={...(s[dk]||{}),dailyVoteCount:((s[dk]?.dailyVoteCount)||0)+1}; localStorage.setItem('rep_dailyTaskState',JSON.stringify(s)); } catch(e){}
@@ -5622,7 +5621,7 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
       members:[uid], memberCount:1, treasury:0,
       power:10, territory:0, reputation:0, createdAt:Date.now()
     };
-    setGangs(prev => [...prev, gang]);
+    setGangs(prev => { const next=[...prev, gang]; try{window._socket?.emit('gang:create',{gang});window._socket?.emit('gang:sync',{gangs:next});}catch(e){}; return next; });
     setProfile(p => { const np={...p,gang:gang.id,money:(p.money||0)-cost}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
     setCreateModal(false);
     setGForm({name:'',type:'gang',desc:''});
@@ -5632,14 +5631,14 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
   const joinGang = (gang) => {
     if (myGang) { showNotif('Zaten bir çeteye/aileye üyesin','error'); return; }
     if (profile?.party) { showNotif('🏛️ Parti üyeleri çete veya aileye katılamaz. Önce partiden ayrılın.','error'); return; }
-    setGangs(prev => prev.map(g => g.id===gang.id ? {...g, members:[...(g.members||[]),uid], memberCount:(g.memberCount||0)+1, power:(g.power||10)+50} : g));
+    setGangs(prev => { const next=prev.map(g => g.id===gang.id ? {...g, members:[...(g.members||[]),uid], memberCount:(g.memberCount||0)+1, power:(g.power||10)+50} : g); try{window._socket?.emit('gang:join',{gangId:gang.id});window._socket?.emit('gang:sync',{gangs:next});}catch(e){}; return next; });
     setProfile(p => { const np={...p,gang:gang.id}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
     showNotif(`✅ ${gang.name}'e katıldın! Çete gücüne +50 eklendi.`,'success');
   };
 
   const leaveGang = () => {
     if (!myGang||isGangLeader) { if(isGangLeader) showNotif('Lider ayrılamaz. Önce liderliği devret.','error'); return; }
-    setGangs(prev => prev.map(g => g.id===myGang.id ? {...g,members:(g.members||[]).filter(m=>m!==uid),memberCount:Math.max(0,(g.memberCount||1)-1),power:Math.max(10,(g.power||10)-50)} : g));
+    setGangs(prev => { const next=prev.map(g => g.id===myGang.id ? {...g,members:(g.members||[]).filter(m=>m!==uid),memberCount:Math.max(0,(g.memberCount||1)-1),power:Math.max(10,(g.power||10)-50)} : g); try{window._socket?.emit('gang:leave',{gangId:myGang.id});window._socket?.emit('gang:sync',{gangs:next});}catch(e){}; return next; });
     setProfile(p => { const np={...p,gang:null}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
     showNotif('Çeteden ayrıldın. -50 güç.','info');
   };
@@ -5681,7 +5680,7 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
 
   const disbandGang = () => {
     if (!isGangLeader) return;
-    setGangs(prev => prev.filter(g => g.id!==myGang.id));
+    setGangs(prev => { const next=prev.filter(g => g.id!==myGang.id); try{window._socket?.emit('gang:disband',{gangId:myGang.id});window._socket?.emit('gang:sync',{gangs:next});}catch(e){}; return next; });
     setProfile(p => { const np={...p,gang:null}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
     setDisbandConfirm(false);
     showNotif(`${myGang.type==='family'?'👨‍👩‍👧‍👦':'⚔️'} ${myGang.name} dağıtıldı`,'info');
@@ -5958,7 +5957,7 @@ function AlliancePage({ profile, setProfile, showNotif }) {
     if ((profile?.money||0) < ALLIANCE_COST) { showNotif(`İttifak kurmak ${fmtWord(ALLIANCE_COST)} gerektirir`,'error'); return; }
     const a = { id:genId(), name:aForm.name.trim(), tag:aForm.tag.toUpperCase(), desc:aForm.desc, type:aForm.type,
       leaderId:uid, leaderName:profile?.username, members:[uid], memberCount:1, level:1, treasury:0, xp:0, power:10, createdAt:Date.now() };
-    setAlliances(prev => [...prev, a]);
+    setAlliances(prev => { const next=[...prev, a]; try{window._socket?.emit('alliance:sync',{alliances:next});}catch(e){}; return next; });
     setProfile(p => { const np={...p,alliance:a.id,money:(p.money||0)-ALLIANCE_COST}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
     setCreateModal(false);
     setAForm({name:'',tag:'',desc:'',type:'open'});
@@ -5968,14 +5967,14 @@ function AlliancePage({ profile, setProfile, showNotif }) {
   const joinAlliance = (a) => {
     if (myAlliance) { showNotif('Zaten bir ittifaka üyesin','error'); return; }
     if (a.type!=='open') { showNotif('Bu ittifak kapalı','error'); return; }
-    setAlliances(prev => prev.map(al => al.id===a.id ? {...al,members:[...(al.members||[]),uid],memberCount:(al.memberCount||0)+1} : al));
+    setAlliances(prev => { const next=prev.map(al => al.id===a.id ? {...al,members:[...(al.members||[]),uid],memberCount:(al.memberCount||0)+1} : al); try{window._socket?.emit('alliance:sync',{alliances:next});}catch(e){}; return next; });
     setProfile(p => { const np={...p,alliance:a.id}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
     showNotif(`✅ ${a.name}'e katıldın!`,'success');
   };
 
   const leaveAlliance = () => {
     if (!myAlliance||isAllianceLeader) { if(isAllianceLeader) showNotif('Lider ayrılamaz. Önce liderliği devret.','error'); return; }
-    setAlliances(prev => prev.map(a => a.id===myAlliance.id ? {...a,members:(a.members||[]).filter(m=>m!==uid),memberCount:Math.max(0,(a.memberCount||1)-1)} : a));
+    setAlliances(prev => { const next=prev.map(a => a.id===myAlliance.id ? {...a,members:(a.members||[]).filter(m=>m!==uid),memberCount:Math.max(0,(a.memberCount||1)-1)} : a); try{window._socket?.emit('alliance:sync',{alliances:next});}catch(e){}; return next; });
     setProfile(p => { const np={...p,alliance:null}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
     showNotif('İttifaktan ayrıldın','info');
   };
@@ -6017,7 +6016,7 @@ function AlliancePage({ profile, setProfile, showNotif }) {
 
   const disbandAlliance = () => {
     if (!isAllianceLeader) return;
-    setAlliances(prev => prev.filter(a => a.id!==myAlliance.id));
+    setAlliances(prev => { const next=prev.filter(a => a.id!==myAlliance.id); try{window._socket?.emit('alliance:sync',{alliances:next});}catch(e){}; return next; });
     setProfile(p => { const np={...p,alliance:null}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
     setDisbandConfirm(false);
     showNotif(`🤝 ${myAlliance.name} ittifakı feshedildi`,'info');
@@ -10810,40 +10809,180 @@ function App() {
   // Socket.IO real-time event listeners
   useEffect(() => {
     if (!authed) return;
+    const _syncLs = (key, value) => {
+      try {
+        localStorage.setItem('rep_'+key, JSON.stringify(value));
+        window.dispatchEvent(new CustomEvent('fb-sync', {detail:{key, value}}));
+      } catch(e){}
+    };
     const attach = () => {
       const s = window._socket;
       if (!s) return false;
+
+      // ── Presence ────────────────────────────────────────────────
       s.on('onlinePlayers', (list) => {
         setOnlinePlayers(list || []);
         window.dispatchEvent(new CustomEvent('fb-sync', {detail:{key:'onlineCount',value:(list||[]).length}}));
       });
+
+      // ── İlk tam oyun state'i (bağlanınca sunucu gönderir) ────────
+      s.on('gameStateInit', (data) => {
+        try {
+          if (Array.isArray(data.gangs))         _syncLs('gangs', data.gangs);
+          if (Array.isArray(data.parties))       _syncLs('parties', data.parties);
+          if (Array.isArray(data.alliances))     _syncLs('alliances', data.alliances);
+          if (data.elections)                    _syncLs('elections', data.elections);
+          if (data.elections_multi)              _syncLs('rep_elections_multi', data.elections_multi);
+          if (Array.isArray(data.laws))          _syncLs('laws', data.laws);
+          if (Array.isArray(data.announcements)) _syncLs('announcements', data.announcements);
+          if (data.cabinet)                      _syncLs('cabinet', data.cabinet);
+          if (data.gangTerritories)              _syncLs('gangTerritories', data.gangTerritories);
+        } catch(e){}
+      });
+
+      // ── Gang güncellemeleri ──────────────────────────────────────
+      s.on('gangUpdate', (data) => {
+        try {
+          if (Array.isArray(data.gangs)) _syncLs('gangs', data.gangs);
+          if (data.action === 'create' && data.gang) showNotif(`${data.gang.type==='family'?'👨‍👩‍👧‍👦':'⚔️'} ${data.gang.name} kuruldu!`, 'info', data.gang.type==='family'?'👨‍👩‍👧‍👦':'⚔️');
+        } catch(e){}
+      });
+
+      // ── Parti güncellemeleri ─────────────────────────────────────
+      s.on('partyUpdate', (data) => {
+        try {
+          if (Array.isArray(data.parties)) _syncLs('parties', data.parties);
+          if (data.action === 'create' && data.party) showNotif(`🏛️ ${data.party.name} partisi kuruldu!`, 'info', '🏛️');
+        } catch(e){}
+      });
+
+      // ── İttifak güncellemeleri ───────────────────────────────────
+      s.on('allianceUpdate', (data) => {
+        try {
+          if (Array.isArray(data.alliances)) _syncLs('alliances', data.alliances);
+        } catch(e){}
+      });
+
+      // ── Seçim güncellemeleri ─────────────────────────────────────
+      s.on('electionUpdate', (data) => {
+        try {
+          if (data.elections !== undefined)       _syncLs('elections', data.elections);
+          if (data.elections_multi !== undefined) _syncLs('rep_elections_multi', data.elections_multi);
+          if (data.phase === 'finished' && data.winner) showNotif(`🏆 Seçim bitti! ${data.winner.username} Devlet Başkanı seçildi!`, 'success', '🏆');
+          else if (data.phase === 'active')             showNotif(`🗳️ Seçim başladı! Oy kullanmayı unutma.`, 'info', '🗳️');
+        } catch(e){}
+      });
+
+      s.on('electionResult', (data) => {
+        try {
+          if (data) showNotif(`🏆 ${data.winner?.username || 'Bilinmeyen'} seçimi kazandı!`, 'success', '🏆');
+        } catch(e){}
+      });
+
+      // ── Yasa güncellemeleri ──────────────────────────────────────
+      s.on('lawUpdate', (data) => {
+        try {
+          if (Array.isArray(data.laws)) _syncLs('laws', data.laws);
+          if (data.action === 'propose' && data.law) showNotif(`⚖️ Yeni yasa: "${data.law.title}"`, 'info', '⚖️');
+        } catch(e){}
+      });
+
+      // ── Duyuru güncellemeleri ────────────────────────────────────
+      s.on('announcementUpdate', (data) => {
+        try {
+          if (Array.isArray(data.announcements)) _syncLs('announcements', data.announcements);
+          if (data.action === 'new' && data.announcement) showNotif(`📢 Yeni duyuru: ${(data.announcement.title||'').slice(0,40)}`, 'info', '📢');
+        } catch(e){}
+      });
+
+      // ── Kabine güncellemeleri ────────────────────────────────────
+      s.on('cabinetUpdate', (data) => {
+        try {
+          if (data.cabinet) _syncLs('cabinet', data.cabinet);
+        } catch(e){}
+      });
+
+      // ── Bölge güncellemeleri ─────────────────────────────────────
+      s.on('territoryUpdate', (data) => {
+        try {
+          if (data.territories) _syncLs('gangTerritories', data.territories);
+        } catch(e){}
+      });
+
+      // ── Hedefli bildirimler ──────────────────────────────────────
+      s.on('notification', (data) => {
+        try {
+          if (!data) return;
+          const icon = data.icon || '🔔';
+          const msg  = data.msg || data.title || '';
+          const type = data.type === 'war' || data.type === 'attack' || data.type === 'combat' ? 'error' :
+                       data.type === 'election' || data.type === 'party' ? 'success' : 'info';
+          showNotif(msg, type, icon);
+          // Kalıcı bildirim listesine ekle
+          setNotifications(n => [...n.slice(-49), { msg, type, icon, ts: data.ts || Date.now() }]);
+        } catch(e){}
+      });
+
+      // ── Savaş bildirimleri ───────────────────────────────────────
+      s.on('mafiaWarUpdate', (data) => {
+        try {
+          showNotif(`⚔️ Savaş! ${data.attackerName||''} → ${data.defenderName||''}`, 'error', '⚔️');
+        } catch(e){}
+      });
+
+      s.on('gang:assetAttacked', (data) => {
+        const myId = profile?.id || profile?.uid;
+        if (data.familyOwnerId === myId) {
+          showNotif(`🔥 "${data.assetName}" varlığınıza saldırı!`, 'error', '🔥');
+        }
+      });
+
+      // ── Savaş sonuçları ──────────────────────────────────────────
+      s.on('combatResult', (data) => {
+        const myId = profile?.id || profile?.uid;
+        if (data.loserUserId === myId) showNotif(`💥 Savaşı kaybettiniz! ${data.winner||''} kazandı.`, 'error', '💥');
+        else if (data.winnerUserId === myId) showNotif(`🏆 Savaşı kazandınız!`, 'success', '🏆');
+      });
+
+      // ── Şehir sahipliği ──────────────────────────────────────────
+      s.on('cityOwnershipUpdate', (data) => {
+        try {
+          showNotif(`🏙️ ${data.city||'Şehir'} sahipliği değişti: ${data.newOwner||''}`, 'info', '🏙️');
+        } catch(e){}
+      });
+
+      // ── Game event (piyasa vs) ───────────────────────────────────
+      s.on('gameEvent', (data) => {
+        try {
+          showNotif(`${data.title||'Oyun Olayı'}`, 'info', data.title?.split(' ')[0]||'🎲');
+        } catch(e){}
+      });
+
+      // ── DM ───────────────────────────────────────────────────────
       s.on('dm', (data) => {
         const myId = profile?.id || profile?.uid;
-        if (data.toUserId === myId) {
+        if (data.toUserId === myId || !data.toUserId) {
           try {
             const msgs = JSON.parse(localStorage.getItem('rep_directMessages')||'[]');
-            const newMsg = {id: data.ts||Date.now(), from:data.fromUserId, to:data.toUserId, fromName:data.fromUsername, text:data.text, ts:data.ts||Date.now(), read:false};
+            const newMsg = {id:data.ts||Date.now(), from:data.fromUserId, to:data.toUserId, fromName:data.fromUsername, text:data.text||data.message, ts:data.ts||Date.now(), read:false};
             localStorage.setItem('rep_directMessages', JSON.stringify([...msgs, newMsg]));
           } catch(e){}
           setIncomingDm(data);
-          showNotif(`📬 ${data.fromUsername}: ${data.text?.slice(0,40)}`, 'info', '📬');
+          showNotif(`📬 ${data.fromUsername}: ${(data.text||data.message||'').slice(0,40)}`, 'info', '📬');
         }
       });
+
+      // ── Trade teklifleri ─────────────────────────────────────────
       s.on('tradeOffer', (data) => {
         setIncomingTrade(data);
-        showNotif(`🤝 ${data.fromUsername} ortaklık teklif etti!`, 'info', '🤝');
+        showNotif(`🤝 ${data.fromUsername} ticaret teklif etti!`, 'info', '🤝');
       });
       s.on('partnershipOffer', (data) => {
         setIncomingTrade(data);
         showNotif(`🏢 ${data.fromUsername} şirket ortaklığı teklif etti!`, 'info', '🏢');
       });
-      s.on('electionUpdate', (data) => {
-        if (data.phase === 'finished' && data.winner) {
-          showNotif(`🏆 Seçim bitti! ${data.winner.username} Devlet Başkanı seçildi!`, 'success', '🏆');
-        } else if (data.phase === 'active') {
-          showNotif(`🗳️ Seçim başladı! Oy kullanmayı unutma.`, 'info', '🗳️');
-        }
-      });
+
+      // ── Market güncelleme ────────────────────────────────────────
       s.on('marketUpdate', (data) => {
         try {
           const holdings = JSON.parse(localStorage.getItem('rep_holdings')||'[]');
@@ -10853,10 +10992,13 @@ function App() {
           }
         } catch(e){}
       });
+
+      // ── Legacy gameAction ────────────────────────────────────────
       s.on('gameAction', (data) => {
         if (data.type==='newParty') showNotif(`🏛️ ${data.username} yeni parti kurdu: ${data.payload}`, 'info', '🏛️');
-        if (data.type==='newGang') showNotif(`⚔️ ${data.username} yeni çete kurdu: ${data.payload}`, 'info', '⚔️');
+        if (data.type==='newGang')  showNotif(`⚔️ ${data.username} yeni çete kurdu: ${data.payload}`, 'info', '⚔️');
       });
+
       return true;
     };
     if (!attach()) {
