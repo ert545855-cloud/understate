@@ -2378,7 +2378,7 @@ function AdminPage({ profile, showNotif, onNavigate }) {
             <div style={{fontWeight:800,color:'#E8EDF2',marginBottom:'0.65rem',fontSize:'0.85rem'}}>🏢 Holdingler</div>
             {(() => {
               try {
-                const hs = JSON.parse(localStorage.getItem('holdings')||'[]');
+                const hs = JSON.parse(localStorage.getItem('rep_holdings')||'[]');
                 const totalHoldings = hs.length;
                 const totalAssets = hs.reduce((s,h)=>s+(h.value||0),0);
                 return (
@@ -2400,8 +2400,8 @@ function AdminPage({ profile, showNotif, onNavigate }) {
           <div style={cs}>
             <div style={{fontWeight:800,color:'#E8EDF2',marginBottom:'0.65rem',fontSize:'0.85rem'}}>🏛️ Partiler & Çeteler</div>
             {(() => {
-              const parties = JSON.parse(localStorage.getItem('parties')||'[]');
-              const gangs = JSON.parse(localStorage.getItem('gangs')||'[]');
+              const parties = JSON.parse(localStorage.getItem('rep_parties')||'[]');
+              const gangs = JSON.parse(localStorage.getItem('rep_gangs')||'[]');
               return (
                 <div>
                   {[['🏛️','Parti Sayısı',parties.length,'#A78BFA'],['🔫','Çete/Aile',gangs.length,'#EF4444']].map(([ic,lbl,val,c])=>(
@@ -3028,10 +3028,10 @@ function EconomyPage({ profile, setProfile, showNotif, initialSub }) {
             {/* Devlet Ekonomisi - CANLI VERİ */}
             {(() => {
               const _treasury = JSON.parse(localStorage.getItem('rep_treasury')||'{}');
-              const _taxRates = JSON.parse(localStorage.getItem('taxRates')||'{}');
-              const _gangs = JSON.parse(localStorage.getItem('gangs')||'[]');
+              const _taxRates = JSON.parse(localStorage.getItem('rep_taxRates')||'{}');
+              const _gangs = JSON.parse(localStorage.getItem('rep_gangs')||'[]');
               const _users = JSON.parse(localStorage.getItem('rep_users')||'[]');
-              const _stocks = JSON.parse(localStorage.getItem('stockMarket')||'{}');
+              const _stocks = JSON.parse(localStorage.getItem('rep_stockMarket')||'{}');
               const hazine = _treasury.balance || 0;
               const milBudget = _treasury.militaryBudget || 0;
               const incomeTax = _taxRates.income || 15;
@@ -3655,7 +3655,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
     if (!pForm.name.trim()) { showNotif('Parti adı gerekli', 'error'); return; }
     if (myParty) { showNotif('Zaten bir partiye üyesin', 'error'); return; }
     if (profile?.gang) {
-      const allGs = (() => { try { return JSON.parse(localStorage.getItem('gangs')||'[]'); } catch{return[];} })();
+      const allGs = (() => { try { return JSON.parse(localStorage.getItem('rep_gangs')||'[]'); } catch{return[];} })();
       const myG = allGs.find(g=>g.id===profile.gang);
       if (myG) { showNotif(`${myG.type==='family'?'👨‍👩‍👧‍👦 Aile':'⚔️ Çete'} üyeleri parti kuramazlar. Önce ayrılın.`, 'error'); return; }
     }
@@ -3680,7 +3680,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
   const joinParty = (party) => {
     if (myParty) { showNotif('Zaten bir partidesin', 'error'); return; }
     if (profile?.gang) {
-      const allGs = (() => { try { return JSON.parse(localStorage.getItem('gangs')||'[]'); } catch{return[];} })();
+      const allGs = (() => { try { return JSON.parse(localStorage.getItem('rep_gangs')||'[]'); } catch{return[];} })();
       const myG = allGs.find(g=>g.id===profile.gang);
       if (myG) { showNotif(`${myG.type==='family'?'👨‍👩‍👧‍👦 Aile':'⚔️ Çete'} üyeleri partiye katılamaz. Önce ayrılın.`, 'error'); return; }
     }
@@ -4028,7 +4028,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
             {/* Meclis Koltuk Dağılımı */}
             {(() => {
               const TOTAL_SEATS = 81;
-              const allParties = JSON.parse(localStorage.getItem('parties')||'[]');
+              const allParties = JSON.parse(localStorage.getItem('rep_parties')||'[]');
               const totalSupport = allParties.reduce((s,p)=>(s+(p.support||0)),0) || 1;
               const seatsData = allParties.map(p => ({
                 name: p.name,
@@ -4836,10 +4836,10 @@ function YetkilerimPage({ profile, setProfile, showNotif }) {
 
   // Gerginlik hesaplama (YetkilerimPage içi)
   const calcCurrentTension = () => {
-    const _gangs = JSON.parse(localStorage.getItem('gangs')||'[]');
-    const _taxRates = JSON.parse(localStorage.getItem('taxRates')||'{}');
-    const _territory = JSON.parse(localStorage.getItem('gangTerritories')||'{}');
-    const _wars = JSON.parse(localStorage.getItem('activeWars')||'[]');
+    const _gangs = JSON.parse(localStorage.getItem('rep_gangs')||'[]');
+    const _taxRates = JSON.parse(localStorage.getItem('rep_taxRates')||'{}');
+    const _territory = JSON.parse(localStorage.getItem('rep_gangTerritories')||'{}');
+    const _wars = JSON.parse(localStorage.getItem('rep_activeWars')||'[]');
     const gangCount = _gangs.length;
     const incomeTax = _taxRates.income || 15;
     const controlledRegions = Object.values(_territory).filter(v=>v).length;
@@ -5297,9 +5297,9 @@ function TeamWarPage({ profile, setProfile, showNotif }) {
 
   // Gerginlik hesaplama
   const calcTension = () => {
-    const _gangs = JSON.parse(localStorage.getItem('gangs')||'[]');
-    const _taxRates = JSON.parse(localStorage.getItem('taxRates')||'{}');
-    const _territory = JSON.parse(localStorage.getItem('gangTerritories')||'{}');
+    const _gangs = JSON.parse(localStorage.getItem('rep_gangs')||'[]');
+    const _taxRates = JSON.parse(localStorage.getItem('rep_taxRates')||'{}');
+    const _territory = JSON.parse(localStorage.getItem('rep_gangTerritories')||'{}');
     const gangCount = _gangs.length;
     const incomeTax = _taxRates.income || 15;
     const controlledRegions = Object.values(_territory).filter(v=>v).length;
@@ -7486,7 +7486,7 @@ function SecretFundingCard({ holding, holdings, setHoldings, parties, profile, s
   const [fundLog, setFundLog] = useLs(`fundLog_${holding.id}`, []);
 
   const openCase = (amt, partyName) => {
-    const existing = JSON.parse(localStorage.getItem('sucDavalari')||'[]');
+    const existing = JSON.parse(localStorage.getItem('rep_sucDavalari')||'[]');
     const newCase = {
       id: genId(),
       uid: profile?.uid,
@@ -7502,7 +7502,7 @@ function SecretFundingCard({ holding, holdings, setHoldings, parties, profile, s
       defenseUsed: false,
       severity: 'yuksek',
     };
-    localStorage.setItem('sucDavalari', JSON.stringify([newCase, ...existing].slice(0,50)));
+    localStorage.setItem('rep_sucDavalari', JSON.stringify([newCase, ...existing].slice(0,50)));
   };
 
   const doFund = () => {
@@ -7515,9 +7515,9 @@ function SecretFundingCard({ holding, holdings, setHoldings, parties, profile, s
     const party = parties.find(p=>p.id===targetPartyId);
     if (!party) { showNotif('Parti bulunamadı', 'error'); return; }
 
-    const savedParties = JSON.parse(localStorage.getItem('parties')||'[]');
+    const savedParties = JSON.parse(localStorage.getItem('rep_parties')||'[]');
     const updatedParties = savedParties.map(p => p.id===targetPartyId ? {...p, treasury:(p.treasury||0)+amt} : p);
-    localStorage.setItem('parties', JSON.stringify(updatedParties));
+    localStorage.setItem('rep_parties', JSON.stringify(updatedParties));
 
     const newLog = { id:genId(), partyName:party.name, amount:amt, ts:Date.now(), holdingName:holding.name };
     setFundLog(prev => [newLog, ...prev].slice(0,20));
@@ -8346,7 +8346,7 @@ function HoldingsPage({ profile, setProfile, showNotif }) {
                 <div style={{color:'#5A7089',fontSize:'0.82rem'}}>Gizli fon için önce bir şirket kur</div>
               </div>
             ) : (() => {
-              const allParties = JSON.parse(localStorage.getItem('parties')||'[]');
+              const allParties = JSON.parse(localStorage.getItem('rep_parties')||'[]');
               return (
                 <div>
                   {myHoldings.map(h => (

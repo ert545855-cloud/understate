@@ -118,7 +118,7 @@ window.PartyCenterScreen = function PartyCenterScreen({ cu, parties, allUsers, f
       <div style={{...card,textAlign:"center",padding:"2rem"}}>
         <div style={{fontSize:"2rem",marginBottom:"0.5rem"}}>⚑</div>
         <div style={{color:"#5E7390",fontSize:"0.85rem",marginBottom:"1rem"}}>Parti merkezine erişmek için bir partiye üye veya lider olmanız gerekiyor.</div>
-        <button className="btn btn-primary" onClick={()=>setCurrentPage("parties")}>⚑ Parti Sistemine Git</button>
+        <button className="btn btn-primary" onClick={()=>setCurrentPage("politics")}>⚑ Parti Sistemine Git</button>
       </div>
     </div>
   );
@@ -171,8 +171,8 @@ window.PartyCenterScreen = function PartyCenterScreen({ cu, parties, allUsers, f
               ))}
             </div>
           </div>
-          <button className="btn btn-primary" style={{width:"100%",marginBottom:"0.4rem"}} onClick={()=>setCurrentPage("parties")}>⚑ Tam Parti Sayfasına Git</button>
-          <button className="btn" style={{width:"100%",border:"1px solid rgba(167,139,250,0.4)",color:"#A78BFA"}} onClick={()=>setCurrentPage("election")}>🗳️ Seçimlere Git</button>
+          <button className="btn btn-primary" style={{width:"100%",marginBottom:"0.4rem"}} onClick={()=>setCurrentPage("politics")}>⚑ Tam Parti Sayfasına Git</button>
+          <button className="btn" style={{width:"100%",border:"1px solid rgba(167,139,250,0.4)",color:"#A78BFA"}} onClick={()=>setCurrentPage("election_events")}>🗳️ Seçimlere Git</button>
         </div>
       )}
 

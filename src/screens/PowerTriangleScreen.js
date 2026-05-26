@@ -226,7 +226,7 @@ window.PowerTriangleScreen = function PowerTriangleScreen({ cu, families, gangs,
               <li>Çetelere yönelik polis baskınları başlatabilirler</li>
               <li>Seçimleri kazanarak güçlenirler</li>
             </ul>
-            <button className="btn btn-primary" style={{marginTop:"0.75rem",width:"100%"}} onClick={()=>setCurrentPage("parties")}>
+            <button className="btn btn-primary" style={{marginTop:"0.75rem",width:"100%"}} onClick={()=>setCurrentPage("politics")}>
               ⚑ Parti Sistemine Git
             </button>
           </div>
@@ -260,9 +260,9 @@ window.PowerTriangleScreen = function PowerTriangleScreen({ cu, families, gangs,
             </p>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:"0.4rem"}}>
-            <button className="btn btn-primary" onClick={()=>setCurrentPage("families")}>👪 Aile Sistemine Git</button>
-            <button className="btn btn-primary" onClick={()=>setCurrentPage("gangs")}>🔫 Çete Sistemine Git</button>
-            <button className="btn btn-primary" onClick={()=>setCurrentPage("parties")}>⚑ Parti Sistemine Git</button>
+            <button className="btn btn-primary" onClick={()=>setCurrentPage("family")}>👪 Aile Sistemine Git</button>
+            <button className="btn btn-primary" onClick={()=>setCurrentPage("gang")}>🔫 Çete Sistemine Git</button>
+            <button className="btn btn-primary" onClick={()=>setCurrentPage("politics")}>⚑ Parti Sistemine Git</button>
             <button className="btn" onClick={()=>setCurrentPage("tenders")} style={{border:"1px solid rgba(255,184,0,0.4)",color:"#FFB800"}}>🏗️ Devlet İhalelerine Git</button>
             <button className="btn" onClick={()=>setCurrentPage("unions")} style={{border:"1px solid rgba(16,185,129,0.4)",color:"#10B981"}}>🏭 Sendika Sistemine Git</button>
           </div>

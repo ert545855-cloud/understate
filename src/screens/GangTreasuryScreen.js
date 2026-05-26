@@ -81,7 +81,7 @@ window.GangTreasuryScreen = function GangTreasuryScreen({ cu, gangs, allUsers, s
       <div style={{...card,textAlign:"center",padding:"2rem"}}>
         <div style={{fontSize:"2rem",marginBottom:"0.5rem"}}>🔫</div>
         <div style={{color:"#5E7390",fontSize:"0.85rem",marginBottom:"1rem"}}>Çete kasasına erişmek için bir çeteye üye veya lider olmanız gerekiyor.</div>
-        <button className="btn btn-primary" onClick={()=>setCurrentPage("gangs")}>🔫 Çete Sistemine Git</button>
+        <button className="btn btn-primary" onClick={()=>setCurrentPage("gang")}>🔫 Çete Sistemine Git</button>
       </div>
     </div>
   );

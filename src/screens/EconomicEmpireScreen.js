@@ -153,7 +153,7 @@ window.EconomicEmpireScreen = function EconomicEmpireScreen({ cu, families, gang
       <div style={{...card,textAlign:"center",padding:"2rem"}}>
         <div style={{fontSize:"2.5rem",marginBottom:"0.5rem"}}>🏢</div>
         <div style={{color:"#5E7390",fontSize:"0.85rem",marginBottom:"1rem"}}>Bu ekrana erişmek için bir aileye üye veya lider olmanız gerekiyor.</div>
-        <button className="btn btn-primary" onClick={()=>setCurrentPage("families")}>👪 Aile Sistemine Git</button>
+        <button className="btn btn-primary" onClick={()=>setCurrentPage("family")}>👪 Aile Sistemine Git</button>
       </div>
     </div>
   );
