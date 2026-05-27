@@ -95,6 +95,7 @@ window.TenderScreen = function TenderScreen({ cu, families, allUsers, setCurrent
     savePool(pendingPool.filter(p=>p.id !== poolItem.id));
     showMsg(`✅ "${poolItem.title}" ihalesi duyuruldu! (${hours} saat)`, "success");
     setTab("list");
+    try { window._pushGameEvent?.('ihale_duyuruldu', `🏗️ İhale: ${poolItem.title}`, `Devlet Başkanı ${cu.username} yeni ihale açtı. Taban: ₺${(poolItem.startBid||0).toLocaleString()}`, '🏗️', 'ihale'); } catch(e){}
   };
 
   const placeBid = (tenderId) => {
@@ -112,6 +113,10 @@ window.TenderScreen = function TenderScreen({ cu, families, allUsers, setCurrent
     saveTenders(updated);
     setBidInput(prev=>({...prev,[tenderId]:""}));
     showMsg("Teklifiniz verildi! ✓", "success");
+    const tender = tenders.find(t=>t.id===tenderId);
+    if (tender && amount > (tender.currentBid || 0)) {
+      try { window._pushGameEvent?.('ihale_teklif', `💰 İhale Teklifi: ${tender.title}`, `${cu.username} ₺${amount.toLocaleString()} teklif verdi.`, '💰', 'ihale'); } catch(e){}
+    }
   };
 
   const doControl = (tenderId) => {

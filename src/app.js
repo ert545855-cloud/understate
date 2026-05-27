@@ -1662,7 +1662,9 @@ function AdminElectionTab({ elections_multi, setElections_multi, setMsg, cs, inp
       localStorage.setItem('rep_users', JSON.stringify(updated));
     }
     setElections_multi(prev=>({...prev,[key]:{...prev[key],active:false,winner:winner?.username||null}}));
-    setMsg(`🏆 ${ADMIN_POSITIONS.find(p=>p.key===key)?.title} seçimi bitti! Kazanan: ${winner?.username||'Yok'}`);
+    const posTitle = ADMIN_POSITIONS.find(p=>p.key===key)?.title;
+    setMsg(`🏆 ${posTitle} seçimi bitti! Kazanan: ${winner?.username||'Yok'}`);
+    if (winner) { try { window._pushGameEvent?.('secim_sonucu', `🏆 ${posTitle} Seçimi Bitti!`, `${winner.username} yeni ${posTitle} seçildi!`, '🏆', 'seçim'); } catch(e){} }
   };
   const addCand = (key) => {
     const uname = (candInput[key]||'').trim();
@@ -3708,6 +3710,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
     setProfile(p => { const np={...p,party:party.id,money:(p.money||0)-PARTY_CREATE_COST}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
     setCreateModal(false);
     showNotif(`🏛️ ${pForm.name} partisi kuruldu!`, 'success');
+    try { window._pushGameEvent?.('parti_kuruldu', `🏛️ ${party.name} partisi kuruldu!`, `${profile?.username||'Bir oyuncu'} "${party.name}" partisini ${party.ideology} ideolojisiyle kurdu.`, '🏛️', 'parti'); } catch(e){}
   };
 
   const joinParty = (party) => {
@@ -5692,6 +5695,7 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
     setCreateModal(false);
     setGForm({name:'',type:'gang',desc:''});
     showNotif(`${gang.type==='family'?'👨‍👩‍👧‍👦':'⚔️'} ${gang.name} kuruldu!`,'success');
+    try { window._pushGameEvent?.(gang.type==='family'?'aile_kuruldu':'cete_kuruldu', `${gang.type==='family'?'👨‍👩‍👧‍👦':'⚔️'} ${gang.name} kuruldu!`, `${profile?.username||'Bir oyuncu'} yeni bir ${gang.type==='family'?'aile':'çete'} kurdu.`, gang.type==='family'?'👨‍👩‍👧‍👦':'⚔️', gang.type==='family'?'aile':'çete'); } catch(e){} 
   };
 
   const joinGang = (gang) => {
@@ -5909,6 +5913,7 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
                 const penalty=success?0:fine;
                 setProfile(p=>{const np={...p,money:(p.money||0)+amount-penalty,xp:(p.xp||0)+(success?100:20)};localStorage.setItem('rep_userProfile',JSON.stringify(np));return np;});
                 showNotif(success?`🎉 Başarılı! +${fmtWord(amount)}`:`😔 Başarısız! -${fmtWord(penalty)} ceza`,success?'success':'error');
+                if (success && amount >= 20000) { try { window._pushGameEvent?.('suc_basarili', `${ic} ${name}`, `${profile?.username||'Bir çete üyesi'} başarılı! +₺${amount.toLocaleString()} ganimet.`, ic, 'çete'); } catch(e){} }
               }}
                 style={{display:'flex',alignItems:'center',gap:'0.75rem',padding:'0.85rem',background:'rgba(20,36,60,0.8)',border:'1px solid rgba(239,68,68,0.15)',borderRadius:'12px',width:'100%',marginBottom:'0.5rem',cursor:'pointer',WebkitTapHighlightColor:'transparent'}}>
                 <span style={{fontSize:'1.5rem',width:'32px',textAlign:'center',flexShrink:0}}>{ic}</span>
@@ -9617,6 +9622,7 @@ function PvpPage({ profile, setProfile, showNotif }) {
       const newUsers = allUsers.map(u => u.id===target.id ? {...u,money:Math.max(0,(u.money||0)-stolen)} : u);
       localStorage.setItem('rep_users', JSON.stringify(newUsers));
       showNotif(`⚔️ Saldırı başarılı! +₺${stolen.toLocaleString()} +10🏅 -${hpLost}❤️`,'success');
+      try { if (stolen > 50000) window._pushGameEvent?.('pvp_galibiyet', `⚔️ ${cu.username} → ${target.username} savaşı kazandı!`, `₺${stolen.toLocaleString()} ganimet alındı.`, '⚔️', 'savaş'); } catch(e){}
     } else {
       updateUser({hp:Math.max(0,(cu.hp||100)-hpLost)});
       showNotif(`💔 Saldırı başarısız! -${hpLost}❤️`,'error');
@@ -10758,6 +10764,81 @@ function CasinoPage({ profile, setProfile, showNotif }) {
 }
 
 // ═══════════════════════════════════════════════════════
+// CANLI OLAYLAR TICKER (Floating News Bar)
+// ═══════════════════════════════════════════════════════
+function GameEventTicker({ events, onNavigate }) {
+  const [idx, setIdx] = useState(0);
+  const [dismissed, setDismissed] = useState(false);
+
+  const recent = [...events].sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,8);
+
+  useEffect(() => {
+    if (recent.length === 0) return;
+    const t = setInterval(() => setIdx(i => (i + 1) % recent.length), 4500);
+    return () => clearInterval(t);
+  }, [recent.length]);
+
+  if (dismissed || recent.length === 0) return null;
+
+  const evt = recent[idx % recent.length];
+  const timeStr = evt.ts ? (() => {
+    const diff = Date.now() - evt.ts;
+    if (diff < 60000) return 'şimdi';
+    if (diff < 3600000) return Math.floor(diff/60000)+'dk';
+    return Math.floor(diff/3600000)+'s';
+  })() : '';
+
+  const CAT_COLORS = {
+    seçim:'#A78BFA', savaş:'#EF4444', ihale:'#F59E0B', grev:'#F97316',
+    parti:'#8B5CF6', çete:'#EF4444', aile:'#60A5FA', ohal:'#DC2626',
+    duyuru:'#10B981', sendika:'#3B82F6', genel:'#5A7089',
+  };
+  const color = CAT_COLORS[evt.category] || '#5A7089';
+
+  return (
+    <div style={{
+      display:'flex',alignItems:'center',gap:'0',
+      background:'rgba(6,12,24,0.97)',borderBottom:'1px solid rgba(255,255,255,0.06)',
+      padding:'0',overflow:'hidden',minHeight:30,flexShrink:0,position:'relative',
+    }}>
+      {/* Category badge */}
+      <div style={{
+        background:color,color:'#000',
+        padding:'0 0.55rem',alignSelf:'stretch',
+        display:'flex',alignItems:'center',
+        fontSize:'0.6rem',fontWeight:900,textTransform:'uppercase',
+        letterSpacing:'0.04em',whiteSpace:'nowrap',flexShrink:0,
+      }}>
+        {evt.icon||'📢'} {(evt.category||'olay').toUpperCase()}
+      </div>
+      {/* Scrolling text */}
+      <div style={{flex:1,overflow:'hidden',padding:'0 0.6rem',cursor:'pointer'}}
+        onClick={()=>{ try { onNavigate('election_events'); } catch(e){} }}>
+        <div key={evt.id} style={{
+          fontSize:'0.71rem',fontWeight:700,color:'#E8EDF2',
+          whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',
+          animation:'ticker-slide-in 0.35s ease',
+        }}>
+          {evt.title}
+          {evt.desc && <span style={{color:'#5A7089',fontWeight:400}}> — {evt.desc.slice(0,60)}{evt.desc.length>60?'…':''}</span>}
+        </div>
+      </div>
+      {/* Time + dot indicators */}
+      <div style={{display:'flex',alignItems:'center',gap:'0.35rem',padding:'0 0.5rem',flexShrink:0}}>
+        <span style={{fontSize:'0.58rem',color:'#3B4E63',fontFamily:"'JetBrains Mono',monospace"}}>{timeStr}</span>
+        <div style={{display:'flex',gap:'2px'}}>
+          {recent.slice(0,Math.min(recent.length,5)).map((_,i)=>(
+            <div key={i} onClick={()=>setIdx(i)} style={{width:4,height:4,borderRadius:'50%',background:i===idx%recent.length?color:'rgba(255,255,255,0.15)',cursor:'pointer',transition:'background 0.3s'}}/>
+          ))}
+        </div>
+        <button onClick={()=>setDismissed(true)} style={{background:'none',border:'none',color:'#3B4E63',cursor:'pointer',padding:'2px',fontSize:'0.65rem',lineHeight:1}}>✕</button>
+      </div>
+      <style>{`@keyframes ticker-slide-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
 // ANA UYGULAMA
 // ═══════════════════════════════════════════════════════
 function App() {
@@ -10779,6 +10860,41 @@ function App() {
   }, []);
   useEffect(() => { document.body.classList.toggle('us-dark', dark); }, [dark]);
   useEffect(() => { document.body.classList.toggle('us-dark', dark); }, []);
+
+  // ── Game events state ──────────────────────────────────────────────────────
+  const [gameEvents, setGameEvents] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('rep_gameEvents')||'[]'); } catch { return []; }
+  });
+
+  // Listen to game-event window events (fired by socket listener or local actions)
+  useEffect(() => {
+    const onEvt = (e) => {
+      if (!e.detail) return;
+      setGameEvents(prev => {
+        const next = [...prev, e.detail].slice(-50);
+        try { localStorage.setItem('rep_gameEvents', JSON.stringify(next)); } catch {}
+        return next;
+      });
+    };
+    window.addEventListener('game-event', onEvt);
+    return () => window.removeEventListener('game-event', onEvt);
+  }, []);
+
+  // pushGameEvent — emits to server AND stores locally
+  const pushGameEvent = useCallback((type, title, desc='', icon='📢', category='genel') => {
+    const evt = {
+      id: 'evt_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+      type, title, desc, icon, category,
+      ts: Date.now(),
+    };
+    // Fire window event (updates local state + localStorage)
+    window.dispatchEvent(new CustomEvent('game-event', { detail: evt }));
+    // Broadcast to all players via Socket.IO
+    try { if (window._socket?.connected) window._socket.emit('emitGameEvent', evt); } catch {}
+  }, []);
+
+  // Expose globally so all screens/components can call it without prop-drilling
+  useEffect(() => { window._pushGameEvent = pushGameEvent; }, [pushGameEvent]);
 
   // Wrapper to also sync to Firebase
   const setProfile = useCallback((val) => {
@@ -11018,10 +11134,25 @@ function App() {
         } catch(e){}
       });
 
-      // ── Game event (piyasa vs) ───────────────────────────────────
+      // ── Game event — tüm clientlara yayınlanan canlı olay ──────
       s.on('gameEvent', (data) => {
         try {
-          showNotif(`${data.title||'Oyun Olayı'}`, 'info', data.title?.split(' ')[0]||'🎲');
+          if (!data) return;
+          const evt = {
+            id:       data.id       || ('evt_' + Date.now()),
+            type:     data.type     || 'generic',
+            category: data.category || 'genel',
+            title:    data.title    || 'Oyun Olayı',
+            desc:     data.desc     || '',
+            icon:     data.icon     || '📢',
+            ts:       data.ts       || Date.now(),
+          };
+          // Only add if came from another socket (not our own emit)
+          window.dispatchEvent(new CustomEvent('game-event', { detail: evt }));
+          // Also show a toast for fresh events
+          if (Date.now() - (evt.ts||0) < 30000) {
+            showNotif(`${evt.icon} ${evt.title}`, 'info', evt.icon||'📢');
+          }
         } catch(e){}
       });
 
@@ -11163,6 +11294,9 @@ function App() {
       <div style={{position:'fixed',inset:0,display:'flex',alignItems:'stretch',justifyContent:'center',background: dark ? '#060C18' : '#E5E7EB'}}>
         <div style={{position:'relative',width:'100%',maxWidth:'480px',display:'flex',flexDirection:'column',overflow:'hidden',background: dark ? '#0F172A' : '#F0F2F5',boxShadow:'0 0 60px rgba(0,0,0,0.3)'}}>
           <Header profile={profile} notifCount={notifCount} onNotif={()=>setNotifOpen(true)} page={page} onNavigate={setPage} />
+
+          {/* Canlı Olaylar Ticker */}
+          <GameEventTicker events={gameEvents} onNavigate={setPage} />
 
           {/* Main scrollable content */}
           <div style={{flex:1,overflowY:'auto',WebkitOverflowScrolling:'touch',paddingBottom:'calc(70px + env(safe-area-inset-bottom, 0px))',background:pageBg}}>

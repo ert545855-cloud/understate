@@ -69,6 +69,7 @@ window.UnionScreen = function UnionScreen({ cu, allUsers, families, setCurrentPa
     setNewUnion({name:""});
     setTab("list");
     showMsg(`Sendika kuruldu! 3 gün içinde ${UNION_MEMBER_REQUIREMENT} üye toplamalısınız ✓`,"success");
+    try { window._pushGameEvent?.('sendika_kuruldu', `🏭 ${u.name} sendikası kuruldu!`, `${cu.username} yeni bir işçi sendikası kurdu. ${UNION_MEMBER_REQUIREMENT} üye için başvuruları bekliyor.`, '🏭', 'sendika'); } catch(e){}
   };
 
   const joinUnion = (unionId) => {
@@ -134,7 +135,12 @@ window.UnionScreen = function UnionScreen({ cu, allUsers, families, setCurrentPa
       return {...u,strikeActive:!u.strikeActive};
     });
     saveUnions(updated);
-    showMsg(updated.find(u=>u.id===unionId)?.strikeActive?"Grev ilan edildi! Tüm üyeler durdu.":"Grev sonlandırıldı.","info");
+    const nowStriking = updated.find(u=>u.id===unionId)?.strikeActive;
+    showMsg(nowStriking?"Grev ilan edildi! Tüm üyeler durdu.":"Grev sonlandırıldı.","info");
+    if (nowStriking) {
+      const u = updated.find(x=>x.id===unionId);
+      try { window._pushGameEvent?.('grev', `🚨 GREV: ${u?.name||'Sendika'}`, `${cu?.username||'Sendika lideri'} grev ilan etti! Fabrika üretimi durdu.`, '🚨', 'grev'); } catch(e){}
+    }
   };
 
   const card = {background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:14,padding:"1rem",marginBottom:"0.75rem"};

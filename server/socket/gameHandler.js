@@ -137,6 +137,25 @@ function registerGameHandlers(io, socket) {
     socket.broadcast.emit('stateUpdate', safe);
   });
 
+  // ── emitGameEvent: oyundan gelen olayları tüm clientlara yayınla ──────────
+  socket.on('emitGameEvent', (data) => {
+    if (!data || !checkEventRate(socket.id) || !isPayloadSafe(data)) return;
+    if (!socket.userId) return; // sadece auth kullanıcılar yayınlayabilir
+    const safe = {
+      id:       typeof data.id==='string'   ? data.id.slice(0,64)     : `evt_${Date.now()}`,
+      type:     typeof data.type==='string' ? data.type.slice(0,40)   : 'generic',
+      category: typeof data.category==='string' ? data.category.slice(0,30) : 'genel',
+      title:    typeof data.title==='string'? data.title.slice(0,120)  : 'Oyun Olayı',
+      desc:     typeof data.desc==='string' ? data.desc.slice(0,300)   : '',
+      icon:     typeof data.icon==='string' ? data.icon.slice(0,8)     : '📢',
+      username: socket.username || 'Sistem',
+      ts:       Date.now(),
+    };
+    io.emit('gameEvent', safe);
+    logger.debug(`[GameEvent] ${safe.category}:${safe.type} by ${safe.username} — "${safe.title}"`);
+    monitoring.increment('playerUpdates');
+  });
+
   socket.on('gameEvent', (data) => {
     if (!data || !checkEventRate(socket.id) || !isPayloadSafe(data)) return;
     io.emit('gameEvent', { type: typeof data.type==='string'?data.type.slice(0,40):'generic', payload: data.payload, fromSocket: socket.id, timestamp: Date.now() });
