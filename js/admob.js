@@ -16,15 +16,25 @@
   const AD_CONFIG = {
     interstitialId: 'ca-app-pub-7362104594733603/8613507280',
     appId:          'ca-app-pub-7362104594733603~3744323984',
-    // Interstitial interval: show at most 1 ad per N minutes
-    MIN_INTERVAL_MS:    5 * 60 * 1000, // 5 minutes
-    // Delay after app load before first ad
-    INITIAL_DELAY_MS:   3 * 60 * 1000, // 3 minutes
+    MIN_INTERVAL_MS:    5 * 60 * 1000,
+    INITIAL_DELAY_MS:   3 * 60 * 1000,
   };
 
   let lastAdShownAt   = 0;
   let nativeAvailable = false;
   let initialized     = false;
+
+  // ── VIP / Admin kontrolü ──────────────────────────────────────────────────
+  function isVipOrAdmin() {
+    try {
+      const profile = JSON.parse(localStorage.getItem('rep_userProfile') || '{}');
+      if (profile.role === 'vip' || profile.role === 'admin') return true;
+      // Socket bridge üzerinden gelen kullanıcı verisi
+      const user = JSON.parse(localStorage.getItem('rep_user') || '{}');
+      if (user.role === 'vip' || user.role === 'admin') return true;
+    } catch {}
+    return false;
+  }
 
   // ── CSS for overlay interstitial ──────────────────────────────────────────
   const OVERLAY_CSS = `
@@ -81,7 +91,6 @@
       <div id="us-ad-box">
         <div id="us-ad-label">Reklam</div>
         <div id="us-ad-slot">
-          <!-- AdSense / Ad Manager slot -->
           <ins class="adsbygoogle"
             style="display:inline-block;width:300px;height:250px"
             data-ad-client="ca-pub-7362104594733603"
@@ -94,12 +103,10 @@
     `;
     document.body.appendChild(overlay);
 
-    // Push AdSense ad if SDK loaded
     try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch {}
 
-    // Countdown timer
     let remaining = 5;
-    const countEl = document.getElementById('us-ad-countdown');
+    const countEl  = document.getElementById('us-ad-countdown');
     const closeBtn = document.getElementById('us-ad-close-btn');
     const skipEl   = document.getElementById('us-ad-skip');
 
@@ -130,11 +137,9 @@
   // ── Native AdMob (Capacitor) ──────────────────────────────────────────────
   async function showNativeInterstitial(onClose) {
     try {
-      // Use global Capacitor plugins (loaded by Capacitor runtime)
       const AdMob = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AdMob;
       if (!AdMob) throw new Error('AdMob plugin not available');
 
-      // Listen for interstitial events
       AdMob.addListener('interstitialAdLoaded',  function() { AdMob.showInterstitial(); });
       AdMob.addListener('interstitialAdClosed',  function() {
         lastAdShownAt = Date.now();
@@ -159,11 +164,17 @@
 
   // ── Public API ────────────────────────────────────────────────────────────
   function canShowAd() {
+    if (isVipOrAdmin()) return false; // VIP ve admin reklam görmez
     const now = Date.now();
     return (now - lastAdShownAt) >= AD_CONFIG.MIN_INTERVAL_MS;
   }
 
   function showInterstitial(onClose, force) {
+    if (isVipOrAdmin()) {
+      // VIP/Admin — reklamı atla, callback'i direkt çağır
+      if (typeof onClose === 'function') onClose();
+      return;
+    }
     if (!force && !canShowAd()) return;
     if (nativeAvailable) {
       showNativeInterstitial(onClose);
@@ -173,7 +184,6 @@
   }
 
   // ── Game event hooks ──────────────────────────────────────────────────────
-  // Call these from game logic at appropriate moments
   function onLevelUp()       { showInterstitial(); }
   function onJobComplete()   { showInterstitial(); }
   function onCrimeComplete() { showInterstitial(); }
@@ -184,10 +194,8 @@
     if (initialized) return;
     initialized = true;
 
-    // Check if Capacitor + AdMob available
     if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) {
       try {
-        // Use Capacitor global plugins
         const AdMob = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AdMob;
         if (!AdMob) throw new Error('Not native');
         await AdMob.initialize({
@@ -204,7 +212,6 @@
       }
     }
 
-    // Load AdSense SDK for web (async, non-blocking)
     if (!nativeAvailable && !document.querySelector('script[src*="adsbygoogle"]')) {
       const s = document.createElement('script');
       s.async = true;
@@ -213,10 +220,12 @@
       document.head.appendChild(s);
     }
 
-    // First interstitial after initial delay
-    setTimeout(() => showInterstitial(), AD_CONFIG.INITIAL_DELAY_MS);
+    // VIP değilse ilk reklamı göster
+    if (!isVipOrAdmin()) {
+      setTimeout(() => showInterstitial(), AD_CONFIG.INITIAL_DELAY_MS);
+    }
 
-    console.log('[AdMob] Initialized — mode:', nativeAvailable ? 'native' : 'web');
+    console.log('[AdMob] Initialized — mode:', nativeAvailable ? 'native' : 'web', '| VIP:', isVipOrAdmin());
   }
 
   // ── Expose globally ───────────────────────────────────────────────────────
@@ -229,10 +238,11 @@
     onElectionEnd,
     canShowAd,
     closeOverlay,
+    isVipOrAdmin,
     config: AD_CONFIG,
+    _nativeReady: false,
   };
 
-  // Auto-init when DOM ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
