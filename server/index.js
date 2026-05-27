@@ -116,6 +116,8 @@ app.use(helmet({
         'https://*.supabase.co',
         'https://*.supabase.in',
         'https://*.googleapis.com',
+        'https://understate.onrender.com',
+        'wss://understate.onrender.com',
       ],
       mediaSrc: ["'self'", 'blob:'],
       workerSrc: ["'self'", 'blob:'],
@@ -151,6 +153,10 @@ if (IS_PROD) {
 
 // --- Static files ---
 app.use(express.static(path.join(__dirname, '../public'), {
+  maxAge: IS_PROD ? '1h' : 0,
+  etag: true,
+}));
+app.use('/src', express.static(path.join(__dirname, '../src'), {
   maxAge: IS_PROD ? '1h' : 0,
   etag: true,
 }));
