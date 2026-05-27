@@ -8,11 +8,15 @@ window.UnionScreen = function UnionScreen({ cu, allUsers, families, setCurrentPa
     save: (k, v)   => { try { localStorage.setItem("us_union_"+k, JSON.stringify(v)); } catch {} },
   };
 
+  const UNION_MEMBER_REQUIREMENT = 10;
+  const UNION_DEADLINE_MS = 3 * 24 * 60 * 60 * 1000; // 3 gün
+
   const [unions, setUnions] = React.useState(()=>S.load("list",[]));
   const [tab, setTab]       = React.useState("list");
   const [newUnion, setNewUnion] = React.useState({name:""});
   const [shifts, setShifts] = React.useState(()=>S.load("shifts",{}));
   const [msg, setMsg]       = React.useState(null);
+  const now = Date.now();
 
   const saveUnions = (u) => { setUnions(u); S.save("list", u); };
   const saveShifts = (s) => { setShifts(s); S.save("shifts", s); };
@@ -20,7 +24,22 @@ window.UnionScreen = function UnionScreen({ cu, allUsers, families, setCurrentPa
 
   const fmtMoney = (n) => { if(!n)return "₺0"; if(n>=1e6)return "₺"+(n/1e6).toFixed(1)+"M"; if(n>=1e3)return "₺"+(n/1e3).toFixed(0)+"K"; return "₺"+n; };
   const fmtTime  = (ms) => { if(ms<=0)return "Bitti"; const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000); return `${h}s ${m}dk`; };
-  const now = Date.now();
+
+  // Auto-dissolve unions that missed the 3-day / 10-member deadline
+  React.useEffect(() => {
+    const active = unions.filter(u => {
+      const memberCount = (u.members||[]).length;
+      const age = now - (u.createdAt || now);
+      if (!u.confirmed && memberCount < UNION_MEMBER_REQUIREMENT && age > UNION_DEADLINE_MS) {
+        return false; // dissolve
+      }
+      return true;
+    });
+    if (active.length !== unions.length) {
+      saveUnions(active);
+      showMsg("⚠️ 3 günlük sürede 10 üye toplayamayan sendikalar otomatik kapatıldı.", "info");
+    }
+  }, []);
 
   const myUnion     = unions.find(u=>u.leader===cu?.username||(Array.isArray(u.members)&&u.members.includes(cu?.username)));
   const myUnionRole = myUnion ? (myUnion.leader===cu?.username?"Lider":"Üye") : null;
@@ -33,8 +52,6 @@ window.UnionScreen = function UnionScreen({ cu, allUsers, families, setCurrentPa
     if(!newUnion.name.trim()) return showMsg("Sendika adı zorunlu","error");
     if(myUnion) return showMsg("Zaten bir sendikaya üyesiniz","error");
     if(unions.find(u=>u.name.toLowerCase()===newUnion.name.trim().toLowerCase())) return showMsg("Bu isimde bir sendika zaten var","error");
-    const allUsers = (() => { try { return JSON.parse(localStorage.getItem('rep_users')||'[]'); } catch{return [];} })();
-    if(allUsers.length < 10) return showMsg(`Sendika kurabilmek için oyunda en az 10 oyuncu olmalı (şu an: ${allUsers.length})`, "error");
     const u = {
       id:"un_"+Date.now(),
       name:newUnion.name.trim(),
@@ -45,22 +62,31 @@ window.UnionScreen = function UnionScreen({ cu, allUsers, families, setCurrentPa
       createdAt:now,
       demands:[],
       strikeActive:false,
+      confirmed:false, // becomes true when 10 members reached
     };
     const updated = [...unions, u];
     saveUnions(updated);
     setNewUnion({name:""});
     setTab("list");
-    showMsg("Sendika kuruldu! ✓","success");
+    showMsg(`Sendika kuruldu! 3 gün içinde ${UNION_MEMBER_REQUIREMENT} üye toplamalısınız ✓`,"success");
   };
 
   const joinUnion = (unionId) => {
     if(myUnion) return showMsg("Zaten bir sendikaya üyesiniz","error");
     const updated = unions.map(u=>{
       if(u.id!==unionId) return u;
-      return {...u, members:[...(u.members||[]),cu.username]};
+      const newMembers = [...(u.members||[]),cu.username];
+      const confirmed = newMembers.length >= UNION_MEMBER_REQUIREMENT;
+      return {...u, members:newMembers, confirmed: u.confirmed || confirmed};
     });
     saveUnions(updated);
-    showMsg("Sendikaya katıldınız! ✓","success");
+    const joined = updated.find(u=>u.id===unionId);
+    const memberCount = (joined?.members||[]).length;
+    if (memberCount >= UNION_MEMBER_REQUIREMENT && !joined?.confirmed) {
+      showMsg(`Sendika tamamlandı! ${memberCount} üyeye ulaşıldı — Sendika onaylandı ✓`,"success");
+    } else {
+      showMsg(`Sendikaya katıldınız! ${memberCount}/${UNION_MEMBER_REQUIREMENT} üye ✓`,"success");
+    }
   };
 
   const leaveUnion = (unionId) => {
@@ -75,13 +101,18 @@ window.UnionScreen = function UnionScreen({ cu, allUsers, families, setCurrentPa
     showMsg("Sendikadan ayrıldınız.","info");
   };
 
-  const startShift = () => {
+  const startShift = (unionId) => {
     if(shiftActive) return showMsg("Zaten aktif bir vardiya var","error");
+    const targetUnion = unions.find(u=>u.id===unionId);
+    if(!targetUnion) return showMsg("Sendika bulunamadı","error");
+    if(!targetUnion.confirmed && (targetUnion.members||[]).length < UNION_MEMBER_REQUIREMENT) {
+      return showMsg(`Sendika henüz onaylanmadı (${(targetUnion.members||[]).length}/${UNION_MEMBER_REQUIREMENT} üye). Fabrikada çalışmak için sendikanın ${UNION_MEMBER_REQUIREMENT} üyeye ulaşması gerekiyor.`,"error");
+    }
     const SHIFT_DURATION = 4*3600000;
-    const SHIFT_PAY = 5000 + (cu.level||1)*1000;
-    const newShifts = {...shifts,[cu.username]:{start:now,end:now+SHIFT_DURATION,pay:SHIFT_PAY}};
+    const SHIFT_PAY = 5000 + (cu.level||1)*1000 + (targetUnion.influence||0)*100;
+    const newShifts = {...shifts,[cu.username]:{start:now,end:now+SHIFT_DURATION,pay:SHIFT_PAY,unionId}};
     saveShifts(newShifts);
-    showMsg(`Vardiya başladı! ${fmtTime(SHIFT_DURATION)} sonra ${fmtMoney(SHIFT_PAY)} kazanacaksınız ✓`,"success");
+    showMsg(`Fabrika vardiyası başladı! ${fmtTime(SHIFT_DURATION)} sonra ${fmtMoney(SHIFT_PAY)} kazanacaksınız ✓`,"success");
   };
 
   const endShift = () => {
@@ -115,7 +146,7 @@ window.UnionScreen = function UnionScreen({ cu, allUsers, families, setCurrentPa
     <div>
       <div className="ministry-header">🏭 Sendika & İşçilik</div>
       <p style={{fontSize:"0.82rem",color:"#6B7C93",marginBottom:"1rem"}}>
-        İşçi haklarını koruyun, sendika kurun veya katılın. Grev yaparak fabrika sahiplerini masaya oturtun.
+        İşçi haklarını koruyun, sendika kurun veya katılın. <strong style={{color:"#F59E0B"}}>3 gün içinde {UNION_MEMBER_REQUIREMENT} üye</strong> toplamalısınız — aksi takdirde sendika kapanır. Sendika üyeleri fabrikalarda çalışabilir.
       </p>
 
       {msg&&(
@@ -149,6 +180,18 @@ window.UnionScreen = function UnionScreen({ cu, allUsers, families, setCurrentPa
                   </div>
                 ))}
               </div>
+              {/* Deadline warning */}
+              {!myUnion.confirmed && (myUnion.members||[]).length < UNION_MEMBER_REQUIREMENT && (
+                <div style={{background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.3)",borderRadius:8,padding:"0.5rem",marginTop:"0.6rem",fontSize:"0.78rem",color:"#F59E0B"}}>
+                  ⏳ {(myUnion.members||[]).length}/{UNION_MEMBER_REQUIREMENT} üye — Kalan süre: {fmtTime(Math.max(0, UNION_DEADLINE_MS - (now - (myUnion.createdAt||now))))}
+                  <div style={{fontSize:"0.65rem",marginTop:"0.2rem",color:"#D97706"}}>3 gün içinde {UNION_MEMBER_REQUIREMENT} üye toplamazsanız sendika kapanır!</div>
+                </div>
+              )}
+              {myUnion.confirmed && (
+                <div style={{background:"rgba(16,185,129,0.08)",border:"1px solid rgba(16,185,129,0.2)",borderRadius:8,padding:"0.4rem",marginTop:"0.6rem",fontSize:"0.72rem",color:"#10B981",fontWeight:700}}>
+                  ✅ Sendika Onaylı — Üyeler fabrikalarda çalışabilir
+                </div>
+              )}
               {myUnion.strikeActive&&(
                 <div style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:8,padding:"0.5rem",marginTop:"0.6rem",fontSize:"0.8rem",color:"#EF4444",fontWeight:700}}>
                   🚨 GREV AKTİF — Fabrika üretimi duruyor!
@@ -180,18 +223,31 @@ window.UnionScreen = function UnionScreen({ cu, allUsers, families, setCurrentPa
           {unions.map(u=>{
             const isMember = (u.members||[]).includes(cu.username);
             const isLeader = u.leader===cu.username;
+            const memberCount = (u.members||[]).length;
+            const timeLeft = Math.max(0, UNION_DEADLINE_MS - (now - (u.createdAt||now)));
+            const deadlinePassed = !u.confirmed && memberCount < UNION_MEMBER_REQUIREMENT && timeLeft <= 0;
+            if (deadlinePassed) return null; // don't render dissolved unions
             return (
-              <div key={u.id} style={{...card,border:isMember?"1px solid rgba(16,185,129,0.25)":"1px solid rgba(255,255,255,0.07)"}}>
+              <div key={u.id} style={{...card,border:isMember?"1px solid rgba(16,185,129,0.25)":u.confirmed?"1px solid rgba(59,130,246,0.2)":"1px solid rgba(255,255,255,0.07)"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"0.5rem"}}>
                   <div>
                     <div style={{fontWeight:700,color:"#fff",fontSize:"0.95rem"}}>{u.name}</div>
-                    <div style={{fontSize:"0.72rem",color:"#5E7390"}}>Lider: {u.leader} · {(u.members||[]).length} üye</div>
+                    <div style={{fontSize:"0.72rem",color:"#5E7390"}}>Lider: {u.leader} · {memberCount} üye</div>
                   </div>
-                  {u.strikeActive&&<span style={{background:"rgba(239,68,68,0.15)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:6,padding:"0.2rem 0.5rem",fontSize:"0.65rem",fontWeight:700,color:"#EF4444"}}>GREV</span>}
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"0.2rem"}}>
+                    {u.strikeActive&&<span style={{background:"rgba(239,68,68,0.15)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:6,padding:"0.2rem 0.5rem",fontSize:"0.65rem",fontWeight:700,color:"#EF4444"}}>GREV</span>}
+                    {u.confirmed?<span style={{background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.25)",borderRadius:6,padding:"0.15rem 0.45rem",fontSize:"0.6rem",fontWeight:700,color:"#10B981"}}>✅ Onaylı</span>
+                    :<span style={{background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.25)",borderRadius:6,padding:"0.15rem 0.45rem",fontSize:"0.6rem",fontWeight:700,color:"#F59E0B"}}>{memberCount}/{UNION_MEMBER_REQUIREMENT} üye</span>}
+                  </div>
                 </div>
+                {!u.confirmed && (
+                  <div style={{fontSize:"0.65rem",color:"#D97706",marginBottom:"0.4rem"}}>
+                    ⏳ Son: {fmtTime(timeLeft)} — {UNION_MEMBER_REQUIREMENT} üye hedefi
+                  </div>
+                )}
                 <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"0.35rem",marginBottom:"0.6rem"}}>
                   {[
-                    {l:"Üyeler",v:(u.members||[]).length,c:"#60A5FA"},
+                    {l:"Üyeler",v:memberCount,c:"#60A5FA"},
                     {l:"Kasa",v:fmtMoney(u.treasury||0),c:"#10B981"},
                     {l:"Etki",v:u.influence||0,c:"#A78BFA"},
                   ].map(s=>(
@@ -214,24 +270,35 @@ window.UnionScreen = function UnionScreen({ cu, allUsers, families, setCurrentPa
       {/* KARİYERİM */}
       {tab==="career"&&(
         <div>
-          {/* Vardiya paneli */}
+          {/* Fabrika Vardiya paneli */}
           <div style={card}>
-            <div className="card-title">⏱️ Vardiya Sistemi</div>
+            <div className="card-title">🏭 Fabrika Vardiyası</div>
             <p style={{fontSize:"0.8rem",color:"#8899AA",marginBottom:"0.75rem"}}>
-              Her vardiya 4 saat sürer. Tamamlandığında seviyenize göre ücret alırsınız.
+              Sendika üyeleri fabrikalarda çalışabilir. Her vardiya 4 saat sürer. Tamamlandığında seviyenize ve sendika etkisine göre ücret alırsınız.
             </p>
-            {shiftActive ? (
+            {!myUnion ? (
+              <div style={{background:"rgba(245,158,11,0.08)",border:"1px solid rgba(245,158,11,0.2)",borderRadius:8,padding:"0.6rem",fontSize:"0.8rem",color:"#F59E0B"}}>
+                ⚠️ Fabrikada çalışmak için önce bir sendikaya katılmanız gerekiyor.
+                <button className="btn btn-primary" style={{marginTop:"0.5rem",width:"100%"}} onClick={()=>setTab("list")}>Sendika Listesine Git</button>
+              </div>
+            ) : !myUnion.confirmed && (myUnion.members||[]).length < UNION_MEMBER_REQUIREMENT ? (
+              <div style={{background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:8,padding:"0.6rem",fontSize:"0.8rem",color:"#EF4444"}}>
+                ❌ Sendikanız henüz onaylanmadı. {(myUnion.members||[]).length}/{UNION_MEMBER_REQUIREMENT} üye — Fabrika çalışması için {UNION_MEMBER_REQUIREMENT} üyeye ulaşılmalı.
+              </div>
+            ) : shiftActive ? (
               <div>
                 <div style={{background:"rgba(16,185,129,0.08)",border:"1px solid rgba(16,185,129,0.25)",borderRadius:10,padding:"0.75rem",marginBottom:"0.75rem",textAlign:"center"}}>
                   <div style={{fontSize:"1.1rem",fontWeight:900,color:"#10B981",fontFamily:"JetBrains Mono,monospace"}}>{fmtTime(myShift.end-now)}</div>
                   <div style={{fontSize:"0.7rem",color:"#5E7390",marginTop:"0.2rem"}}>Bitiş Süresi</div>
                   <div style={{fontSize:"0.82rem",color:"#FFB800",fontWeight:700,marginTop:"0.4rem"}}>Beklenen: {fmtMoney(myShift.pay)}</div>
                 </div>
-                <button className="btn btn-red" style={{width:"100%"}} onClick={endShift}>⏹ Erken Bitir (Ücret Alınamazsınız)</button>
-                {myShift.end<=now&&<button className="btn btn-primary" style={{width:"100%",marginTop:"0.4rem"}} onClick={endShift}>✅ Ücretimi Al — {fmtMoney(myShift.pay)}</button>}
+                {myShift.end<=now
+                  ? <button className="btn btn-primary" style={{width:"100%"}} onClick={endShift}>✅ Ücretimi Al — {fmtMoney(myShift.pay)}</button>
+                  : <button className="btn btn-red" style={{width:"100%"}} onClick={endShift}>⏹ Erken Bitir (Ücret Alınamazsınız)</button>
+                }
               </div>
             ) : (
-              <button className="btn btn-primary" style={{width:"100%"}} onClick={startShift}>▶ Vardiyayı Başlat (4 saat)</button>
+              <button className="btn btn-primary" style={{width:"100%"}} onClick={()=>startShift(myUnion.id)}>▶ Fabrika Vardiyasını Başlat (4 saat)</button>
             )}
           </div>
 
@@ -242,6 +309,7 @@ window.UnionScreen = function UnionScreen({ cu, allUsers, families, setCurrentPa
               <div style={{fontSize:"0.85rem",color:"#fff"}}>
                 <div style={{marginBottom:"0.3rem"}}><span style={{color:"#5E7390"}}>Sendika:</span> <span style={{fontWeight:700,color:"#10B981"}}>{myUnion.name}</span></div>
                 <div style={{marginBottom:"0.3rem"}}><span style={{color:"#5E7390"}}>Rolüm:</span> <span style={{fontWeight:700}}>{myUnionRole}</span></div>
+                <div style={{marginBottom:"0.3rem"}}><span style={{color:"#5E7390"}}>Durum:</span> <span style={{fontWeight:700,color:myUnion.confirmed?"#10B981":"#F59E0B"}}>{myUnion.confirmed?"Onaylı ✅":"Onay Bekleniyor"}</span></div>
                 <div><span style={{color:"#5E7390"}}>Grev Durumu:</span> <span style={{fontWeight:700,color:myUnion.strikeActive?"#EF4444":"#10B981"}}>{myUnion.strikeActive?"Aktif":"Yok"}</span></div>
               </div>
             ) : (
@@ -256,6 +324,7 @@ window.UnionScreen = function UnionScreen({ cu, allUsers, families, setCurrentPa
           <div style={card}>
             <div className="card-title">⚡ Sendika Avantajları</div>
             <ul style={{fontSize:"0.8rem",color:"#8899AA",lineHeight:1.7,paddingLeft:"1.2rem",margin:0}}>
+              <li>10 üyeye ulaşınca fabrikalarda çalışma hakkı kazanılır</li>
               <li>Fabrika sahipleriyle toplu sözleşme hakkı</li>
               <li>Grev yaparak üretimi durdurabilirsiniz</li>
               <li>Sendika kasasından acil yardım alabilirsiniz</li>
@@ -273,6 +342,9 @@ window.UnionScreen = function UnionScreen({ cu, allUsers, families, setCurrentPa
             <div style={{textAlign:"center",color:"#5E7390",padding:"1rem"}}>Zaten bir sendikaya üyesiniz. Önce mevcut sendikanızdan ayrılın.</div>
           ) : (
             <div style={{display:"flex",flexDirection:"column",gap:"0.6rem",marginTop:"0.5rem"}}>
+              <div style={{background:"rgba(245,158,11,0.08)",border:"1px solid rgba(245,158,11,0.2)",borderRadius:8,padding:"0.6rem",fontSize:"0.75rem",color:"#F59E0B"}}>
+                ⚠️ <strong>Önemli:</strong> Sendika kurulduktan sonra <strong>3 gün</strong> içinde <strong>{UNION_MEMBER_REQUIREMENT} üye</strong> toplamanız gerekiyor. Bu hedefe ulaşılmazsa sendika otomatik kapatılır.
+              </div>
               <div>
                 <div style={{fontSize:"0.72rem",color:"#5E7390",marginBottom:"0.25rem"}}>Sendika Adı *</div>
                 <input
