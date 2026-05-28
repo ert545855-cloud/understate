@@ -40,8 +40,11 @@ module.exports = {
   // Leaderboard
   LEADERBOARD_SIZE: 100,
 
-  // HTTP Rate limit
-  RATE_LIMIT_WINDOW: 15 * 60 * 1000,
-  RATE_LIMIT_MAX: 100,
-  AUTH_RATE_LIMIT_MAX: 10,
+  // HTTP Rate limit — genel istekler
+  RATE_LIMIT_WINDOW: 15 * 60 * 1000,   // 15 dakika
+  RATE_LIMIT_MAX: 200,                   // 100 → 200 (genel endpoint)
+
+  // Auth limitleri — kayıt ve login ayrı ayrı ayarlanıyor (rateLimiter.js)
+  AUTH_RATE_LIMIT_MAX: 20,               // 10 → 20  (login, şifre sıfırlama)
+  REGISTER_RATE_LIMIT_MAX: 5,            // YENİ: kayıt için pencere başına 5 (IP başına)
 };
