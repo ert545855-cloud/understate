@@ -55,6 +55,6 @@ module.exports = {
   RATE_LIMIT_MAX: 200,                   // 100 → 200 (genel endpoint)
 
   // Auth limitleri — kayıt ve login ayrı ayrı ayarlanıyor (rateLimiter.js)
-  AUTH_RATE_LIMIT_MAX: 20,               // 10 → 20  (login, şifre sıfırlama)
-  REGISTER_RATE_LIMIT_MAX: 5,            // YENİ: kayıt için pencere başına 5 (IP başına)
+  AUTH_RATE_LIMIT_MAX: 30,               // 20 → 30               // 10 → 20  (login, şifre sıfırlama)
+  REGISTER_RATE_LIMIT_MAX: 20,            // 5 → 20            // YENİ: kayıt için pencere başına 5 (IP başına)
 };
