@@ -5,13 +5,25 @@
 const { Pool } = require('pg');
 const logger = require('../utils/logger');
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
-});
+// DATABASE_URL'deki hostname'i IPv4'e zorla
+function buildPoolConfig() {
+  const url = process.env.DATABASE_URL || '';
+  // Supabase connection pooler (port 6543) IPv4 destekler
+  // db.xxx.supabase.co:5432 yerine aws-0-xxx.pooler.supabase.com:6543 kullan
+  // ya da ?options=... ile family=4 belirt
+  const parsed = new URL(url);
+  parsed.searchParams.set('options', '-c search_path=public');
+  return {
+    connectionString: url,
+    ssl: { rejectUnauthorized: false },
+    max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
+    family: 4,  // IPv4'e zorla
+  };
+}
+
+const pool = new Pool(buildPoolConfig());
 
 let _connected = false;
 
