@@ -6480,6 +6480,16 @@ function PlayersPage({ profile, onNavigate, onlinePlayers = [] }) {
       {/* Oyuncu listesi (all/top) */}
       {tab!=='online' && (tab==='top'?leaderboardData:filtered).map((p,i) => {
         const isOnline = onlineIds.has(p.id)||onlineIds.has(p.username);
+        const lastOnlineTs = p.lastOnline || p.lastSeen || p.registeredAt || 0;
+        const lastOnlineStr = (() => {
+          if (!lastOnlineTs) return '';
+          const diff = Date.now() - lastOnlineTs;
+          if (diff < 60000)      return 'az önce';
+          if (diff < 3600000)    return `${Math.floor(diff/60000)} dk önce`;
+          if (diff < 86400000)   return `${Math.floor(diff/3600000)} sa önce`;
+          if (diff < 604800000)  return `${Math.floor(diff/86400000)} gün önce`;
+          return `${Math.floor(diff/604800000)} hafta önce`;
+        })();
         return (
         <button key={p.id||p.username} onClick={()=>setSelectedPlayer(p)}
           style={{display:'flex',alignItems:'center',gap:'0.75rem',padding:'0.75rem',background: p.username===profile?.username?'rgba(59,130,246,0.08)':'rgba(15,28,48,0.85)',border:`1px solid ${p.username===profile?.username?'rgba(59,130,246,0.2)':isOnline?'rgba(16,185,129,0.18)':'rgba(255,255,255,0.05)'}`,borderRadius:'12px',width:'100%',marginBottom:'0.4rem',cursor:'pointer',WebkitTapHighlightColor:'transparent',transition:'all 0.15s',textAlign:'left'}}>
@@ -6488,17 +6498,26 @@ function PlayersPage({ profile, onNavigate, onlinePlayers = [] }) {
           )}
           <div style={{position:'relative',flexShrink:0}}>
             <Avatar profile={p} size={42} />
-            {isOnline && <div style={{position:'absolute',bottom:0,right:0,width:'10px',height:'10px',borderRadius:'50%',background:'#10B981',border:'2px solid #0F172A'}} />}
+            {isOnline
+              ? <div style={{position:'absolute',bottom:0,right:0,width:'10px',height:'10px',borderRadius:'50%',background:'#10B981',border:'2px solid #0F172A'}} />
+              : <div style={{position:'absolute',bottom:0,right:0,width:'10px',height:'10px',borderRadius:'50%',background:'#374151',border:'2px solid #0F172A'}} />
+            }
           </div>
           <div style={{flex:1,minWidth:0}}>
-            <div style={{display:'flex',alignItems:'center',gap:'0.35rem'}}>
+            <div style={{display:'flex',alignItems:'center',gap:'0.35rem',flexWrap:'wrap'}}>
               <span style={{fontWeight:800,color:'#E8EDF2',fontSize:'0.9rem'}}>{p.username}</span>
-              {isOnline && <span style={{background:'rgba(16,185,129,0.15)',color:'#10B981',fontSize:'0.5rem',fontWeight:800,padding:'1px 5px',borderRadius:'8px'}}>●</span>}
+              {isOnline
+                ? <span style={{background:'rgba(16,185,129,0.15)',color:'#10B981',fontSize:'0.5rem',fontWeight:800,padding:'1px 5px',borderRadius:'8px'}}>● ÇEVRİMİÇİ</span>
+                : <span style={{background:'rgba(255,255,255,0.05)',color:'#5A7089',fontSize:'0.5rem',fontWeight:700,padding:'1px 5px',borderRadius:'8px'}}>ÇEVRİMDIŞI</span>
+              }
               {p.premium && <span style={{background:'linear-gradient(90deg,#A78BFA,#7C3AED)',color:'#fff',fontSize:'0.5rem',fontWeight:800,padding:'1px 5px',borderRadius:'8px'}}>VIP</span>}
               {p.role==='admin' && <span style={{background:'rgba(245,158,11,0.15)',color:'#F59E0B',fontSize:'0.5rem',fontWeight:800,padding:'1px 5px',borderRadius:'8px'}}>ADMIN</span>}
               {p.username===profile?.username && <span style={{background:'rgba(59,130,246,0.15)',color:'#60A5FA',fontSize:'0.5rem',fontWeight:800,padding:'1px 5px',borderRadius:'8px'}}>SEN</span>}
             </div>
-            <div style={{fontSize:'0.68rem',color:'#5A7089'}}>{p.city||'?'} • Lv.{p.level||1} • {getLevelInfo(p.xp||0).title}</div>
+            <div style={{fontSize:'0.68rem',color:'#5A7089'}}>
+              {p.city||'?'} • Lv.{p.level||1} • {getLevelInfo(p.xp||0).title}
+              {!isOnline && lastOnlineStr && <span style={{color:'#374151',marginLeft:'0.3rem'}}>• {lastOnlineStr}</span>}
+            </div>
           </div>
           <div style={{textAlign:'right',flexShrink:0}}>
             {tab==='top' ? (
@@ -10959,6 +10978,38 @@ function App() {
 
   // Expose globally so all screens/components can call it without prop-drilling
   useEffect(() => { window._pushGameEvent = pushGameEvent; }, [pushGameEvent]);
+
+  // ── Heartbeat — her 15 saniyede sunucuya ping at ──────────────────────────
+  useEffect(() => {
+    if (!authed) return;
+    // window._socketUser güncel profille senkron tut
+    if (profile) window._socketUser = profile;
+
+    const sendBeat = () => {
+      try {
+        if (window._socket?.connected && profile) {
+          window._socket.emit('heartbeat', {
+            level: profile.level || 1,
+            party: profile.party || null,
+            gang:  profile.gang  || null,
+            city:  profile.city  || '',
+          });
+        }
+      } catch(e) {}
+    };
+
+    sendBeat(); // hemen bir tane gönder
+    const interval = setInterval(sendBeat, 15000);
+
+    // Sekme tekrar aktif olunca anında ping at
+    const onVisible = () => { if (document.visibilityState === 'visible') sendBeat(); };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [authed, profile?.id, profile?.level, profile?.party, profile?.gang, profile?.city]);
 
   // Wrapper to also sync to Firebase
   const setProfile = useCallback((val) => {

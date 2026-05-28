@@ -4,6 +4,27 @@ const { SOCKET_EVENT_RATE_LIMIT, SOCKET_EVENT_RATE_WINDOW, MAX_SOCKET_PAYLOAD_BY
 const db = require('../services/dbService');
 
 const onlinePlayers = new Map(); // socketId → player
+const HEARTBEAT_TIMEOUT = 45 * 1000; // 45s yanıt gelmezse çevrimdışı say
+
+// ── Stale presence temizleyici — her 30 saniyede çalışır ─────────────────────
+let _io = null; // initSocket sonrası set edilecek
+setInterval(() => {
+  const now = Date.now();
+  let changed = false;
+  for (const [sid, player] of onlinePlayers) {
+    const last = player.lastHeartbeat || player.joinedAt || 0;
+    if (now - last > HEARTBEAT_TIMEOUT) {
+      onlinePlayers.delete(sid);
+      changed = true;
+      logger.debug(`[Presence] Stale oyuncu temizlendi: ${player.username}`);
+    }
+  }
+  if (changed && _io) {
+    const list = Array.from(onlinePlayers.values());
+    _io.emit('onlinePlayers', list);
+    _io.emit('onlineCount', list.length);
+  }
+}, 30 * 1000);
 
 // ── Rate limiter ──────────────────────────────────────────────────────────────
 const socketEventRates = new Map();
@@ -78,6 +99,7 @@ function broadcastNotification(io, notif) {
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 function registerGameHandlers(io, socket) {
+  _io = io; // stale cleaner için referans
   // Market + economy snapshot on connect
   try {
     const { getMarketSnapshot, getEconomyState } = require('../services/gameEngine');
@@ -93,17 +115,20 @@ function registerGameHandlers(io, socket) {
   // ── Presence ──────────────────────────────────────────────────────────────
   socket.on('playerJoin', (data) => {
     if (!data || !data.userId) return;
+    const now = Date.now();
     const player = {
-      socketId: socket.id,
-      userId:   data.userId,
-      username: typeof data.username === 'string' ? data.username.slice(0, 20) : 'Oyuncu',
-      level:    Number(data.level) || 1,
-      city:     typeof data.city === 'string' ? data.city.slice(0, 30) : '',
-      gender:   data.gender || 'erkek',
-      party:    data.party  || null,
-      gang:     data.gang   || null,
-      avatar:   data.avatar || null,
-      joinedAt: Date.now(),
+      socketId:      socket.id,
+      userId:        data.userId,
+      username:      typeof data.username === 'string' ? data.username.slice(0, 20) : 'Oyuncu',
+      level:         Number(data.level) || 1,
+      city:          typeof data.city === 'string' ? data.city.slice(0, 30) : '',
+      gender:        data.gender || 'erkek',
+      party:         data.party  || null,
+      gang:          data.gang   || null,
+      avatar:        data.avatar || null,
+      joinedAt:      now,
+      lastHeartbeat: now,
+      lastSeen:      now,
     };
     onlinePlayers.set(socket.id, player);
     socket.userId   = data.userId;
@@ -118,6 +143,23 @@ function registerGameHandlers(io, socket) {
     const list = Array.from(onlinePlayers.values());
     socket.emit('onlinePlayers', list);
     socket.emit('onlineCount', list.length);
+  });
+
+  // ── Heartbeat — client her 15s'de bir ping atar ───────────────────────────
+  socket.on('heartbeat', (data) => {
+    const player = onlinePlayers.get(socket.id);
+    const now = Date.now();
+    if (player) {
+      player.lastHeartbeat = now;
+      player.lastSeen      = now;
+      // Profil güncellemesi gelirse uygula
+      if (data?.level !== undefined) player.level = Number(data.level) || player.level;
+      if (data?.party !== undefined) player.party = data.party;
+      if (data?.gang  !== undefined) player.gang  = data.gang;
+      if (data?.city  !== undefined) player.city  = String(data.city).slice(0, 30);
+    }
+    // Pong — istemci bağlantının sağlıklı olduğunu anlasın
+    socket.emit('heartbeatAck', { ts: now });
   });
 
   socket.on('updatePresence', (data) => {
