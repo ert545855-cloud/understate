@@ -3,14 +3,17 @@ const router = express.Router();
 const crypto = require('crypto');
 const { register, login, getProfile, logout, refreshToken, forgotPassword, resetPassword } = require('../auth/authController');
 const { authMiddleware } = require('../middleware/authMiddleware');
-const { authLimiter } = require('../middleware/rateLimiter');
+const { authLimiter, registerLimiter } = require('../middleware/rateLimiter');
 const { sanitizeInput } = require('../middleware/sanitize');
 const { verifyToken } = require('../config/jwt');
 const sb = require('../services/supabaseService');
 const mailService = require('../services/mailService');
 const logger = require('../utils/logger');
 
-router.post('/register',        authLimiter, sanitizeInput, register);
+// Kayıt — kendi limiter'ı (login'den bağımsız)
+router.post('/register',        registerLimiter, sanitizeInput, register);
+
+// Login ve diğer auth işlemleri
 router.post('/login',           authLimiter, sanitizeInput, login);
 router.get('/profile',          authMiddleware, getProfile);
 router.post('/logout',          authMiddleware, logout);
@@ -73,10 +76,9 @@ router.get('/verify', (req, res) => {
   }
 });
 
-// ── Test Email (Admin, Madde 12) ─────────────────────────────────────────────
+// ── Test Email (Admin) ─────────────────────────────────────────────
 router.post('/test-email', async (req, res) => {
   try {
-    const { adminMiddleware } = require('../middleware/adminMiddleware');
     const { email, type = 'verification' } = req.body;
     if (!email) return res.status(400).json({ success: false, message: 'Email adresi gerekli' });
     let result;
