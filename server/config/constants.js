@@ -23,10 +23,20 @@ module.exports = {
   PACKET_RATE_LIMIT: 60,
   PACKET_RATE_WINDOW: 1000,
 
-  // Socket game event rate limiting
+  // Socket global rate limit (fallback for unlisted events)
   SOCKET_EVENT_RATE_LIMIT: 30,
   SOCKET_EVENT_RATE_WINDOW: 1000,
   MAX_SOCKET_PAYLOAD_BYTES: 8192,
+
+  // Per-event rate limits  { maxCount per windowMs }
+  SOCKET_PER_EVENT_LIMITS: {
+    chat:         { max: 5,  windowMs: 1000 },   // 5 msg/sn
+    stateUpdate:  { max: 10, windowMs: 1000 },   // 10 update/sn
+    syncGameData: { max: 5,  windowMs: 1000 },   // 5 sync/sn
+    playerJoin:   { max: 3,  windowMs: 5000 },   // 3 join per 5sn
+    roomCreate:   { max: 2,  windowMs: 10000 },  // 2 oda/10sn
+    roomJoin:     { max: 5,  windowMs: 10000 },  // 5 join/10sn
+  },
 
   // JWT
   ACCESS_TOKEN_EXPIRES_IN: '1h',

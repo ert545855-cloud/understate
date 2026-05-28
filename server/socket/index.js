@@ -3,7 +3,7 @@ const { registerChatHandlers, cleanupChatRates } = require('./chatHandler');
 const { registerPlayerHandlers, removePlayer, getOnlinePlayers } = require('./playerHandler');
 const { registerRoomHandlers } = require('./roomHandler');
 const { registerGameHandlers, removeGamePlayer } = require('./gameHandler');
-const { createSocketRateLimitMiddleware, cleanupSocket: cleanupSocketRL } = require('../middleware/socketRateLimiter');
+const { createSocketRateLimitMiddleware, cleanupSocket: cleanupSocketRL, checkSocketRate } = require('../middleware/socketRateLimiter');
 const roomManager = require('../rooms/roomManager');
 const { saveUser, startAutosave } = require('../services/saveService');
 const { startMonitoringLog } = require('../services/monitoringService');
@@ -45,6 +45,10 @@ function initSocket(io) {
     // State senkronizasyonu (oyun verisi güncelleme)
     socket.on('syncGameData', (data) => {
       if (!socket.userId || !data) return;
+      if (!checkSocketRate(socket.id, 'syncGameData')) {
+        socket.emit('rateLimited', { code: 'SOCKET_RATE_LIMIT', event: 'syncGameData', message: 'Çok hızlı kayıt isteği.' });
+        return;
+      }
       const { scheduleSave } = require('../services/saveService');
       scheduleSave(socket.userId, data);
     });
@@ -52,6 +56,10 @@ function initSocket(io) {
     // State update (anlık profil alanları)
     socket.on('stateUpdate', (data) => {
       if (!socket.userId || !data) return;
+      if (!checkSocketRate(socket.id, 'stateUpdate')) {
+        socket.emit('rateLimited', { code: 'SOCKET_RATE_LIMIT', event: 'stateUpdate', message: 'Çok hızlı güncelleme.' });
+        return;
+      }
       if (getConnectionStatus()) {
         const { scheduleSave } = require('../services/saveService');
         scheduleSave(socket.userId, data);
