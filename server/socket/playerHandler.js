@@ -3,8 +3,7 @@ const { validatePacket } = require('../middleware/sanitize');
 const monitoring = require('../services/monitoringService');
 const { scheduleSave } = require('../services/saveService');
 const logger = require('../utils/logger');
-
-const onlinePlayers = new Map();
+const { onlinePlayers } = require('./onlineStore');
 
 function registerPlayerHandlers(io, socket) {
   socket.on('playerUpdate', (data) => {

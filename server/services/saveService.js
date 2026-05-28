@@ -50,4 +50,15 @@ function startAutosave(io, getUserData) {
   }, AUTOSAVE_INTERVAL);
 }
 
-module.exports = { saveUser, saveUserFull, scheduleSave, startAutosave };
+async function flushAllPending() {
+  const promises = [];
+  for (const [userId, { timer, data }] of pendingSaves.entries()) {
+    clearTimeout(timer);
+    promises.push(saveUserFull(userId, data).catch(() => {}));
+  }
+  pendingSaves.clear();
+  await Promise.all(promises);
+  logger.info('[SaveService] Bekleyen tüm kayıtlar temizlendi');
+}
+
+module.exports = { saveUser, saveUserFull, scheduleSave, startAutosave, flushAllPending };

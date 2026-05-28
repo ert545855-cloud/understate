@@ -72,9 +72,12 @@ function initSocket(io) {
 
     // Token yenileme durumu bildirimi
     socket.on('tokenRefreshed', (data) => {
-      if (socket.userId && data?.userId) {
+      if (data?.userId) {
         socket.userId   = data.userId   || socket.userId;
         socket.username = data.username || socket.username;
+        if (getConnectionStatus()) {
+          sb.updateUser(socket.userId, { is_online: true, socket_id: socket.id }).catch(() => {});
+        }
       }
     });
 

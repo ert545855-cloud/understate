@@ -10,7 +10,7 @@ let _ready = false;
 async function connectDB(io) {
   if (io) _io = io;
 
-  if (!db.isReady()) {
+  if (!process.env.DATABASE_URL) {
     logger.warn('DATABASE_URL tanımlanmamış — DB bağlantısı kurulamadı');
     return;
   }
@@ -20,6 +20,16 @@ async function connectDB(io) {
     _ready = true;
     logger.success('PostgreSQL bağlantısı başarılı ✓');
     if (_io) _io.emit('dbStatus', { status: 'connected', timestamp: Date.now() });
+
+    const REQUIRED_TABLES = ['users', 'chat_messages', 'game_state', 'rooms', 'economy'];
+    for (const table of REQUIRED_TABLES) {
+      try {
+        const { rows } = await db.query(
+          "SELECT to_regclass($1) AS exists", [table]
+        );
+        if (!rows[0].exists) logger.error(`[DB] TABLO EKSİK: ${table} — lütfen şemayı uygulayın`);
+      } catch (_) {}
+    }
   } catch (err) {
     logger.error('PostgreSQL bağlantı testi başarısız:', err.message);
     logger.warn('DB bağlı değil — veriler kalıcı olmayacak');

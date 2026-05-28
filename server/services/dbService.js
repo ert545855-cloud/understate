@@ -13,12 +13,19 @@ const pool = new Pool({
   connectionTimeoutMillis: 5000,
 });
 
+let _connected = false;
+
+pool.on('connect', () => {
+  _connected = true;
+});
+
 pool.on('error', (err) => {
-  logger.error('[DB] Pool hatası:', err.message);
+  _connected = false;
+  logger.error('[DB] Pool bağlantı hatası:', err.message);
 });
 
 function isReady() {
-  return Boolean(process.env.DATABASE_URL);
+  return Boolean(process.env.DATABASE_URL) && _connected;
 }
 
 async function query(text, params) {

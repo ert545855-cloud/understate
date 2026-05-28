@@ -104,25 +104,37 @@ async function register(req, res) {
     if (existE) return res.status(409).json({ success: false, message: 'Email zaten kullanımda' });
 
     const passwordHash      = await bcrypt.hash(password, BCRYPT_ROUNDS);
-    const rawVerifyToken    = crypto.randomBytes(32).toString('hex');
-    const hashedVerifyToken = crypto.createHash('sha256').update(rawVerifyToken).digest('hex');
+    const smtpAvailable     = Boolean(process.env.SMTP_HOST);
 
-    const { ok, user, error } = await sb.createUser({
-      username:            cleanUsername,
-      email:               cleanEmail,
-      password_hash:       passwordHash,
-      email_verify_token:  hashedVerifyToken,
-      email_verify_expiry: new Date(Date.now() + EMAIL_VERIFY_EXPIRY_MS).toISOString(),
-    });
+    const userFields = {
+      username:      cleanUsername,
+      email:         cleanEmail,
+      password_hash: passwordHash,
+    };
+
+    if (smtpAvailable) {
+      const rawVerifyToken    = crypto.randomBytes(32).toString('hex');
+      const hashedVerifyToken = crypto.createHash('sha256').update(rawVerifyToken).digest('hex');
+      userFields.email_verify_token  = hashedVerifyToken;
+      userFields.email_verify_expiry = new Date(Date.now() + EMAIL_VERIFY_EXPIRY_MS).toISOString();
+    } else {
+      userFields.email_verified = true;
+    }
+
+    const { ok, user, error } = await sb.createUser(userFields);
     if (!ok) return res.status(500).json({ success: false, message: error || 'Kayıt başarısız' });
 
     const token        = signToken({ id: user.id, username: user.username, role: user.role });
     const refreshToken = signRefreshToken({ id: user.id });
     await sb.updateUser(user.id, { refresh_token: refreshToken });
 
-    const verifyUrl = `${_baseUrl(req)}/api/auth/verify-email?token=${rawVerifyToken}&userId=${user.id}`;
-    mailService.sendWelcome(cleanEmail, cleanUsername).catch(() => {});
-    mailService.sendEmailVerification(cleanEmail, cleanUsername, verifyUrl).catch(() => {});
+    if (smtpAvailable) {
+      const verifyUrl = `${_baseUrl(req)}/api/auth/verify-email?token=${userFields.email_verify_token}&userId=${user.id}`;
+      mailService.sendWelcome(cleanEmail, cleanUsername).catch(() => {});
+      mailService.sendEmailVerification(cleanEmail, cleanUsername, verifyUrl).catch(() => {});
+    } else {
+      logger.warn('[Auth] SMTP ayarları eksik — doğrulama maili gönderilemiyor, email_verified=true olarak kaydedildi');
+    }
 
     logger.success(`Yeni kullanıcı: ${cleanUsername}`);
     res.status(201).json({ success: true, token, refreshToken, user: userToPublic(user) });

@@ -24,6 +24,7 @@ const { router: electionRoutes, setIO: setElectionIO } = require('./routes/elect
 const { init: initPush } = require('./services/pushService');
 
 const app = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 // --- Public URL / CORS origins (Madde 16) ---
@@ -389,5 +390,31 @@ async function start() {
 }
 
 start();
+
+// --- Graceful shutdown ---
+const { flushAllPending } = require('./services/saveService');
+
+async function gracefulShutdown(signal) {
+  logger.info(`[Shutdown] ${signal} alındı — kontrollü kapatma başlıyor...`);
+  io.close();
+  try {
+    await flushAllPending();
+    const { onlinePlayers } = require('./socket/onlineStore');
+    const updates = [];
+    for (const player of onlinePlayers.values()) {
+      if (player.userId) {
+        updates.push(db.updateUser(player.userId, { is_online: false, socket_id: null }).catch(() => {}));
+      }
+    }
+    await Promise.all(updates);
+    logger.info('[Shutdown] Online oyuncular çevrimdışı işaretlendi');
+  } catch (e) {
+    logger.warn('[Shutdown] Temizleme hatası:', e.message);
+  }
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
 
 module.exports = { app, server, io };

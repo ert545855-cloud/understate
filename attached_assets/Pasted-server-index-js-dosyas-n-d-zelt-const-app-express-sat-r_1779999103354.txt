@@ -1,0 +1,196 @@
+server/index.js dosyasını düzelt:
+
+`const app = express();` satırının hemen altına şunu ekle:
+app.set('trust proxy', 1);
+
+Bu Render / Replit / Nginx gibi reverse proxy arkasında çalışırken
+gerçek kullanıcı IP'sinin `x-forwarded-for` header'ından okunmasını sağlar.
+Olmadan tüm istekler aynı IP sayılır ve rate limit herkesi etkiler.
+
+Prompt 3 — Veritabanı Kayıt Sorunu
+server/services/dbService.js dosyasını düzelt:
+
+Şu an `isReady()` sadece DATABASE_URL var mı diye bakıyor,
+gerçek bağlantı durumunu kontrol etmiyor.
+
+Değişiklikler:
+1. Dosyanın en üstüne (pool tanımından sonra) bir `_connected` flag ekle
+2. `pool.on('connect', ...)` ile flag'i true yap
+3. `pool.on('error', ...)` ile flag'i false yap
+4. `isReady()` fonksiyonunu hem DATABASE_URL hem de `_connected` true ise
+   true döndürecek şekilde güncelle
+
+Ayrıca pool tanımına `connectionTimeoutMillis: 5000` zaten var,
+ama bağlantı koptuğunda sessiz fail olmaması için pool error handler'ına
+`logger.error` ile anlamlı bir log ekle.
+
+İstem 4 — Supabase Kimlik Bilgilerinin Kontrolü
+.env dosyasındaki DATABASE_URL'i kontrol et:
+
+Mevcut değer Supabase PostgreSQL'e işaret ediyor.
+Eğer uygulama Replit PostgreSQL'e geçtiyse bu URL güncellenmeli.
+
+Yapılacaklar:
+1. Supabase dashboard'dan projenin aktif olup olmadığını kontrol et
+2. Parola değiştiyse DATABASE_URL'i güncelle
+3. Eğer Replit DB kullanılıyorsa process.env.DATABASE_URL zaten
+   Replit tarafından inject ediliyor — .env'deki satırı sil veya
+   REPLIT ortamında override edildiğinden emin ol
+4. server/database/connection.js içindeki connectDB fonksiyonunu
+   başlangıçta `SELECT 1` query'si atıp sonucu loglayacak şekilde bırak,
+   başarısızsa açık bir hata mesajı ver
+
+Prompt 5 — Tümünü Birden Uygula (tek seferde)
+Projede 3 kritik bug var, hepsini düzelt:
+
+**BUG 1 — src/socketClient.js**
+`initSocket` fonksiyonu içine socket.on('onlinePlayers') listener ekle.
+Gelen player listesini localStorage'a kaydet ve custom event fırlat.
+
+**BUG 2 — server/socket/gameHandler.js**
+`registerGameHandlers` içine socket.on('requestOnlinePlayers') ekle.
+onlinePlayers Map'ini array'e çevirip sadece o socket'e emit et.
+
+**BUG 3 — server/index.js**
+`const app = express();` satırının hemen altına
+`app.set('trust proxy', 1);` ekle.
+
+**BUG 4 — server/services/dbService.js**
+`isReady()` fonksiyonunu gerçek pool bağlantı durumunu takip edecek
+şekilde düzelt. `_connected` boolean flag tut,
+pool connect/error event'leriyle güncelle,
+isReady() içinde hem DATABASE_URL hem _connected kontrol et.
+
+Başka hiçbir şeyi değiştirme.Dediniz ki: bunları düzelttikren sonra hazır olma seviyesi kaç ıolurbunlar düzeltildikten sonra hazır olma seviyesi kaç ıolur23:09Claude yanıt verdi: Bu 4 hata düzeltildikten sonra:Bu 4 hata düzeltildikten sonra:
+
+Şu anki durum: %70
+döndürüldü: %82
+
+Neden %100 değil — kalan sorunlar:
+%83-90 arası engel:
+
+.envdosya üretimi'da açık — JWT secret, DB şifresi, admin kullanıcı adı düz metin olarak depoda duruyor. Gerçek bir kullanıcı bu repoyu görse sistemlere girer.
+onlinePlayersiki ayrı Harita'da tutuluyor — playerHandler.jsve gameHandler.js'her birinin kendi onlinePlayersHaritası'i var. Birbirinden habersizler, sayılar tutarsız çıkıyor.
+Kayıt işlemi (e-posta doğrulama) devre dışı — authController.js'de is_verifiedkontrol var ama posta servisi (SMTP) .env' de boş. Doğrulama maili göndermiyor.
+
+%90-100 arası engel:
+
+Soket kimlik doğrulama ara yazılımı JWT süresi dolunca oyuncu kesiyor ama ön uç erişimi yeniden bağlanıyor — yeniden bağlanınca playerJointekrar gönderilmezse kaybolmuş gözükür.
+saveService.jsdebounce ile çalışıyor — sunucu sürekli olarak kapanırsa son 60 saniyenin verisi çalışır. Zarif kapatma yok.
+SQL güncellemeleri eksik paketleri içeriyor — missing_tables.sqlbunların varlığının zaten bunu söylüyor. Bildirimler, game_state tabloları DB'de üretilebilir.
+
+
+Özet
+AşamaSeviyeŞu an%704 böcek%82.envgüvenlik + çift harita sorunu%88Kimlik doğrulama akışı + sorunsuz kapatma%93SQL şema tam + test%98+Dedin ki: bu sorunalrıda yazsana amkbu sorunalrıda yazsana amk23:10Claude cevap verdi: Tüm Kalan Sorunlar İçin PromptlarTüm Kalan Sorunlar İçin Uyarılar
+
+İstem 6 — .env Güvenliği
+Projede güvenlik açığı var, düzelt:
+
+.env dosyası repoda açık duruyor ve şunları içeriyor:
+- Düz metin JWT secret
+- Veritabanı şifresi
+- Admin kullanıcı adı
+
+Yapılacaklar:
+1. .gitignore dosyasına .env satırının ekli olduğunu kontrol et, yoksa ekle
+2. .env.example dosyası oluştur — tüm key'leri göster ama value'ları boş bırak
+3. server/index.js içinde JWT_SECRET, DATABASE_URL gibi kritik env değerleri
+   yoksa sunucuyu başlatma, açık hata ver:
+   if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET tanımlanmamış');
+4. README.md'e "kurulum için .env.example'ı kopyala" notu ekle
+
+Prompt 7 — Çift onlinePlayers Harita Sorunu
+server/socket/playerHandler.js ve server/socket/gameHandler.js
+dosyalarının ikisi de ayrı onlinePlayers Map tutuyor.
+Bu sayıların tutarsız çıkmasına neden oluyor.
+
+Düzelt:
+1. server/socket/onlineStore.js adında yeni bir dosya oluştur
+2. Bu dosyada tek bir onlinePlayers Map export et
+3. playerHandler.js ve gameHandler.js içindeki kendi Map tanımlarını sil
+4. Her iki dosyada da onlineStore.js'i require ile içe aktar
+5. Tüm onlinePlayers.get / set / delete / values çağrıları
+   aynı store üzerinden çalışsın
+6. getOnlinePlayers ve getOnlineGamePlayers fonksiyonları
+   artık aynı Map'i okusun
+
+İstem 8 — E-posta Doğrulaması
+server/auth/authController.js içinde email doğrulama kodu var
+ama SMTP ayarları .env'de boş olduğu için mail gitmiyor.
+
+İki seçenekli düzeltme yap:
+
+SEÇENEK A — SMTP yoksa doğrulamayı devre dışı bırak:
+authController.js register fonksiyonunda SMTP_HOST env değeri
+boşsa is_verified'ı direkt true olarak kaydet,
+doğrulama maili gönderme adımını atla
+
+SEÇENEK B — SMTP varsa düzgün çalıştır:
+server/services/mailService.js içindeki transporter'ın
+SMTP_HOST, SMTP_USER, SMTP_PASS değerlerini
+process.env'den okuduğunu doğrula
+Eksikse konsola açık uyarı ver: 
+"SMTP ayarları eksik — doğrulama maili gönderilemiyor"
+
+Şu an ne SEÇENEK A ne SEÇENEK B tam çalışıyor,
+ikisi arasında yarım kalmış durumda. Birini seç ve tamamla.
+
+Prompt 9 — Soket Yeniden Bağlanma Sorunu
+socketClient.js ve server/socket/index.js dosyalarını düzelt:
+
+Sorun: JWT süresi dolunca (1 saat) socket yeniden bağlanıyor
+ama playerJoin eventi tekrar gönderilmiyor.
+Oyuncu online listesinden düşüyor, verisi kaybolmuş gözüküyor.
+
+Düzelt:
+1. socketClient.js içinde socket.on('reconnect') handler'ına
+   localStorage'dan userId ve username oku
+   varsa playerJoin eventini tekrar gönder:
+   socket.emit('playerJoin', { userId, username, ... })
+
+2. server/socket/index.js içinde socket.on('tokenRefreshed') handler var,
+   buraya da socket.userId ve socket.username'i güncelledikten sonra
+   is_online: true ile updateUser çağrısı ekle
+
+3. server/middleware/authMiddleware.js içindeki socketAuthMiddleware'de
+   token süresi dolduysa bağlantıyı kesme, sadece socket.userId'yi null yap
+   ve socket'e 'tokenExpired' eventi gönder
+
+Prompt 10 — Kontrollü Kapatma (Veri Kaybı)
+Sunucu aniden kapandığında saveService.js'deki
+debounce kuyruğundaki veriler kaybolabiliyor.
+
+server/index.js dosyasına graceful shutdown ekle:
+
+1. process.on('SIGTERM') ve process.on('SIGINT') handler'ları ekle
+2. Bu handler'larda:
+   - Yeni socket bağlantılarını durdur: io.close()
+   - saveService.js'den flushAllPending() fonksiyonu export et
+   - Bu fonksiyon bekleyen tüm save işlemlerini hemen çalıştırsın
+   - Tüm online kullanıcıların is_online değerini false yap
+   - DB pool'u kapat: pool.end()
+   - Sonra process.exit(0) yap
+3. saveService.js içine flushAllPending() fonksiyonu ekle:
+   pendingSaves Map'indeki tüm userId'ler için
+   hemen saveUser çağır, debounce'u atla
+
+Prompt 11 — Eksik SQL Tabloları
+sql/missing_tables.sql dosyası var, bu dosyadaki tablolar
+production veritabanında olmayabilir.
+
+Yapılacaklar:
+1. sql/missing_tables.sql içeriğini oku
+2. sql/schema_full.sql ile karşılaştır, hangilerinin eksik olduğunu bul
+3. server/database/connection.js içindeki connectDB fonksiyonuna
+   başlangıçta kritik tabloları kontrol eden bir fonksiyon ekle:
+   
+   const REQUIRED_TABLES = ['users','chat_messages','game_state','notifications'];
+   for (const table of REQUIRED_TABLES) {
+     const { rows } = await query(
+       "SELECT to_regclass($1) as exists", [table]
+     );
+     if (!rows[0].exists) logger.error(`TABLO EKSİK: ${table}`);
+   }
+   
+4. Eksik tablo varsa sunucu başlarken konsola açık hata bas,
+   ama uygulamayı durdurma — sadece uyar

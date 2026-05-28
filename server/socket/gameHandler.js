@@ -2,8 +2,7 @@ const logger = require('../utils/logger');
 const monitoring = require('../services/monitoringService');
 const { SOCKET_EVENT_RATE_LIMIT, SOCKET_EVENT_RATE_WINDOW, MAX_SOCKET_PAYLOAD_BYTES } = require('../config/constants');
 const db = require('../services/dbService');
-
-const onlinePlayers = new Map(); // socketId → player
+const { onlinePlayers } = require('./onlineStore');
 const HEARTBEAT_TIMEOUT = 45 * 1000; // 45s yanıt gelmezse çevrimdışı say
 
 // ── Stale presence temizleyici — her 30 saniyede çalışır ─────────────────────

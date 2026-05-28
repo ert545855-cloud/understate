@@ -39,6 +39,23 @@ export function initSocket(serverUrl) {
     socketConnected = true;
     console.log('[Socket Bridge] Yeniden bağlandı ↻');
     window.dispatchEvent(new CustomEvent('socket-reconnected'));
+    try {
+      const userId   = localStorage.getItem('rep_userId');
+      const username = localStorage.getItem('rep_username');
+      if (userId) {
+        const profile = JSON.parse(localStorage.getItem('rep_profile') || '{}');
+        socket.emit('playerJoin', {
+          userId,
+          username: username || profile.username || 'Oyuncu',
+          level:    profile.level  || 1,
+          city:     profile.city   || '',
+          gender:   profile.gender || 'erkek',
+          party:    profile.party  || null,
+          gang:     profile.gang   || null,
+          avatar:   profile.avatar || null,
+        });
+      }
+    } catch (e) { console.warn('[Socket Bridge] Reconnect playerJoin hatası:', e); }
   });
 
   socket.on('chat', (data) => {
