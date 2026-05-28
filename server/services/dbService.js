@@ -5,14 +5,41 @@
 const { Pool } = require('pg');
 const logger = require('../utils/logger');
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
-  family: 4,
-});
+// DATABASE_URL'deki şifreyi ayrı ayrı parse et (özel karakter sorunu için)
+function buildPoolConfig() {
+  const url = process.env.DATABASE_URL || '';
+  if (!url) return { ssl: { rejectUnauthorized: false } };
+  
+  try {
+    // postgresql://user:pass@host:port/db formatını manuel parse et
+    const match = url.match(/^postgresql:\/\/([^:]+):(.+)@([^:\/]+):(\d+)\/(.+)$/);
+    if (match) {
+      return {
+        user: match[1],
+        password: decodeURIComponent(match[2]),
+        host: match[3],
+        port: parseInt(match[4]),
+        database: match[5],
+        ssl: { rejectUnauthorized: false },
+        max: 10,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 10000,
+        family: 4,
+      };
+    }
+  } catch(e) {}
+  
+  return {
+    connectionString: url,
+    ssl: { rejectUnauthorized: false },
+    max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
+    family: 4,
+  };
+}
+
+const pool = new Pool(buildPoolConfig());
 
 let _connected = false;
 
