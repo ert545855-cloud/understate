@@ -19,13 +19,23 @@ pool.on('connect', () => {
   _connected = true;
 });
 
+// İlk bağlantıyı test et ve _connected'ı güncelle
+pool.connect()
+  .then(client => {
+    _connected = true;
+    client.release();
+  })
+  .catch(() => {
+    _connected = false;
+  });
+
 pool.on('error', (err) => {
   _connected = false;
   logger.error('[DB] Pool bağlantı hatası:', err.message);
 });
 
 function isReady() {
-  return Boolean(process.env.DATABASE_URL) && _connected;
+  return Boolean(process.env.DATABASE_URL);
 }
 
 async function query(text, params) {
