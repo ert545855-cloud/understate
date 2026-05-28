@@ -50,6 +50,11 @@ function randomWalk(value, volatility, min = 1) {
   return Math.max(min, +(value + change).toFixed(2));
 }
 
+// #14 Market manipulation detection
+const _priceVelocity = {}; // companyId → { ticks above threshold }
+const MANIP_THRESHOLD = 0.08; // >8% single-tick move is suspicious
+const MANIP_TICKS     = 3;    // 3 consecutive anomalous ticks = flag
+
 function tickMarket() {
   const updates = [];
   for (const company of STOCK_COMPANIES) {
@@ -57,6 +62,19 @@ function tickMarket() {
     const newPrice = randomWalk(current.price, company.volatility);
     const change = +(newPrice - current.price).toFixed(2);
     const changePercent = +((change / current.price) * 100).toFixed(2);
+
+    // #14 — track suspicious consecutive moves
+    const absPct = Math.abs(changePercent) / 100;
+    if (absPct > MANIP_THRESHOLD) {
+      _priceVelocity[company.id] = (_priceVelocity[company.id] || 0) + 1;
+      if (_priceVelocity[company.id] >= MANIP_TICKS) {
+        logger.warn(`[MarketManip] ${company.id} — ${MANIP_TICKS} ardışık anormal hareket (${changePercent}%)`);
+        _priceVelocity[company.id] = 0; // reset after flagging
+      }
+    } else {
+      _priceVelocity[company.id] = 0;
+    }
+
     state.market[company.id] = {
       ...current, price: newPrice, change, changePercent,
       volume: Math.floor(Math.random() * 10000) + 1000,
@@ -71,13 +89,28 @@ function tickMarket() {
 
 function tickEconomy() {
   const e = state.economy;
-  const infShift = (Math.random() - 0.48) * 0.1;
+  // #26 — Realistic inflation/deflation: drift toward 3% baseline
+  const baseline  = 3.0;
+  const drift     = (baseline - e.inflation) * 0.02; // mean-revert
+  const shock     = (Math.random() - 0.48) * 0.15;
+  const newInf    = Math.max(0, Math.min(100, +(e.inflation + drift + shock).toFixed(2)));
+
+  // Interest rate follows inflation with lag
+  const targetRate = Math.max(1, Math.min(25, +(newInf * 0.6 + 2).toFixed(2)));
+  const newRate    = +(e.interestRate + (targetRate - e.interestRate) * 0.1).toFixed(2);
+
+  // Treasury: taxRate-driven inflow minus random spending
+  const taxInflow  = Math.floor(e.treasury * (e.taxRate / 100) * 0.001);
+  const spending   = Math.floor((Math.random() * 30000) + 10000);
+  const newTreasury = Math.max(0, e.treasury + taxInflow - spending);
+
   state.economy = {
     ...e,
-    inflation: Math.max(0, Math.min(100, +(e.inflation + infShift).toFixed(2))),
-    treasury: Math.max(0, e.treasury + Math.floor((Math.random() - 0.4) * 50000)),
-    stability: Math.max(0, Math.min(100, e.stability + (Math.random() - 0.5) * 1)),
-    lastUpdate: Date.now(),
+    inflation:    newInf,
+    interestRate: newRate,
+    treasury:     newTreasury,
+    stability:    Math.max(0, Math.min(100, +(e.stability + (Math.random() - 0.5) * 1).toFixed(2))),
+    lastUpdate:   Date.now(),
   };
   return state.economy;
 }

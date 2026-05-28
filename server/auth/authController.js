@@ -165,6 +165,19 @@ async function login(req, res) {
     if (!valid)
       return res.status(401).json({ success: false, message: 'Hatalı şifre' });
 
+    // #35 — 2FA check
+    if (user.two_factor_enabled) {
+      const { twoFactorToken } = req.body;
+      if (!twoFactorToken) {
+        return res.status(200).json({ success: false, requires2FA: true, message: '2FA kodu gerekli' });
+      }
+      const { verify2FA } = require('../services/twoFactorService');
+      const tfaOk = await verify2FA(user.id, twoFactorToken);
+      if (!tfaOk) {
+        return res.status(401).json({ success: false, message: 'Geçersiz 2FA kodu' });
+      }
+    }
+
     const token        = signToken({ id: user.id, username: user.username, role: user.role });
     const newRefresh   = signRefreshToken({ id: user.id });
 

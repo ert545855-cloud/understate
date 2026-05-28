@@ -23,6 +23,39 @@ const { router: adminRoutes, setIO: setAdminIO } = require('./routes/admin');
 const { router: electionRoutes, setIO: setElectionIO } = require('./routes/election');
 const { init: initPush } = require('./services/pushService');
 
+// ── New feature routes ────────────────────────────────────────────────────────
+const sessionsRoutes    = require('./routes/sessions');
+const streakRoutes      = require('./routes/streak');
+const transferRoutes    = require('./routes/transfer');
+const friendsRoutes     = require('./routes/friends');
+const messagesRoutes    = require('./routes/messages');
+const marketplaceRoutes = require('./routes/marketplace');
+const loansRoutes       = require('./routes/loans');
+const portfolioRoutes   = require('./routes/portfolio');
+const { router: parliamentRoutes, setIO: setParlIO } = (() => {
+  const m = require('./routes/parliament'); return { router: m, setIO: m.setIO };
+})();
+const securityRoutes    = require('./routes/security');
+const tfaRoutes         = require('./routes/tfa');
+const { router: diplomacyRoutes, setIO: setDipIO } = (() => {
+  const m = require('./routes/diplomacy'); return { router: m, setIO: m.setIO };
+})();
+const { router: eventsRoutes, setIO: setEventsIO } = (() => {
+  const m = require('./routes/events'); return { router: m, setIO: m.setIO };
+})();
+const taxRoutes         = require('./routes/tax');
+
+// ── Services for scheduled jobs ───────────────────────────────────────────────
+const { processOverdueLoans } = require('./services/loanService');
+const { snapshotAllActive, pruneOld: prunePortfolio } = require('./services/portfolioService');
+const { settleBills } = require('./services/parliamentService');
+const { expireOld: expireDiplomacy } = require('./services/diplomacyService');
+const { seedDefaultEvents } = require('./services/eventService');
+const { collectPropertyTax } = require('./services/taxService');
+const { pruneOld: pruneErrors } = require('./services/errorLogService');
+const errLog = require('./services/errorLogService');
+const secSvc = require('./services/securityService');
+
 const app = express();
 app.set('trust proxy', 1);
 const server = http.createServer(app);
@@ -171,6 +204,14 @@ app.use(express.static(path.join(__dirname, '../'), {
   },
 }));
 
+// --- IP Ban middleware (runs before all API routes) ---
+app.use('/api', async (req, res, next) => {
+  const ip = req.ip || req.connection?.remoteAddress || 'unknown';
+  const banned = await secSvc.isIPBanned(ip).catch(() => false);
+  if (banned) return res.status(403).json({ success: false, message: 'Erişim engellendi' });
+  next();
+});
+
 // --- Rate limiting for API routes only (not static assets) ---
 app.use('/api', generalLimiter);
 
@@ -244,6 +285,39 @@ app.use('/api/game', gameRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/election', electionRoutes);
+
+// ── Feature routes (/api/v1 aliases + direct) ─────────────────────────────────
+app.use('/api/sessions',    sessionsRoutes);
+app.use('/api/streak',      streakRoutes);
+app.use('/api/transfer',    transferRoutes);
+app.use('/api/friends',     friendsRoutes);
+app.use('/api/messages',    messagesRoutes);
+app.use('/api/marketplace', marketplaceRoutes);
+app.use('/api/loans',       loansRoutes);
+app.use('/api/portfolio',   portfolioRoutes);
+app.use('/api/parliament',  parliamentRoutes);
+app.use('/api/security',    securityRoutes);
+app.use('/api/2fa',         tfaRoutes);
+app.use('/api/diplomacy',   diplomacyRoutes);
+app.use('/api/events',      eventsRoutes);
+app.use('/api/tax',         taxRoutes);
+
+// #8 — API v1 aliases (future-proof versioning)
+app.use('/api/v1/auth',        authRoutes);
+app.use('/api/v1/profile',     profileRoutes);
+app.use('/api/v1/leaderboard', leaderboardRoutes);
+app.use('/api/v1/sessions',    sessionsRoutes);
+app.use('/api/v1/streak',      streakRoutes);
+app.use('/api/v1/transfer',    transferRoutes);
+app.use('/api/v1/friends',     friendsRoutes);
+app.use('/api/v1/messages',    messagesRoutes);
+app.use('/api/v1/marketplace', marketplaceRoutes);
+app.use('/api/v1/loans',       loansRoutes);
+app.use('/api/v1/portfolio',   portfolioRoutes);
+app.use('/api/v1/parliament',  parliamentRoutes);
+app.use('/api/v1/diplomacy',   diplomacyRoutes);
+app.use('/api/v1/events',      eventsRoutes);
+app.use('/api/v1/tax',         taxRoutes);
 
 // --- Game state endpoints (used by Socket Bridge) ---
 const db = require('./services/dbService');
@@ -369,11 +443,13 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../index.html'));
 });
 
-// --- Global error handler ---
+// --- Global error handler (#7 error logging) ---
 app.use((err, req, res, next) => {
   if (err.message && err.message.startsWith('CORS')) {
     return res.status(403).json({ success: false, message: 'CORS hatası' });
   }
+  const ip = req.ip || 'unknown';
+  errLog.log('express_error', err.message, { stack: err.stack, context: { url: req.url, method: req.method }, ip, userId: req.user?.id });
   logger.error('Express hatası:', err.message);
   res.status(500).json({ success: false, message: 'Sunucu hatası' });
 });
@@ -382,8 +458,45 @@ app.use((err, req, res, next) => {
 initSocket(io);
 setAdminIO(io);
 setElectionIO(io);
+setParlIO(io);
+setDipIO(io);
+setEventsIO(io);
 startGameEngine(io);
 initPush();
+
+// ── Scheduled jobs (every hour) ───────────────────────────────────────────────
+setInterval(async () => {
+  try { await processOverdueLoans(); }   catch(e) { logger.warn('[Sched] loans:', e.message); }
+  try { await settleBills(); }           catch(e) { logger.warn('[Sched] parliament:', e.message); }
+  try { await expireDiplomacy(); }       catch(e) { logger.warn('[Sched] diplomacy:', e.message); }
+}, 60 * 60 * 1000); // every hour
+
+// Daily jobs (every 24h)
+setInterval(async () => {
+  try { await snapshotAllActive(); }     catch(e) { logger.warn('[Sched] portfolio:', e.message); }
+  try { await collectPropertyTax(); }   catch(e) { logger.warn('[Sched] tax:', e.message); }
+  try { await prunePortfolio(); }        catch(e) { logger.warn('[Sched] prune-portfolio:', e.message); }
+  try { await pruneErrors(); }           catch(e) { logger.warn('[Sched] prune-errors:', e.message); }
+  // #28 Economy report — broadcast to all connected clients
+  try {
+    const { getEconomyState } = require('./services/gameEngine');
+    const economy = getEconomyState();
+    if (economy) {
+      io.emit('economyReport', {
+        timestamp: new Date().toISOString(),
+        inflation: economy.inflation,
+        treasury: economy.treasury,
+        taxRate: economy.taxRate,
+        interestRate: economy.interestRate,
+      });
+    }
+  } catch(e) { logger.warn('[Sched] economy-report:', e.message); }
+}, 24 * 60 * 60 * 1000); // every 24h
+
+// Seed on startup
+setTimeout(async () => {
+  try { await seedDefaultEvents(); } catch(e) { logger.warn('[Sched] seed-events:', e.message); }
+}, 5000);
 
 const PORT = process.env.PORT || 5000;
 const HOST = '0.0.0.0';

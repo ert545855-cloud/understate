@@ -296,6 +296,15 @@ function registerGameHandlers(io, socket) {
       title: 'Savaş İlanı!',
       msg: `${socket.username}: "${data.attackerName}" — "${data.defenderName}" savaşı başladı!`,
     });
+    // #19 Gang war log
+    if (db.isReady()) {
+      db.query(
+        `INSERT INTO gang_war_logs (attacker_gang, defender_gang, attacker_user_id, action, damage_dealt, metadata)
+         VALUES ($1,$2,$3,'war_declaration',$4,$5)`,
+        [data.attackerName || '', data.defenderName || '', socket.userId || null,
+         data.damage || 0, JSON.stringify({ initiator: socket.username, ...data })]
+      ).catch(() => {});
+    }
   });
 
   socket.on('gang:attackAsset', (data) => {
@@ -325,6 +334,15 @@ function registerGameHandlers(io, socket) {
       msg: `"${payload.gangName}" çetesi "${payload.assetName}" varlığınıza saldırdı!`,
     });
     logger.info(`[Attack] ${socket.username} → "${payload.assetName}"`);
+    // #19 Gang war log
+    if (db.isReady()) {
+      db.query(
+        `INSERT INTO gang_war_logs (attacker_gang, defender_gang, attacker_user_id, action, damage_dealt, territory, metadata)
+         VALUES ($1,$2,$3,'asset_attack',$4,$5,$6)`,
+        [payload.gangName, payload.familyName, socket.userId || null,
+         data.damage || 0, payload.assetName, JSON.stringify(payload)]
+      ).catch(() => {});
+    }
   });
 
   // ── PARTY sync ────────────────────────────────────────────────────────────

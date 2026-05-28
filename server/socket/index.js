@@ -93,7 +93,45 @@ function initSocket(io) {
       if (typeof cb === 'function') cb({ time: Date.now() });
     });
 
+    // #18 Direct Message via socket (real-time delivery)
+    socket.on('dm:send', async (data) => {
+      if (!socket.userId || !data?.to || !data?.message) return;
+      const dmSvc = require('../services/dmService');
+      const result = await dmSvc.sendDM(socket.userId, data.to, data.message);
+      if (result.ok) {
+        // Deliver to receiver if online
+        const { getOnlineGamePlayers } = require('./gameHandler');
+        const online = getOnlineGamePlayers();
+        const receiver = online.find(p => p.id === result.receiverId || p.userId === result.receiverId);
+        if (receiver?.socketId) {
+          const targetSocket = io.sockets.sockets.get(receiver.socketId);
+          if (targetSocket) {
+            targetSocket.emit('dm:received', {
+              from: socket.username,
+              fromId: socket.userId,
+              message: data.message,
+              timestamp: result.timestamp,
+              id: result.id,
+            });
+          }
+        }
+        socket.emit('dm:sent', { ok: true, id: result.id });
+      } else {
+        socket.emit('dm:sent', { ok: false, message: result.message });
+      }
+    });
+
+    // #5 — Heartbeat timeout: force-disconnect sockets silent for >90s
+    const heartbeatTimer = setTimeout(() => {
+      if (!socket.connected) return;
+      logger.warn(`[Socket] Heartbeat timeout: ${socket.id} (${socket.username || 'guest'}) — bağlantı kesiliyor`);
+      socket.disconnect(true);
+    }, 90 * 1000);
+    socket.on('heartbeat', () => heartbeatTimer.refresh());
+    socket.on('ping',      () => heartbeatTimer.refresh());
+
     socket.on('disconnect', async (reason) => {
+      clearTimeout(heartbeatTimer);
       monitoring.decrement('connectedSockets');
       monitoring.increment('totalDisconnections');
       logger.socket('disconnected', socket.id, `reason=${reason}`);
