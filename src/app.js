@@ -382,46 +382,65 @@ function AuthScreen({ onLogin }) {
     try {
       if (typeof io === 'undefined') return;
       const jwt = localStorage.getItem('us_jwt') || '';
-      // Reconnect-safe: disconnect stale socket first
+
+      // Kullanıcı verisini global'e sakla — reconnect'te tekrar kullanılacak
+      window._socketUser = user;
+
+      // Her connect/reconnect'te playerJoin gönderen yardımcı
+      const _doPlayerJoin = (s, u) => {
+        if (!s || !u?.id) return;
+        s.emit('playerJoin', {
+          userId:   u.id || u.uid,
+          username: u.username || 'Oyuncu',
+          level:    u.level    || 1,
+          city:     u.city     || '',
+          gender:   u.gender   || 'erkek',
+          money:    u.money    || 0,
+          party:    u.party    || null,
+          gang:     u.gang     || null,
+        });
+      };
+
+      // Bozuk (bağlı değil) socket varsa temizle
       if (window._socket && !window._socket.connected) {
         try { window._socket.disconnect(); } catch(_) {}
         window._socket = null;
       }
+
       if (!window._socket) {
         window._socket = io(window.location.origin, {
           auth: { token: jwt },
           reconnection: true,
-          reconnectionAttempts: 10,
+          reconnectionAttempts: 15,
+          reconnectionDelay: 1000,
           transports: ['websocket', 'polling'],
         });
+
         window._socket.on('connect', () => {
           console.log('✓ Socket.IO bağlandı', window._socket.id);
-          // Reconnect room recovery
+          // Reconnect: eski oda kurtarma
           const oldId = localStorage.getItem('us_last_socket_id');
           if (oldId && oldId !== window._socket.id) {
             window._socket.emit('reconnectToRoom', { oldSocketId: oldId });
           }
           localStorage.setItem('us_last_socket_id', window._socket.id);
+          // Her bağlanmada playerJoin gönder (reconnect dahil)
+          _doPlayerJoin(window._socket, window._socketUser);
           window._socket.emit('requestOnlinePlayers');
         });
-        window._socket.on('disconnect', () => {
+
+        window._socket.on('disconnect', (reason) => {
+          console.log('Socket bağlantısı kesildi:', reason);
           if (window._socket?.id) localStorage.setItem('us_last_socket_id', window._socket.id);
         });
+
         window._socket.on('onlineCount', (cnt) =>
           window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: 'onlineCount', value: cnt } }))
         );
-      }
-      if (window._socket && user?.id) {
-        window._socket.emit('playerJoin', {
-          userId:   user.id || user.uid,
-          username: user.username || 'Oyuncu',
-          level:    user.level    || 1,
-          city:     user.city     || '',
-          gender:   user.gender   || 'erkek',
-          money:    user.money    || 0,
-          party:    user.party    || null,
-          gang:     user.gang     || null,
-        });
+      } else {
+        // Socket zaten bağlı — sadece playerJoin + online liste güncelle
+        _doPlayerJoin(window._socket, user);
+        window._socket.emit('requestOnlinePlayers');
       }
     } catch(e) { console.warn('Socket init hatası:', e); }
   };

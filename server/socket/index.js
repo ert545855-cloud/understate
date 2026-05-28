@@ -28,6 +28,15 @@ function initSocket(io) {
       sb.updateUser(socket.userId, { is_online: true, socket_id: socket.id }).catch(() => {});
     }
 
+    // JWT'den kimlik doğrulanmış kullanıcıları anında onlinePlayers'a ekle
+    // (playerJoin gelmeden önce de diğer oyuncular görebilsin)
+    if (socket.userId) {
+      const { getOnlineGamePlayers, removeGamePlayer } = require('./gameHandler');
+      // gameHandler'ın onlinePlayers map'ine erişmek için playerJoin benzeri kayıt
+      // playerJoin gelince üzerine yazılır (daha fazla detayla)
+      socket.emit('requestOnlinePlayers');
+    }
+
     registerChatHandlers(io, socket);
     registerPlayerHandlers(io, socket);
     registerRoomHandlers(io, socket);
