@@ -74,6 +74,11 @@ export function initSocket(serverUrl) {
     window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: 'onlineCount', value: count } }));
   });
 
+  socket.on('onlinePlayers', (players) => {
+    localStorage.setItem('rep_onlinePlayers', JSON.stringify(players));
+    window.dispatchEvent(new CustomEvent('online-players-updated', { detail: players }));
+  });
+
   socket.on('broadcast', (data) => {
     window.dispatchEvent(new CustomEvent('socket-broadcast', { detail: data }));
   });
