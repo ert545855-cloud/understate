@@ -152,6 +152,7 @@ app.use(helmet({
         'https://*.googleapis.com',
         'https://understate.onrender.com',
         'wss://understate.onrender.com',
+        'https://fonts.gstatic.com',
       ],
       mediaSrc: ["'self'", 'blob:'],
       workerSrc: ["'self'", 'blob:'],
