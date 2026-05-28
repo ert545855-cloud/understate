@@ -43,11 +43,26 @@ function isPayloadSafe(data) {
 
 // ── stateUpdate key whitelist ─────────────────────────────────────────────────
 const ALLOWED_STATE_KEYS = new Set(['key','value','userId','timestamp','type','city','position','level','xp','hp','party','gang','job','action']);
+const NUMERIC_STATE_BOUNDS = {
+  level: { min: 1,   max: 999  },
+  xp:    { min: 0,   max: 1e12 },
+  hp:    { min: 0,   max: 100  },
+};
 function sanitizeStateUpdate(data) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
   if (!data.key || typeof data.key !== 'string' || data.key.length > 64) return null;
   const safe = {};
-  for (const k of ALLOWED_STATE_KEYS) { if (data[k] !== undefined) safe[k] = data[k]; }
+  for (const k of ALLOWED_STATE_KEYS) {
+    if (data[k] === undefined) continue;
+    if (k in NUMERIC_STATE_BOUNDS) {
+      const n = Number(data[k]);
+      if (isNaN(n)) continue;
+      const { min, max } = NUMERIC_STATE_BOUNDS[k];
+      safe[k] = Math.max(min, Math.min(max, n));
+    } else {
+      safe[k] = data[k];
+    }
+  }
   return safe;
 }
 

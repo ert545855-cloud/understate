@@ -1,14 +1,15 @@
-      const FIREBASE_CONFIG = {
-        apiKey:            "AIzaSyBOfuPVR5fns4c0EFM9uyO0og0ZvlySAe4",
-        authDomain:        "understate-62919.firebaseapp.com",
-        projectId:         "understate-62919",
-        storageBucket:     "understate-62919.firebasestorage.app",
-        messagingSenderId: "1005888565298",
-        appId:             "1:1005888565298:android:30da582e4c434e9652cc2b",
-        databaseURL:       "https://understate-62919-default-rtdb.europe-west1.firebasedatabase.app"
-      };
-
-      window._fbAuthBypass = true;
+      (async function _bootstrapFirebase() {
+      let FIREBASE_CONFIG = {};
+      try {
+        const _cfgRes = await fetch('/api/config');
+        FIREBASE_CONFIG = (await _cfgRes.json()).firebase || {};
+        if (!FIREBASE_CONFIG.apiKey) throw new Error('Firebase config eksik');
+      } catch(e) {
+        console.warn('[Firebase] Config yüklenemedi, Firebase devre dışı:', e.message);
+        window._fbReady = false;
+        window.dispatchEvent(new Event('firebase-ready'));
+        return;
+      }
 
       const GAME_ID       = "understate_main_server";
       const REALTIME_KEYS = ["globalChat","cityChats","parliamentMsgs","supportMsgs","liveNews","announcements","activityFeed"];
@@ -193,4 +194,5 @@
         console.log("[Firebase] Hazır ✓");
       }
 
-      initFirebaseData();
+        initFirebaseData();
+      })(); // async bootstrap

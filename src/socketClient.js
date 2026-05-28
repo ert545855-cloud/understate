@@ -11,17 +11,30 @@ function _resolveServerUrl(fallback) {
   return fallback || 'http://localhost:5000';
 }
 
-export function initSocket(serverUrl) {
+export function initSocket(serverUrl, token) {
+  // Sync with app.js's window._socket — prevent double init race condition
+  if (typeof window !== 'undefined' && window._socket && window._socket.connected) {
+    socket = window._socket;
+    socketConnected = true;
+    return socket;
+  }
   if (socket) return socket;
   const url = serverUrl || _resolveServerUrl();
+  const jwt = token
+    || (typeof window !== 'undefined' && (localStorage.getItem('us_jwt') || ''))
+    || '';
 
   socket = io(url, {
+    auth: { token: jwt },
     reconnection: true,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
     reconnectionAttempts: Infinity,
     transports: ['websocket', 'polling']
   });
+
+  // Share instance with app.js
+  if (typeof window !== 'undefined') window._socket = socket;
 
   socket.on('connect', () => {
     socketConnected = true;
@@ -119,8 +132,17 @@ export function initSocket(serverUrl) {
   return socket;
 }
 
-export function getSocket() { return socket; }
-export function isConnected() { return socketConnected && socket?.connected; }
+export function getSocket() {
+  // Fall back to app.js's shared socket if this module was not yet initialized
+  if (!socket && typeof window !== 'undefined' && window._socket) {
+    socket = window._socket;
+  }
+  return socket;
+}
+export function isConnected() {
+  const s = socket || (typeof window !== 'undefined' && window._socket);
+  return Boolean(s?.connected);
+}
 
 export function sendChat(channel, message, sender) {
   if (!socket) return;

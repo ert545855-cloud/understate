@@ -1,0 +1,131 @@
+
+<style>
+.section { margin: 0 0 1.5rem; }
+.section-title { font-size: 13px; font-weight: 500; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 10px; }
+.bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.bar-label { font-size: 13px; color: var(--color-text-primary); min-width: 160px; }
+.bar-track { flex: 1; height: 8px; background: var(--color-background-secondary); border-radius: 4px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s; }
+.bar-pct { font-size: 13px; font-weight: 500; min-width: 36px; text-align: right; }
+.metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1.5rem; }
+.metric { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 12px 14px; }
+.metric-label { font-size: 12px; color: var(--color-text-secondary); margin: 0 0 4px; }
+.metric-value { font-size: 22px; font-weight: 500; color: var(--color-text-primary); }
+.tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font-size: 12px; padding: 3px 10px; border-radius: 999px; }
+.tag-done { background: #EAF3DE; color: #3B6D11; }
+.tag-partial { background: #FAEEDA; color: #854F0B; }
+.tag-missing { background: #FCEBEB; color: #A32D2D; }
+.big-score { font-size: 48px; font-weight: 500; color: var(--color-text-primary); line-height: 1; }
+.score-label { font-size: 14px; color: var(--color-text-secondary); margin-top: 4px; }
+.header { display: flex; align-items: flex-end; gap: 24px; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 0.5px solid var(--color-border-tertiary); }
+</style>
+
+<div style="padding: 1rem 0;">
+  <div class="header">
+    <div>
+      <div class="big-score">~45%</div>
+      <div class="score-label">Online gerçek zamanlı oyun için hazırlık</div>
+    </div>
+    <div class="metric-grid" style="flex: 1; margin: 0;">
+      <div class="metric"><div class="metric-label">Toplam dosya</div><div class="metric-value">~120</div></div>
+      <div class="metric"><div class="metric-label">Ana JS</div><div class="metric-value">13.5k</div></div>
+      <div class="metric"><div class="metric-label">DB tablosu</div><div class="metric-value">38</div></div>
+      <div class="metric"><div class="metric-label">Kritik bug</div><div class="metric-value" style="color:#A32D2D">5+</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Bileşen hazırlıkları</div>
+
+    <div class="bar-row">
+      <div class="bar-label">Backend altyapısı</div>
+      <div class="bar-track"><div class="bar-fill" style="width:80%; background:#639922;"></div></div>
+      <div class="bar-pct" style="color:#639922">80%</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Veritabanı şeması</div>
+      <div class="bar-track"><div class="bar-fill" style="width:75%; background:#639922;"></div></div>
+      <div class="bar-pct" style="color:#639922">75%</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Socket.IO multiplayer</div>
+      <div class="bar-track"><div class="bar-fill" style="width:55%; background:#BA7517;"></div></div>
+      <div class="bar-pct" style="color:#BA7517">55%</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Kimlik doğrulama</div>
+      <div class="bar-track"><div class="bar-fill" style="width:70%; background:#639922;"></div></div>
+      <div class="bar-pct" style="color:#639922">70%</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Sunucu tarafı doğrulama</div>
+      <div class="bar-track"><div class="bar-fill" style="width:20%; background:#E24B4A;"></div></div>
+      <div class="bar-pct" style="color:#E24B4A">20%</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Anti-cheat / güvenlik</div>
+      <div class="bar-track"><div class="bar-fill" style="width:25%; background:#E24B4A;"></div></div>
+      <div class="bar-pct" style="color:#E24B4A">25%</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Gerçek zamanlı sync</div>
+      <div class="bar-track"><div class="bar-fill" style="width:40%; background:#BA7517;"></div></div>
+      <div class="bar-pct" style="color:#BA7517">40%</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Mobil (Android/iOS)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:60%; background:#BA7517;"></div></div>
+      <div class="bar-pct" style="color:#BA7517">60%</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Üretim & deployment</div>
+      <div class="bar-track"><div class="bar-fill" style="width:50%; background:#BA7517;"></div></div>
+      <div class="bar-pct" style="color:#BA7517">50%</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Tamamlanan özellikler</div>
+    <div class="tag-list">
+      <span class="tag tag-done">Express + Socket.IO sunucusu</span>
+      <span class="tag tag-done">PostgreSQL / Supabase DB</span>
+      <span class="tag tag-done">JWT kimlik doğrulama</span>
+      <span class="tag tag-done">Rate limiting</span>
+      <span class="tag tag-done">Helmet güvenlik başlıkları</span>
+      <span class="tag tag-done">38 DB tablosu şeması</span>
+      <span class="tag tag-done">Oda yönetimi</span>
+      <span class="tag tag-done">Sohbet sistemi</span>
+      <span class="tag tag-done">Borsa simülasyonu</span>
+      <span class="tag tag-done">Android/Capacitor desteği</span>
+      <span class="tag tag-done">PWA manifest</span>
+      <span class="tag tag-done">Admin paneli</span>
+      <span class="tag tag-done">Liderlik tablosu</span>
+      <span class="tag tag-done">Push bildirim altyapısı</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Kısmen tamamlanan</div>
+    <div class="tag-list">
+      <span class="tag tag-partial">Çok oyunculu senkronizasyon</span>
+      <span class="tag tag-partial">gameStateInit → onlinePlayers</span>
+      <span class="tag tag-partial">Reconnect yönetimi</span>
+      <span class="tag tag-partial">Mobil uygulama build</span>
+      <span class="tag tag-partial">Seçim sistemi</span>
+      <span class="tag tag-partial">Çete / parti / ittifak</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Kritik eksikler</div>
+    <div class="tag-list">
+      <span class="tag tag-missing">Socket auth token (oyuncular birbirini görmüyor)</span>
+      <span class="tag tag-missing">Sunucu tarafı oyun mantığı doğrulaması</span>
+      <span class="tag tag-missing">Çift socket init race condition</span>
+      <span class="tag tag-missing">Hile koruması (localStorage manipüle edilebilir)</span>
+      <span class="tag tag-missing">Build sistemi yok (2.2 MB JSX tarayıcıda parse edilyor)</span>
+      <span class="tag tag-missing">Firebase API key açıkta</span>
+    </div>
+  </div>
+</div>

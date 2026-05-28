@@ -6,11 +6,14 @@ const { generalLimiter } = require('../middleware/rateLimiter');
 const db = require('../services/dbService');
 const { userToPublic } = require('../auth/authController');
 const logger = require('../utils/logger');
+const { validateSaveData } = require('../middleware/saveValidator');
 
 // ── USER SAVE ─────────────────────────────────────────────────────────────────
 router.post('/save', authMiddleware, generalLimiter, async (req, res) => {
   try {
-    const saved = await saveUserFull(req.user.id, req.body);
+    const current = db.isReady() ? await db.findUserById(req.user.id) : null;
+    const validated = validateSaveData(req.body, current, req.user.id);
+    const saved = await saveUserFull(req.user.id, validated);
     res.json({ success: saved, message: saved ? 'Kaydedildi' : 'DB bağlı değil' });
   } catch (err) {
     logger.error('Game save:', err.message);
