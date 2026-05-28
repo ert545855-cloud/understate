@@ -35,16 +35,19 @@ function sanitizeStateUpdate(data) {
 async function pushInitialState(socket) {
   try {
     const state = await db.getFullGameState();
+    const onlineList = Array.from(onlinePlayers.values());
     const payload = {
-      gangs:         state.gangs         || [],
-      parties:       state.parties       || [],
-      alliances:     state.alliances     || [],
-      elections:     state.elections     || { phase:'idle', candidates:[], votes:{} },
+      gangs:           state.gangs           || [],
+      parties:         state.parties         || [],
+      alliances:       state.alliances       || [],
+      elections:       state.elections       || { phase:'idle', candidates:[], votes:{} },
       elections_multi: state.elections_multi || {},
-      laws:          state.laws          || [],
-      announcements: state.announcements || [],
-      cabinet:       state.cabinet       || {},
+      laws:            state.laws            || [],
+      announcements:   state.announcements   || [],
+      cabinet:         state.cabinet         || {},
       gangTerritories: state.gangTerritories || {},
+      onlinePlayers:   onlineList,
+      onlineCount:     onlineList.length,
     };
     socket.emit('gameStateInit', payload);
   } catch (err) {

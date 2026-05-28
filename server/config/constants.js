@@ -1,4 +1,8 @@
 module.exports = {
+  // Beta
+  BETA_MODE: process.env.BETA_MODE === 'true',
+  BETA_INVITE_CODES: (process.env.BETA_INVITE_CODES || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean),
+
   // Room
   MAX_PLAYERS_PER_ROOM: 20,
   ROOM_CLEANUP_INTERVAL: 5 * 60 * 1000,

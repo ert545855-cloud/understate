@@ -1,0 +1,336 @@
+# UNDERSTATE — Kapalı Beta Fix Promptları
+> Ekay'a sırayla ver. Her prompt bağımsız bir görev.
+
+---
+
+## PROMPT 1 — Kritik: Socket auth token fix (birbirini görmeme sorununun ana sebebi)
+
+```
+src/app.js dosyasında iki ayrı yerde socket bağlantısı açılıyor.
+Her ikisinde de `io(window.location.origin, {...})` şeklinde çağrı var ama
+auth token gönderilmiyor. Bu yüzden sunucu her kullanıcıyı "Misafir" olarak
+görüyor ve userId null kalıyor. Tüm multiplayer özellikler bundan dolayı çalışmıyor.
+
+**Birinci yer** (satır ~384, _setupSocket fonksiyonu içinde):
+Şu an:
+  window._socket = io(window.location.origin, {reconnection:true, reconnectionAttempts:10, transports:['websocket','polling']});
+
+Olması gereken:
+  const _jwt = localStorage.getItem('us_jwt') || '';
+  window._socket = io(window.location.origin, {
+    auth: { token: _jwt },
+    reconnection: true,
+    reconnectionAttempts: 10,
+    transports: ['websocket', 'polling']
+  });
+
+**İkinci yer** (satır ~11250, Firebase/Supabase login sonrası blok içinde):
+Aynı şekilde, io() çağrısının options objesine şunu ekle:
+  auth: { token: localStorage.getItem('us_jwt') || '' }
+
+Ayrıca her iki yerdeki socket init bloğunun sonuna, playerJoin emitinden ÖNCE,
+şu satırı ekle:
+  window._socket.on('connect', () => {
+    window._socket.emit('requestOnlinePlayers');
+  });
+
+Bu sayede her bağlanmada online oyuncu listesi otomatik çekilir.
+```
+
+---
+
+## PROMPT 2 — Kritik: Çift socket init'i tek fonksiyona topla
+
+```
+src/app.js dosyasında socket iki farklı yerde açılıyor (_setupSocket fonksiyonu
+~satır 384, ve Firebase/Supabase login callback'i ~satır 11249).
+Bu race condition yaratıyor — bazen socket hiç bağlanamıyor.
+
+Yapılacak iş:
+_setupSocket(user) fonksiyonunu (satır ~381) şöyle güncelle:
+
+  const _setupSocket = (user) => {
+    try {
+      if (typeof io === 'undefined') return;
+      const jwt = localStorage.getItem('us_jwt') || '';
+      if (!window._socket || !window._socket.connected) {
+        if (window._socket) {
+          window._socket.disconnect();
+          window._socket = null;
+        }
+        window._socket = io(window.location.origin, {
+          auth: { token: jwt },
+          reconnection: true,
+          reconnectionAttempts: 10,
+          transports: ['websocket', 'polling']
+        });
+        window._socket.on('connect', () => {
+          console.log('✓ Socket.IO bağlandı', window._socket.id);
+          window._socket.emit('requestOnlinePlayers');
+        });
+        window._socket.on('onlineCount', (cnt) =>
+          window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: 'onlineCount', value: cnt } }))
+        );
+      }
+      if (window._socket && user?.id) {
+        window._socket.emit('playerJoin', {
+          userId: user.id || user.uid,
+          username: user.username || 'Oyuncu',
+          level: user.level || 1,
+          city: user.city || '',
+          gender: user.gender || 'erkek',
+          money: user.money || 0,
+          party: user.party || null,
+          gang: user.gang || null
+        });
+      }
+    } catch(e) { console.warn('Socket init hatası:', e); }
+  };
+
+Ardından satır ~11249'daki ikinci io() bloğunu tamamen SİL.
+Yerine sadece şu satırı bırak:
+  _setupSocket(p);
+
+(p burada login olan kullanıcı objesi)
+```
+
+---
+
+## PROMPT 3 — Kritik: gameStateInit'e onlinePlayers eklenmesi
+
+```
+server/socket/gameHandler.js dosyasında pushInitialState() fonksiyonu var
+(satır ~36). Bu fonksiyon bağlanan kullanıcıya oyun state'ini gönderiyor
+ama online oyuncu listesi dahil edilmiyor.
+
+pushInitialState fonksiyonunu şöyle güncelle:
+
+  async function pushInitialState(socket) {
+    try {
+      const state = await db.getFullGameState();
+      const onlineList = Array.from(onlinePlayers.values());
+      const payload = {
+        gangs:           state.gangs           || [],
+        parties:         state.parties         || [],
+        alliances:       state.alliances       || [],
+        elections:       state.elections       || { phase:'idle', candidates:[], votes:{} },
+        elections_multi: state.elections_multi || {},
+        laws:            state.laws            || [],
+        announcements:   state.announcements   || [],
+        cabinet:         state.cabinet         || {},
+        gangTerritories: state.gangTerritories || {},
+        onlinePlayers:   onlineList,           // <-- YENİ
+        onlineCount:     onlineList.length,    // <-- YENİ
+      };
+      socket.emit('gameStateInit', payload);
+    } catch (err) {
+      logger.warn('[GameHandler] pushInitialState:', err.message);
+    }
+  }
+
+Ardından src/app.js'de gameStateInit listener'ına (satır ~11012)
+onlinePlayers işlemeyi ekle:
+
+  s.on('gameStateInit', (data) => {
+    try {
+      // Mevcut kod aynen kalacak, sadece şunu EKLE:
+      if (Array.isArray(data.onlinePlayers)) {
+        setOnlinePlayers(data.onlinePlayers);
+        window.dispatchEvent(new CustomEvent('fb-sync', {
+          detail: { key: 'onlineCount', value: data.onlinePlayers.length }
+        }));
+      }
+      // ... geri kalan mevcut kod ...
+    } catch(e){}
+  });
+```
+
+---
+
+## PROMPT 4 — Önemli: Beta kayıt sistemi — davet kodu kontrolü
+
+```
+server/routes/auth.js dosyasında kayıt endpoint'i var (/api/auth/register).
+Kapalı beta için kayıt sırasında davet kodu kontrolü eklenmesi gerekiyor.
+
+1. server/config/constants.js dosyasına şunu ekle:
+   BETA_INVITE_CODES: (process.env.BETA_INVITE_CODES || '').split(',').filter(Boolean),
+   BETA_MODE: process.env.BETA_MODE === 'true',
+
+2. .env dosyasına şunu ekle:
+   BETA_MODE=true
+   BETA_INVITE_CODES=BETA2025,UNDERSTATE01,CLOSED01
+   (istediğin kodları yaz, virgülle ayır)
+
+3. server/routes/auth.js'deki register handler'ına, kullanıcı kayıt işleminden
+   ÖNCE şu kontrolü ekle:
+
+   const { BETA_MODE, BETA_INVITE_CODES } = require('../config/constants');
+   
+   // Register handler içinde, en başa:
+   if (BETA_MODE) {
+     const inviteCode = req.body.inviteCode || '';
+     if (!BETA_INVITE_CODES.includes(inviteCode.toUpperCase().trim())) {
+       return res.status(403).json({
+         success: false,
+         message: 'Kapalı beta aşamasındayız. Geçerli bir davet kodu gerekiyor.'
+       });
+     }
+   }
+
+4. src/app.js'deki kayıt formunda (register formu) inviteCode alanı ekle:
+   Kayıt isteği göndermeden önce body'e şunu ekle:
+   inviteCode: document.getElementById('inviteCode')?.value || inviteCodeState || ''
+   
+   Ve form UI'ına bir input ekle:
+   placeholder="Davet kodu (kapalı beta)"
+   id="inviteCode"
+```
+
+---
+
+## PROMPT 5 — Önemli: Reconnect sonrası eski socketId saklanması
+
+```
+src/app.js'de kullanıcı sayfayı yenilediğinde ya da bağlantı koparında
+sunucudaki reconnectToRoom eventi çağrılmıyor çünkü eski socketId
+hiçbir yerde saklanmıyor.
+
+_setupSocket fonksiyonunun içinde (socket connect olduğunda) şunu ekle:
+
+  window._socket.on('connect', () => {
+    const oldSocketId = localStorage.getItem('us_last_socket_id');
+    if (oldSocketId && oldSocketId !== window._socket.id) {
+      window._socket.emit('reconnectToRoom', { oldSocketId });
+    }
+    localStorage.setItem('us_last_socket_id', window._socket.id);
+    window._socket.emit('requestOnlinePlayers');
+  });
+
+  window._socket.on('disconnect', () => {
+    // socketId'yi sakla, reconnect'te kullanacağız
+    if (window._socket?.id) {
+      localStorage.setItem('us_last_socket_id', window._socket.id);
+    }
+  });
+```
+
+---
+
+## PROMPT 6 — Önemli: React error boundary ekle (çöküş yönetimi)
+
+```
+src/app.js son derece büyük bir dosya (~13000 satır) ve herhangi bir
+ekranda unhandled hata olduğunda tüm uygulama beyaz sayfa veriyor.
+Kapalı beta için basit bir error boundary yeterli.
+
+src/app.js'in en üstüne (import'lardan sonra, App component'inden önce)
+şu class'ı ekle:
+
+  class ErrorBoundary extends React.Component {
+    constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+    static getDerivedStateFromError(error) { return { hasError: true, error }; }
+    componentDidCatch(error, info) { console.error('[ErrorBoundary]', error, info); }
+    render() {
+      if (this.state.hasError) {
+        return React.createElement('div', {
+          style: {
+            display:'flex', flexDirection:'column', alignItems:'center',
+            justifyContent:'center', height:'100vh', gap:'1rem',
+            background:'#0f1117', color:'#E8EDF2', fontFamily:'sans-serif'
+          }
+        },
+          React.createElement('div', {style:{fontSize:'2rem'}}, '⚠️'),
+          React.createElement('div', {style:{fontSize:'1.1rem',fontWeight:600}}, 'Bir hata oluştu'),
+          React.createElement('div', {style:{fontSize:'0.85rem',color:'#9CA3AF',maxWidth:'400px',textAlign:'center'}},
+            this.state.error?.message || 'Beklenmedik bir hata'),
+          React.createElement('button', {
+            onClick: () => { this.setState({hasError:false,error:null}); window.location.reload(); },
+            style: {
+              marginTop:'1rem', padding:'0.6rem 1.5rem', background:'#3B82F6',
+              color:'#fff', border:'none', borderRadius:'8px', cursor:'pointer', fontSize:'0.9rem'
+            }
+          }, 'Yeniden Yükle')
+        );
+      }
+      return this.props.children;
+    }
+  }
+
+Ardından App component'inin return'ünde ana wrapper'ı ErrorBoundary ile sar:
+  return React.createElement(ErrorBoundary, null,
+    /* mevcut return içeriği */
+  );
+```
+
+---
+
+## PROMPT 7 — İyi olur: Online oyuncu sayısını navbar'da göster
+
+```
+src/app.js'de online oyuncu sayısı (rep_onlineCount) localStorage'da tutuluyor
+ama arayüzde görünür bir yerde gösterilmiyor.
+
+Navbar veya üst bar'a küçük bir gösterge ekle:
+
+  // State olarak al (mevcut state'lerin yanına):
+  const [onlineCount, setOnlineCount] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('rep_onlineCount') || '0'); } catch { return 0; }
+  });
+
+  // useEffect ile dinle (mevcut fb-sync listener'ına ekle ya da yeni useEffect aç):
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.detail?.key === 'onlineCount') setOnlineCount(e.detail.value || 0);
+    };
+    window.addEventListener('fb-sync', handler);
+    return () => window.removeEventListener('fb-sync', handler);
+  }, []);
+
+  // Navbar JSX'inde, kullanıcı adının yanına:
+  <span style={{
+    display:'inline-flex', alignItems:'center', gap:'4px',
+    fontSize:'0.72rem', color:'#4ADE80', fontWeight:600
+  }}>
+    <span style={{width:'7px',height:'7px',borderRadius:'50%',background:'#4ADE80',display:'inline-block'}}/>
+    {onlineCount} online
+  </span>
+```
+
+---
+
+## PROMPT 8 — Temizlik: .env'e eksik değerleri ekle
+
+```
+.env dosyasına şu değerleri ekle (sunucu restart gerektirir):
+
+# Beta modu
+BETA_MODE=true
+BETA_INVITE_CODES=BETA2025,UNDERSTATE01
+
+# Render / deployment URL (şu an doğru ama kontrol et)
+PUBLIC_URL=https://understate.onrender.com
+
+# Eğer CORS hatası alıyorsan, uygulamanın açıldığı tüm domain'leri ekle:
+EXTRA_ORIGINS=https://understate.onrender.com
+
+# NODE_ENV production olarak set et (şu an development):
+NODE_ENV=production
+```
+
+---
+
+## Uygulama Sırası
+
+| Öncelik | Prompt | Etki |
+|---------|--------|------|
+| 🔴 1. | Prompt 1 | Online olmuyor sorunu çözülür |
+| 🔴 2. | Prompt 2 | Race condition / çift socket düzelir |
+| 🔴 3. | Prompt 3 | Oyuncular birbirini görür |
+| 🟠 4. | Prompt 4 | Kapalı beta — davet kodu sistemi |
+| 🟠 5. | Prompt 5 | Sayfa yenileme sonrası oda korunur |
+| 🟡 6. | Prompt 6 | Çökme yönetimi |
+| 🟡 7. | Prompt 7 | Online sayısı UI'da görünür |
+| 🟡 8. | Prompt 8 | Deployment ayarları |
+
+İlk 3 prompt uygulandıktan sonra sunucuyu restart et ve test et.

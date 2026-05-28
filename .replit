@@ -42,7 +42,9 @@ run = ["node", "server/index.js"]
 [userenv]
 
 [userenv.shared]
-NODE_ENV = "development"
+NODE_ENV = "production"
 PORT = "5000"
 VAPID_PUBLIC_KEY = "BGI0j17s5qpNNBwFhmp-aMADrypqCq-3i_4sUT3auoNKzbzTzNKk5SmfzIxb2py1ibb_drUW-XTOCS1rpgpnEJk"
 ADMIN_USERS = "admin"
+BETA_MODE = "true"
+BETA_INVITE_CODES = "BETA2025,UNDERSTATE01,CLOSED01"

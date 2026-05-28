@@ -7,7 +7,7 @@ const bcrypt  = require('bcryptjs');
 const sb      = require('../services/supabaseService');
 const { signToken, signRefreshToken, verifyRefreshToken } = require('../config/jwt');
 const logger  = require('../utils/logger');
-const { RESET_TOKEN_EXPIRY_MS, BCRYPT_ROUNDS } = require('../config/constants');
+const { RESET_TOKEN_EXPIRY_MS, BCRYPT_ROUNDS, BETA_MODE, BETA_INVITE_CODES } = require('../config/constants');
 const mailService = require('../services/mailService');
 
 const EMAIL_VERIFY_EXPIRY_MS = 24 * 60 * 60 * 1000;
@@ -75,7 +75,18 @@ async function register(req, res) {
     if (!sb.isReady())
       return res.status(503).json({ success: false, message: 'Veritabanı bağlı değil' });
 
-    const { username, email, password } = req.body;
+    const { username, email, password, inviteCode } = req.body;
+
+    // ── Kapalı Beta Kontrolü ──────────────────────────────────────────────────
+    if (BETA_MODE) {
+      const code = (inviteCode || '').toUpperCase().trim();
+      if (!BETA_INVITE_CODES.includes(code)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Kapalı beta aşamasındayız. Geçerli bir davet kodu gerekiyor.'
+        });
+      }
+    }
 
     const uErr = validateUsername(username); if (uErr) return res.status(400).json({ success: false, message: uErr });
     const eErr = validateEmail(email);       if (eErr) return res.status(400).json({ success: false, message: eErr });

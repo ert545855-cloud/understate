@@ -367,7 +367,7 @@ async function saveUserProfile(uid, profile) {
 // ═══════════════════════════════════════════════════════
 function AuthScreen({ onLogin }) {
   const [tab, setTab] = useState('login');
-  const [f, setF] = useState({ username:'', password:'', email:'', city:'İstanbul', gender:'male' });
+  const [f, setF] = useState({ username:'', password:'', email:'', city:'İstanbul', gender:'male', inviteCode:'' });
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -380,13 +380,50 @@ function AuthScreen({ onLogin }) {
 
   const _setupSocket = (user) => {
     try {
-      if(typeof io !== 'undefined' && !window._socket) {
-        window._socket = io(window.location.origin, {reconnection:true,reconnectionAttempts:10,transports:['websocket','polling']});
-        window._socket.on('connect', ()=>console.log('✓ Socket.IO çözümlendi'));
-        window._socket.on('onlineCount', (cnt)=>window.dispatchEvent(new CustomEvent('fb-sync',{detail:{key:'onlineCount',value:cnt}})));
+      if (typeof io === 'undefined') return;
+      const jwt = localStorage.getItem('us_jwt') || '';
+      // Reconnect-safe: disconnect stale socket first
+      if (window._socket && !window._socket.connected) {
+        try { window._socket.disconnect(); } catch(_) {}
+        window._socket = null;
       }
-      if(window._socket) window._socket.emit('playerJoin', {userId:user.id, username:user.username, level:user.level||1, city:user.city||'', gender:user.gender||'erkek', money:user.money||0, party:user.party||null, gang:user.gang||null});
-    } catch(e) {}
+      if (!window._socket) {
+        window._socket = io(window.location.origin, {
+          auth: { token: jwt },
+          reconnection: true,
+          reconnectionAttempts: 10,
+          transports: ['websocket', 'polling'],
+        });
+        window._socket.on('connect', () => {
+          console.log('✓ Socket.IO bağlandı', window._socket.id);
+          // Reconnect room recovery
+          const oldId = localStorage.getItem('us_last_socket_id');
+          if (oldId && oldId !== window._socket.id) {
+            window._socket.emit('reconnectToRoom', { oldSocketId: oldId });
+          }
+          localStorage.setItem('us_last_socket_id', window._socket.id);
+          window._socket.emit('requestOnlinePlayers');
+        });
+        window._socket.on('disconnect', () => {
+          if (window._socket?.id) localStorage.setItem('us_last_socket_id', window._socket.id);
+        });
+        window._socket.on('onlineCount', (cnt) =>
+          window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: 'onlineCount', value: cnt } }))
+        );
+      }
+      if (window._socket && user?.id) {
+        window._socket.emit('playerJoin', {
+          userId:   user.id || user.uid,
+          username: user.username || 'Oyuncu',
+          level:    user.level    || 1,
+          city:     user.city     || '',
+          gender:   user.gender   || 'erkek',
+          money:    user.money    || 0,
+          party:    user.party    || null,
+          gang:     user.gang     || null,
+        });
+      }
+    } catch(e) { console.warn('Socket init hatası:', e); }
   };
 
   const _mapServerUser = (u, extra={}) => ({
@@ -499,7 +536,7 @@ function AuthScreen({ onLogin }) {
     try {
       const res  = await fetch('/api/auth/register', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ username:uname, email:f.email.trim(), password:f.password })
+        body:JSON.stringify({ username:uname, email:f.email.trim(), password:f.password, inviteCode:(f.inviteCode||'').trim() })
       });
       const data = await res.json();
       if (data.success) {
@@ -645,6 +682,9 @@ function AuthScreen({ onLogin }) {
                   style={{...inputStyle,color:f.city?'#E8EDF2':'rgba(255,255,255,0.4)'}}>
                   {CITIES.map(c=><option key={c} value={c} style={{background:'#0B1527'}}>{c}</option>)}
                 </select>
+              </div>
+              <div style={{marginBottom:'1rem'}}>
+                <input style={inputStyle} type="text" placeholder="🔑 Davet kodu (kapalı beta)" value={f.inviteCode||''} onChange={e=>u('inviteCode',e.target.value)} autoComplete="off" />
               </div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem',marginBottom:'1.25rem'}}>
                 {[['male','👨 Erkek'],['female','👩 Kadın']].map(([v,l])=>(
@@ -940,6 +980,11 @@ function Header({ profile, notifCount, onNotif, page, onNavigate }) {
         <button onClick={toggle} title={dark?'Aydınlık mod':'Karanlık mod'} style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:'10px',padding:'0.32rem 0.48rem',cursor:'pointer',fontSize:'0.9rem',color:'#8BA0B5',flexShrink:0}}>
           {dark ? '☀️' : '🌙'}
         </button>
+        {/* Online oyuncu sayısı */}
+        <div onClick={()=>onNavigate&&onNavigate('players')} style={{display:'flex',alignItems:'center',gap:'3px',padding:'0.18rem 0.4rem',background:'rgba(74,222,128,0.08)',border:'1px solid rgba(74,222,128,0.2)',borderRadius:'8px',cursor:'pointer',flexShrink:0}} title="Çevrimiçi oyuncular">
+          <span style={{width:'6px',height:'6px',borderRadius:'50%',background:'#4ADE80',display:'inline-block',boxShadow:'0 0 5px #4ADE80'}}/>
+          <span style={{fontSize:'0.6rem',color:'#4ADE80',fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>{onlineCnt}</span>
+        </div>
         <button onClick={onNotif} style={{position:'relative',background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:'10px',padding:'0.32rem 0.48rem',cursor:'pointer',fontSize:'0.9rem',color:'#8BA0B5',flexShrink:0}}>
           🔔
           {notifCount > 0 && <span style={{position:'absolute',top:'-4px',right:'-4px',background:'#EF4444',color:'#fff',fontSize:'0.52rem',fontWeight:900,minWidth:'14px',height:'14px',borderRadius:'7px',display:'flex',alignItems:'center',justifyContent:'center',padding:'0 2px',border:'2px solid #06080F'}}>{notifCount}</span>}
@@ -11020,6 +11065,13 @@ function App() {
           if (Array.isArray(data.announcements)) _syncLs('announcements', data.announcements);
           if (data.cabinet)                      _syncLs('cabinet', data.cabinet);
           if (data.gangTerritories)              _syncLs('gangTerritories', data.gangTerritories);
+          // Online oyuncular — bağlanınca anında güncel liste
+          if (Array.isArray(data.onlinePlayers)) {
+            setOnlinePlayers(data.onlinePlayers);
+            window.dispatchEvent(new CustomEvent('fb-sync', {
+              detail: { key: 'onlineCount', value: data.onlinePlayers.length }
+            }));
+          }
         } catch(e){}
       });
 
@@ -11245,14 +11297,7 @@ function App() {
       window._setupUserListener?.(p.uid);
       window.dispatchEvent(new CustomEvent('user-logged-in', { detail:{ userId:p.uid } }));
     }
-    try {
-      if(typeof io !== 'undefined' && !window._socket) {
-        window._socket = io(window.location.origin, {reconnection:true,reconnectionAttempts:10,transports:['websocket','polling']});
-        window._socket.on('connect', ()=>console.log('✓ Socket.IO bağlandı'));
-        window._socket.on('onlineCount', (cnt)=>window.dispatchEvent(new CustomEvent('fb-sync',{detail:{key:'onlineCount',value:cnt}})));
-      }
-      if(window._socket && p.id) window._socket.emit('playerJoin', {userId:p.id||p.uid, username:p.username||'Oyuncu', level:p.level||1, city:p.city||'', gender:p.gender||'erkek', money:p.money||0, party:p.party||null, gang:p.gang||null});
-    } catch(e) {}
+    _setupSocket(p);
     _hideLoading?.();
   };
 
