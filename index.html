@@ -436,7 +436,7 @@ function boot() {
       }).catch(function(){});
 
     // Envanter
-    var uid = localStorage.getItem('userId') || localStorage.getItem('rep_userId');
+    var uid = localStorage.getItem('rep_userId') || localStorage.getItem('userId');
     if (uid) {
       fetch((window._SOCKET_URL||'')+'/api/inventory/' + uid)
         .then(function(r) { return r.json(); })
@@ -459,8 +459,10 @@ function boot() {
     }
 
     var socketUrl = window._SOCKET_URL || (window.__ENV__ && window.__ENV__.SOCKET_URL) || window.location.origin;
+    var _jwtToken = localStorage.getItem('authToken') || localStorage.getItem('us_jwt') || '';
 
     _socket = io(socketUrl, {
+      auth: { token: _jwtToken },
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
@@ -477,7 +479,7 @@ function boot() {
       loadInitialStateFromServer();
 
       // Presence kaydı
-      var userId = localStorage.getItem('userId') || localStorage.getItem('rep_userId');
+      var userId = localStorage.getItem('rep_userId') || localStorage.getItem('userId');
       var prof = {};
       try { prof = JSON.parse(localStorage.getItem('rep_userProfile') || '{}'); } catch(e) {}
       if (userId) {
@@ -513,10 +515,34 @@ function boot() {
     _socket.on('reconnect', function() {
       _socketReady = true;
       window.dispatchEvent(new CustomEvent('socket-reconnected'));
-      // Reconnect'te eski socket ID ile odaya geri dön
+      // Yeni JWT ile auth güncelle
+      var newJwt = localStorage.getItem('authToken') || localStorage.getItem('us_jwt') || '';
+      if (newJwt) {
+        _socket.emit('tokenRefreshed', {
+          userId: localStorage.getItem('rep_userId'),
+          username: localStorage.getItem('rep_username')
+        });
+      }
+      // Eski socket ID ile odaya geri dön
       var oldSocketId = localStorage.getItem('us_lastSocketId');
       if (oldSocketId) {
         _socket.emit('reconnectToRoom', { oldSocketId: oldSocketId });
+      }
+      // playerJoin yeniden gönder
+      var userId = localStorage.getItem('rep_userId');
+      if (userId) {
+        var prof = {};
+        try { prof = JSON.parse(localStorage.getItem('rep_userProfile') || '{}'); } catch(e) {}
+        _socket.emit('playerJoin', {
+          userId: userId,
+          username: prof.username || localStorage.getItem('rep_username') || 'Oyuncu',
+          level: prof.level || 1,
+          city: prof.city || '',
+          gender: prof.gender || 'erkek',
+          party: prof.party || null,
+          gang: prof.gang || null,
+          avatar: prof.avatar || null
+        });
       }
     });
 
