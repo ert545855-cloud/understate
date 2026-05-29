@@ -147,6 +147,34 @@ function registerGameHandlers(io, socket) {
     onlinePlayers.set(socket.id, player);
     socket.userId   = data.userId;
     socket.username = player.username;
+
+    // ── Oyuncuyu otomatik olarak varsayılan odaya ekle ─────────────────────
+    try {
+      const { rooms, createRoom, joinRoom } = require('../rooms/roomManager');
+      let defaultRoom = Array.from(rooms.values()).find(r => r.name === 'Ana Dünya' && r.isActive);
+      if (!defaultRoom) {
+        defaultRoom = createRoom('Ana Dünya', 'system', 500);
+      }
+      const alreadyIn = Array.from(defaultRoom.players?.values() || []).some(p => p.userId === data.userId);
+      if (!alreadyIn) {
+        joinRoom(defaultRoom.roomId, {
+          socketId: socket.id,
+          userId:   data.userId,
+          username: player.username,
+        });
+        socket.join(`room_${defaultRoom.roomId}`);
+        io.to(`room_${defaultRoom.roomId}`).emit('playerJoined', {
+          socketId: socket.id,
+          username: player.username,
+          roomId:   defaultRoom.roomId,
+        });
+        logger.info(`[Room] ${player.username} → Ana Dünya (${defaultRoom.roomId})`);
+      }
+    } catch (e) {
+      logger.warn('[Room] Otomatik oda katılımı başarısız:', e.message);
+    }
+    // ──────────────────────────────────────────────────────────────────────
+
     const list = Array.from(onlinePlayers.values());
     io.emit('onlinePlayers', list);
     io.emit('onlineCount', list.length);
