@@ -46,7 +46,7 @@ function leaveRoom(roomId, socketId) {
   if (player) {
     room.players.delete(socketId);
     logger.info(`Oyuncu ayrıldı: ${player.username} <- ${roomId}`);
-    if (room.players.size === 0) {
+    if (room.players.size === 0 && room.name !== 'Ana Dünya') {
       room.isActive = false;
       logger.info(`Oda boşaldı: ${roomId}`);
     }
