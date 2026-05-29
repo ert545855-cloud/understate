@@ -73,19 +73,51 @@ export function initSocket(serverUrl, token) {
 
   socket.on('chat', (data) => {
     try {
-      const channel = data.channel || 'globalChat';
-      let current = JSON.parse(localStorage.getItem('rep_' + channel) || '[]');
-      if (!Array.isArray(current)) current = [];
-      if (!current.find(m => m.id === data.id)) {
-        current.push({
+      const rawChannel = data.channel || 'globalChat';
+      // globalChat → rep_globalChat (useLs key'i)
+      // city_İstanbul → cityChats objesi içinde işlenir
+      if (rawChannel.startsWith('city_')) {
+        const cityKey = rawChannel.replace('city_', '');
+        let cityChats = JSON.parse(localStorage.getItem('rep_cityChats') || '{}');
+        if (typeof cityChats !== 'object' || Array.isArray(cityChats)) cityChats = {};
+        const cityArr = Array.isArray(cityChats[cityKey]) ? cityChats[cityKey] : [];
+        const newMsg = {
           id: data.id || Math.random().toString(36).slice(2),
-          sender: data.sender,
-          message: data.message,
-          timestamp: data.timestamp || Date.now(),
-          channel
-        });
-        localStorage.setItem('rep_' + channel, JSON.stringify(current));
-        window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: channel, value: current } }));
+          userId: data.userId || null,
+          username: data.sender || 'Oyuncu',
+          text: data.message,
+          ts: data.timestamp || Date.now(),
+          level: data.level || 1,
+          gender: data.gender || null,
+          premium: data.premium || false,
+          photoUrl: data.photoUrl || null,
+        };
+        if (!cityArr.find(m => m.id === newMsg.id)) {
+          cityChats[cityKey] = [...cityArr.slice(-99), newMsg];
+          localStorage.setItem('rep_cityChats', JSON.stringify(cityChats));
+          window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: 'cityChats', value: cityChats } }));
+        }
+      } else {
+        // globalChat ve diğer kanallar
+        const lsKey = rawChannel; // useLs('globalChat') → rep_globalChat
+        let current = JSON.parse(localStorage.getItem('rep_' + lsKey) || '[]');
+        if (!Array.isArray(current)) current = [];
+        const newMsg = {
+          id: data.id || Math.random().toString(36).slice(2),
+          userId: data.userId || null,
+          username: data.sender || 'Oyuncu',
+          text: data.message,
+          ts: data.timestamp || Date.now(),
+          level: data.level || 1,
+          gender: data.gender || null,
+          premium: data.premium || false,
+          photoUrl: data.photoUrl || null,
+        };
+        if (!current.find(m => m.id === newMsg.id)) {
+          current = [...current.slice(-199), newMsg];
+          localStorage.setItem('rep_' + lsKey, JSON.stringify(current));
+          window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: lsKey, value: current } }));
+        }
       }
     } catch (e) { console.warn('Chat hatası:', e); }
   });
