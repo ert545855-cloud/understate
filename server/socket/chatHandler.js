@@ -52,8 +52,14 @@ function registerChatHandlers(io, socket) {
         .catch(err => logger.warn('[Chat] DB kayıt hatası:', err.message));
     }
 
-    if (channel.startsWith('room_')) { io.to(channel).emit('chat', outgoing); }
-    else { io.emit('chat', outgoing); }
+    if (channel.startsWith('room_') || channel.startsWith('city_')) {
+      // Oda veya şehir kanalı: sadece o room'a broadcast
+      // city_İstanbul kanalı için oyuncuların o room'a join etmesi gerekir
+      // (playerJoin'de join edilmiyorsa şimdilik global broadcast yap)
+      io.emit('chat', outgoing);
+    } else {
+      io.emit('chat', outgoing);
+    }
 
     monitoring.increment('chatMessages');
     logger.debug(`Chat [${channel}] ${outgoing.sender}: ${filtered.slice(0, 60)}`);
