@@ -11,9 +11,17 @@ services:
         value: production
       - key: PORT
         value: 10000
-      - key: MONGODB_URI
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
         sync: false
       - key: JWT_SECRET
         sync: false
       - key: PUBLIC_URL
+        value: https://understate.onrender.com
+      - key: MONGODB_URI
         sync: false
