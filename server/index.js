@@ -1,4 +1,5 @@
-require('dotenv').config();
+// Sadece development'ta .env yükle; production'da Render env vars kullan
+if (process.env.NODE_ENV !== 'production') require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -152,6 +153,7 @@ app.use(helmet({
         'https://*.googleapis.com',
         'https://understate.onrender.com',
         'wss://understate.onrender.com',
+        'https://fonts.gstatic.com',
       ],
       mediaSrc: ["'self'", 'blob:'],
       workerSrc: ["'self'", 'blob:'],

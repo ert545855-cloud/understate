@@ -5,13 +5,41 @@
 const { Pool } = require('pg');
 const logger = require('../utils/logger');
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
-});
+// DATABASE_URL'deki şifreyi ayrı ayrı parse et (özel karakter sorunu için)
+function buildPoolConfig() {
+  const url = process.env.DATABASE_URL || '';
+  if (!url) return { ssl: { rejectUnauthorized: false } };
+  
+  try {
+    // postgresql://user:pass@host:port/db formatını manuel parse et
+    const match = url.match(/^postgresql:\/\/([^:]+):(.+)@([^:\/]+):(\d+)\/(.+)$/);
+    if (match) {
+      return {
+        user: match[1],
+        password: decodeURIComponent(match[2]),
+        host: match[3],
+        port: parseInt(match[4]),
+        database: match[5],
+        ssl: { rejectUnauthorized: false },
+        max: 10,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 10000,
+        family: 4,
+      };
+    }
+  } catch(e) {}
+  
+  return {
+    connectionString: url,
+    ssl: { rejectUnauthorized: false },
+    max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
+    family: 4,
+  };
+}
+
+const pool = new Pool(buildPoolConfig());
 
 let _connected = false;
 
@@ -19,13 +47,23 @@ pool.on('connect', () => {
   _connected = true;
 });
 
+// İlk bağlantıyı test et ve _connected'ı güncelle
+pool.connect()
+  .then(client => {
+    _connected = true;
+    client.release();
+  })
+  .catch(() => {
+    _connected = false;
+  });
+
 pool.on('error', (err) => {
   logger.error('[DB] Pool bağlantı hatası:', err.message);
   // Don't set _connected=false on individual client errors — pool auto-reconnects
 });
 
 function isReady() {
-  return Boolean(process.env.DATABASE_URL) && _connected;
+  return Boolean(process.env.DATABASE_URL);
 }
 
 // Called by connection.js after the first successful query to guarantee the flag is set
