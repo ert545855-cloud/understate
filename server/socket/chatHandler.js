@@ -52,10 +52,13 @@ function registerChatHandlers(io, socket) {
         .catch(err => logger.warn('[Chat] DB kayıt hatası:', err.message));
     }
 
-    if (channel.startsWith('room_') || channel.startsWith('city_')) {
-      // Oda veya şehir kanalı: sadece o room'a broadcast
-      // city_İstanbul kanalı için oyuncuların o room'a join etmesi gerekir
-      // (playerJoin'de join edilmiyorsa şimdilik global broadcast yap)
+    if (channel.startsWith('klan_')) {
+      // Klan kanalı: sadece aynı klan üyelerine broadcast
+      // Klan ID'si channel'dan alınır: klan_KLANID
+      const klanId = channel.replace('klan_', '');
+      // Şimdilik global broadcast — ileride klan room join ile kısıtlanabilir
+      io.emit('chat', outgoing);
+    } else if (channel.startsWith('room_') || channel.startsWith('city_')) {
       io.emit('chat', outgoing);
     } else {
       io.emit('chat', outgoing);
@@ -66,5 +69,33 @@ function registerChatHandlers(io, socket) {
   });
 }
 
+function registerSupportHandler(io, socket) {
+  socket.on('support:message', async ({ msg } = {}) => {
+    if (!msg || !socket.userId) return;
+    if (!checkSocketRate(socket.id, 'support')) return;
+    // Admin soketlerine ilet
+    const sanitized = {
+      id: msg.id,
+      from: sanitizeString(msg.from || 'Anonim').slice(0, 60),
+      userId: socket.userId,
+      text: sanitizeString(msg.text || '').slice(0, 1000),
+      ts: Date.now(),
+      status: 'pending',
+      replies: [],
+    };
+    // Supabase'e kaydet
+    if (sb.isReady()) {
+      try {
+        await sb.query('INSERT INTO support_messages (id, user_id, username, message, status, created_at) VALUES ($1,$2,$3,$4,$5,NOW())',
+          [sanitized.id, sanitized.userId, sanitized.from, sanitized.text, 'pending']);
+      } catch(e) { logger.warn('[Support] DB kayıt hatası:', e.message); }
+    }
+    // Admin odasına ilet (admin kullanıcılar 'admin_room'a join olmalı)
+    io.to('admin_room').emit('support:new', sanitized);
+    socket.emit('support:ack', { id: sanitized.id });
+    logger.debug(`[Support] ${sanitized.from}: ${sanitized.text.slice(0,60)}`);
+  });
+}
+
 function cleanupChatRates(socketId) { chatRates.delete(socketId); }
-module.exports = { registerChatHandlers, cleanupChatRates, getChannelHistory };
+module.exports = { registerChatHandlers, registerSupportHandler, cleanupChatRates, getChannelHistory };
