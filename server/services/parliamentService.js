@@ -1,6 +1,7 @@
 // #29 #30 #31 #32 Parliament + Election + Campaign + Presidency
-const db = require('./dbService');
+const db    = require('./dbService');
 const logger = require('../utils/logger');
+const notif  = require('./notificationService');
 
 const BILL_DURATION_HOURS = 48;
 const CAMPAIGN_VOTE_COST  = 10000; // 10k₺ per 1% vote boost, max 10%
@@ -48,6 +49,11 @@ async function voteOnBill(userId, billId, vote) {
       const col = vote === 'for' ? 'votes_for' : 'votes_against';
       await db.query(`UPDATE parliament_bills SET ${col}=${col}+1 WHERE id=$1`, [billId]);
     }
+    // Notify bill proposer of the vote
+    if (b[0].proposed_by && b[0].proposed_by !== userId) {
+      const { rows: vr } = await db.query(`SELECT username FROM users WHERE id=$1`, [userId]).catch(() => ({ rows: [] }));
+      if (vr[0]) notif.notifyParliamentVote(b[0].proposed_by, vr[0].username, b[0].title, vote).catch(() => {});
+    }
     return { ok: true };
   } catch(e) {
     if (e.code === '23505') return { ok: false, message: 'Zaten oy kullandınız' };
@@ -67,6 +73,10 @@ async function settleBills() {
       [bill.id, passed ? 'passed' : 'rejected']
     ).catch(() => {});
     logger.info(`[Parliament] Yasa ${bill.id} "${bill.title}": ${passed ? 'KABUL' : 'RED'}`);
+    // Notify proposer of result
+    if (bill.proposed_by) {
+      notif.notifyParliamentResult(bill.proposed_by, bill.title, passed).catch(() => {});
+    }
   }
 }
 

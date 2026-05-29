@@ -1,6 +1,7 @@
 // #17 Friend System + #22 Block System
-const db = require('./dbService');
+const db     = require('./dbService');
 const logger = require('../utils/logger');
+const notif  = require('./notificationService');
 
 async function sendRequest(userId, targetUsername) {
   if (!db.isReady()) return { ok: false, message: 'DB bağlı değil' };
@@ -19,6 +20,9 @@ async function sendRequest(userId, targetUsername) {
        ON CONFLICT (user_id, friend_id) DO NOTHING`,
       [userId, target.id]
     );
+    // notify target
+    const { rows: sr } = await db.query(`SELECT username FROM users WHERE id=$1`, [userId]).catch(() => ({ rows: [] }));
+    if (sr[0]) notif.notifyFriendRequest(target.id, sr[0].username).catch(() => {});
     return { ok: true, message: 'Arkadaşlık isteği gönderildi', targetId: target.id };
   } catch(e) { return { ok: false, message: e.message }; }
 }
@@ -31,12 +35,14 @@ async function respondRequest(userId, requesterId, accept) {
        WHERE user_id=$1 AND friend_id=$2 AND status='pending'`,
       [requesterId, userId]
     ).catch(() => {});
-    // Mirror row
     await db.query(
       `INSERT INTO friendships (user_id, friend_id, status) VALUES ($1,$2,'accepted')
        ON CONFLICT (user_id, friend_id) DO UPDATE SET status='accepted', updated_at=NOW()`,
       [userId, requesterId]
     ).catch(() => {});
+    // notify requester that their request was accepted
+    const { rows: ur } = await db.query(`SELECT username FROM users WHERE id=$1`, [userId]).catch(() => ({ rows: [] }));
+    if (ur[0]) notif.notifyFriendAccepted(requesterId, ur[0].username).catch(() => {});
     return { ok: true, accepted: true };
   } else {
     await db.query(

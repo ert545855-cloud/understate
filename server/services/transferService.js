@@ -1,6 +1,7 @@
 // #16 Money Transfer
-const db = require('./dbService');
+const db    = require('./dbService');
 const logger = require('../utils/logger');
+const notif  = require('./notificationService');
 
 const MAX_TRANSFER = 1_000_000_000n;
 const MIN_TRANSFER = 1n;
@@ -44,6 +45,8 @@ async function transfer({ senderId, receiverUsername, amount, message = '' }) {
     );
     await client.query('COMMIT');
     logger.info(`[Transfer] ${sender.username} → ${receiver.username}: ${amt}₺ (txId=${tRows[0]?.id})`);
+    // Notify receiver
+    notif.notifyTransferReceived(receiver.id, sender.username, amt).catch(() => {});
     return { ok: true, txId: tRows[0]?.id, receiver: receiver.username, amount: Number(amt) };
   } catch (e) {
     await client.query('ROLLBACK');

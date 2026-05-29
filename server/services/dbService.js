@@ -330,28 +330,30 @@ async function setAnnouncements(anns) {
 
 async function saveNotification(notif) {
   try {
+    const id = notif.id || `notif_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
     await query(
-      `INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, false, NOW())
+      `INSERT INTO notifications (id, user_id, type, title, msg, icon, read)
+       VALUES ($1, $2, $3, $4, $5, $6, false)
        ON CONFLICT (id) DO NOTHING`,
       [
-        notif.id || `notif_${Date.now()}`,
-        notif.userId || null,
-        notif.type || 'info',
-        (notif.title || notif.msg || '').slice(0, 200),
-        (notif.body || '').slice(0, 500),
-        JSON.stringify(notif.data || {}),
+        id,
+        notif.userId || notif.user_id || null,
+        notif.type  || 'info',
+        (notif.title || '').slice(0, 200),
+        (notif.msg   || notif.body || '').slice(0, 500),
+        notif.icon  || '🔔',
       ]
     );
     return true;
   } catch (err) { logger.warn('[DB] saveNotification:', err.message); return false; }
 }
 
-async function getNotifications(userId, limit = 30) {
+async function getNotifications(userId, limit = 50) {
   try {
     const { rows } = await query(
-      `SELECT * FROM notifications
-       WHERE (user_id = $1 OR user_id IS NULL)
+      `SELECT id, type, title, msg, icon, read, ts, created_at
+       FROM notifications
+       WHERE user_id = $1
        ORDER BY created_at DESC LIMIT $2`,
       [userId, limit]
     );
@@ -359,9 +361,36 @@ async function getNotifications(userId, limit = 30) {
   } catch { return []; }
 }
 
+async function getUnreadCount(userId) {
+  try {
+    const { rows } = await query(
+      `SELECT COUNT(*) AS c FROM notifications WHERE user_id = $1 AND NOT read`,
+      [userId]
+    );
+    return parseInt(rows[0]?.c || 0);
+  } catch { return 0; }
+}
+
+async function markNotificationRead(userId, notifId) {
+  try {
+    await query(
+      'UPDATE notifications SET read = true WHERE id = $1 AND user_id = $2',
+      [notifId, userId]
+    );
+    return true;
+  } catch { return false; }
+}
+
 async function markNotificationsRead(userId) {
   try {
     await query('UPDATE notifications SET read = true WHERE user_id = $1', [userId]);
+    return true;
+  } catch { return false; }
+}
+
+async function deleteNotification(userId, notifId) {
+  try {
+    await query('DELETE FROM notifications WHERE id = $1 AND user_id = $2', [notifId, userId]);
     return true;
   } catch { return false; }
 }
@@ -460,7 +489,8 @@ module.exports = {
   // Announcements
   getAnnouncements, setAnnouncements,
   // Notifications
-  saveNotification, getNotifications, markNotificationsRead,
+  saveNotification, getNotifications, getUnreadCount,
+  markNotificationRead, markNotificationsRead, deleteNotification,
   // Cabinet
   getCabinet, setCabinet,
   // Territories

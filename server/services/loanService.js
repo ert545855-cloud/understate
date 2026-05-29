@@ -1,6 +1,7 @@
 // #25 Loan / Credit System
-const db = require('./dbService');
+const db    = require('./dbService');
 const logger = require('../utils/logger');
+const notif  = require('./notificationService');
 
 const MAX_LOAN_BY_CREDIT = { 300: 5000, 400: 15000, 500: 50000, 600: 150000, 700: 500000, 800: 1500000, 900: 5000000, 1000: 10000000 };
 const BASE_RATE = 8.0;     // %8
@@ -112,13 +113,10 @@ async function processOverdueLoans() {
   ).catch(() => ({ rows: [] }));
   let count = 0;
   for (const loan of rows) {
-    await db.query(
-      `UPDATE loans SET status='defaulted' WHERE id=$1`, [loan.id]
-    ).catch(() => {});
-    // Penalize credit score
-    await db.query(
-      `UPDATE users SET credit_score=GREATEST(300,credit_score-50) WHERE id=$1`, [loan.user_id]
-    ).catch(() => {});
+    await db.query(`UPDATE loans SET status='defaulted' WHERE id=$1`, [loan.id]).catch(() => {});
+    await db.query(`UPDATE users SET credit_score=GREATEST(300,credit_score-50) WHERE id=$1`, [loan.user_id]).catch(() => {});
+    // Notify borrower
+    notif.notifyLoanOverdue(loan.user_id, loan.amount_due - loan.amount_paid).catch(() => {});
     count++;
   }
   if (count) logger.warn(`[Loan] ${count} adet kredi vadesi doldu (defaulted)`);

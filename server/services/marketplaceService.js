@@ -1,6 +1,7 @@
 // #24 Player Marketplace
-const db = require('./dbService');
+const db    = require('./dbService');
 const logger = require('../utils/logger');
+const notif  = require('./notificationService');
 
 const MAX_LISTINGS_PER_USER = 10;
 const LISTING_FEE_RATE = 0.02; // %2 listeleme ücreti
@@ -66,6 +67,9 @@ async function buyListing(buyerId, listingId) {
     );
     await client.query('COMMIT');
     logger.info(`[Market] Satın alma: listing=${listingId} buyer=${buyerId} price=${listing.price}₺`);
+    // Notify seller
+    const { rows: br } = await db.query(`SELECT username FROM users WHERE id=$1`, [buyerId]).catch(() => ({ rows: [] }));
+    if (br[0]) notif.notifyMarketplaceSold(listing.seller_id, br[0].username, listing.item_name, listing.price).catch(() => {});
     return { ok: true, item: listing.item_name, quantity: listing.quantity, price: listing.price };
   } catch(e) {
     await client.query('ROLLBACK');

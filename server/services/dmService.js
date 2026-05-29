@@ -1,5 +1,6 @@
 // #18 Direct Messages
-const db = require('./dbService');
+const db    = require('./dbService');
+const notif = require('./notificationService');
 const { isBlocked } = require('./friendService');
 
 async function sendDM(senderId, receiverUsername, message) {
@@ -23,6 +24,11 @@ async function sendDM(senderId, receiverUsername, message) {
     [senderId, receiver.id, msg]
   ).catch(() => ({ rows: [] }));
   if (!ins[0]) return { ok: false, message: 'Mesaj gönderilemedi' };
+
+  // Notify receiver (preview of message)
+  const { rows: sr } = await db.query(`SELECT username FROM users WHERE id=$1`, [senderId]).catch(() => ({ rows: [] }));
+  if (sr[0]) notif.notifyDM(receiver.id, sr[0].username, msg).catch(() => {});
+
   return { ok: true, id: ins[0].id, receiverId: receiver.id, timestamp: ins[0].created_at };
 }
 
