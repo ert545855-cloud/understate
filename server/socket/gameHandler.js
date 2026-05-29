@@ -151,9 +151,11 @@ function registerGameHandlers(io, socket) {
     // ── Oyuncuyu otomatik olarak varsayılan odaya ekle ─────────────────────
     try {
       const { rooms, createRoom, joinRoom } = require('../rooms/roomManager');
-      let defaultRoom = Array.from(rooms.values()).find(r => r.name === 'Ana Dünya' && r.isActive);
+      let defaultRoom = Array.from(rooms.values()).find(r => r.name === 'Ana Dünya');
       if (!defaultRoom) {
         defaultRoom = createRoom('Ana Dünya', 'system', 500);
+      } else if (!defaultRoom.isActive) {
+        defaultRoom.isActive = true; // yeniden aktifleştir
       }
       const alreadyIn = Array.from(defaultRoom.players?.values() || []).some(p => p.userId === data.userId);
       if (!alreadyIn) {
