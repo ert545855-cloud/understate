@@ -97,6 +97,24 @@ export function initSocket(serverUrl, token) {
           localStorage.setItem('rep_cityChats', JSON.stringify(cityChats));
           window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: 'cityChats', value: cityChats } }));
         }
+      } else if (rawChannel.startsWith('klan_')) {
+        // Klan chat — rep_klanChat'e yaz
+        let klanChat = JSON.parse(localStorage.getItem('rep_klanChat') || '[]');
+        if (!Array.isArray(klanChat)) klanChat = [];
+        const newMsg = {
+          id: data.id || Math.random().toString(36).slice(2),
+          room: data.room || 'Genel',
+          author: data.sender || 'Anonim',
+          text: data.message,
+          ts: data.timestamp || Date.now(),
+          city: data.city || '',
+          photoUrl: data.photoUrl || null,
+        };
+        if (!klanChat.find(m => m.id === newMsg.id)) {
+          klanChat = [...klanChat.slice(-199), newMsg];
+          localStorage.setItem('rep_klanChat', JSON.stringify(klanChat));
+          window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: 'klanChat', value: klanChat } }));
+        }
       } else {
         // globalChat ve diğer kanallar
         const lsKey = rawChannel; // useLs('globalChat') → rep_globalChat
