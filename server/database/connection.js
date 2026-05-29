@@ -2,6 +2,7 @@
  * Database connection — Replit PostgreSQL versiyonu
  */
 const db = require('../services/dbService');
+const { markConnected } = db;
 const logger = require('../utils/logger');
 
 let _io = null;
@@ -17,6 +18,7 @@ async function connectDB(io) {
 
   try {
     await db.query('SELECT 1');
+    if (typeof markConnected === 'function') markConnected(); // guarantee flag is set
     _ready = true;
     logger.success('PostgreSQL bağlantısı başarılı ✓');
     if (_io) _io.emit('dbStatus', { status: 'connected', timestamp: Date.now() });

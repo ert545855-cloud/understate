@@ -106,10 +106,14 @@ async function register(req, res) {
     const passwordHash      = await bcrypt.hash(password, BCRYPT_ROUNDS);
     const smtpAvailable     = Boolean(process.env.SMTP_HOST);
 
+    // Generate unique referral code
+    const referralCode = cleanUsername.slice(0, 4).toUpperCase() + crypto.randomBytes(3).toString('hex').toUpperCase();
+
     const userFields = {
       username:      cleanUsername,
       email:         cleanEmail,
       password_hash: passwordHash,
+      referral_code: referralCode,
     };
 
     if (smtpAvailable) {

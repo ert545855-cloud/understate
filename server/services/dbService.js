@@ -20,12 +20,17 @@ pool.on('connect', () => {
 });
 
 pool.on('error', (err) => {
-  _connected = false;
   logger.error('[DB] Pool bağlantı hatası:', err.message);
+  // Don't set _connected=false on individual client errors — pool auto-reconnects
 });
 
 function isReady() {
   return Boolean(process.env.DATABASE_URL) && _connected;
+}
+
+// Called by connection.js after the first successful query to guarantee the flag is set
+function markConnected() {
+  _connected = true;
 }
 
 async function query(text, params) {
@@ -431,7 +436,7 @@ async function getUserCount() {
 }
 
 module.exports = {
-  isReady, query, pool,
+  isReady, markConnected, query, pool,
   // Users
   findUserById, findUserByUsername, findUserByEmail, findUserByUsernameOrEmail,
   createUser, updateUser,
