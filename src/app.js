@@ -2792,28 +2792,51 @@ function ChatPage({ profile }) {
       photoUrl: profile?.avatarUrl || profile?.photoUrl || null,
     };
     if (tab === 'global') {
+      // Optimistic local update — socket.on('chat') bridge zaten rep_globalChat'i sync'ler
+      // ama emit başarısız olursa kullanıcı mesajını yine görsün diye local'e ekle
       const updated = [...(globalChat||[]).slice(-199), newMsg];
       setGlobalChat(updated);
-      // RTDB'ye gerçek zamanlı yaz
+      // Socket.IO üzerinden gönder (sunucu tüm oyunculara broadcast eder)
       try {
-        if (window._fb?.rtdb && window._gameId) {
-          window._fb.rtdb.ref(`games/${window._gameId}/realtime/globalChat`)
-            .transaction(cur => { const arr=Array.isArray(cur)?cur:[]; return [...arr,newMsg].slice(-200); });
+        if (window._socket?.connected) {
+          window._socket.emit('chat', {
+            id: newMsg.id,
+            channel: 'globalChat',
+            message: newMsg.text,
+            sender: newMsg.username,
+            userId: newMsg.userId,
+            level: newMsg.level,
+            gender: newMsg.gender,
+            premium: newMsg.premium,
+            photoUrl: newMsg.photoUrl,
+            timestamp: newMsg.ts,
+          });
+        } else {
+          console.warn('[Chat] Socket bağlı değil, mesaj sadece local kaldı');
         }
-      } catch(e) {}
+      } catch(e) { console.error('[Chat] emit hatası:', e); }
     } else if (tab === 'city') {
       const upd = { ...(cityChats||{}), [cityKey]: [...(cityMessages||[]).slice(-99), newMsg] };
       setCityChats(upd);
-      // RTDB'ye gerçek zamanlı yaz
+      // Socket.IO üzerinden şehir kanalına gönder
       try {
-        if (window._fb?.rtdb && window._gameId) {
-          window._fb.rtdb.ref(`games/${window._gameId}/realtime/cityChats`)
-            .transaction(cur => {
-              const obj = cur||{};
-              return {...obj,[cityKey]:[...(Array.isArray(obj[cityKey])?obj[cityKey]:[]).slice(-99),newMsg]};
-            });
+        if (window._socket?.connected) {
+          window._socket.emit('chat', {
+            id: newMsg.id,
+            channel: `city_${cityKey}`,
+            message: newMsg.text,
+            sender: newMsg.username,
+            userId: newMsg.userId,
+            level: newMsg.level,
+            gender: newMsg.gender,
+            premium: newMsg.premium,
+            photoUrl: newMsg.photoUrl,
+            timestamp: newMsg.ts,
+          });
+        } else {
+          console.warn('[Chat] Socket bağlı değil, şehir mesajı sadece local kaldı');
         }
-      } catch(e) {}
+      } catch(e) { console.error('[Chat] city emit hatası:', e); }
     }
     if (!textOverride) setMsg('');
     setShowGifPicker(false);
