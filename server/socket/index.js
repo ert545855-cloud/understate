@@ -126,7 +126,7 @@ function initSocket(io) {
       if (!socket.connected) return;
       logger.warn(`[Socket] Heartbeat timeout: ${socket.id} (${socket.username || 'guest'}) — bağlantı kesiliyor`);
       socket.disconnect(true);
-    }, 5 * 60 * 1000); // 5 dakika
+    }, 2 * 60 * 1000); // 2 dakika (gameHandler'daki 45s stale cleaner ile uyumlu)
     socket.on('heartbeat', () => heartbeatTimer.refresh());
     socket.on('ping',      () => heartbeatTimer.refresh());
 
