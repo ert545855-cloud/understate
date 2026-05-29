@@ -1295,9 +1295,9 @@ function HomePage({ profile, onNavigate }) {
       const upd = Array.isArray(prev) ? [...prev, msg] : [msg];
       localStorage.setItem('rep_supportMsgs', JSON.stringify(upd));
       window.dispatchEvent(new CustomEvent('fb-sync', {detail:{key:'supportMsgs',value:upd}}));
-      if (window._fb?.rtdb && window._gameId) {
-        window._fb.rtdb.ref(`games/${window._gameId}/realtime/supportMsgs`)
-          .transaction(cur => { const arr=Array.isArray(cur)?cur:[]; return [...arr,msg].slice(-500); });
+      // Support mesajı socket üzerinden admin'e ilet
+      if (window._socket?.connected) {
+        window._socket.emit('support:message', { msg });
       }
     } catch(e) {}
     setSupportSent(true);
@@ -9888,27 +9888,35 @@ function KlanChatPage({ profile }) {
   }, [gifSearch, showGifPicker]);
 
   useEffect(() => {
-    const tryConnect = () => {
-      if (!window._fb?.rtdb || !window._gameId) return false;
-      const ref = window._fb.rtdb.ref(`games/${window._gameId}/realtime/klanChat`);
-      rtdbRef.current = ref;
-      ref.on('value', (snap) => {
-        setOnline(true);
-        if (!snap.exists()) return;
-        const raw = snap.val();
-        let arr = Array.isArray(raw) ? raw : Object.values(raw || {}).sort((a,b)=>(a.ts||0)-(b.ts||0));
-        arr = arr.filter(Boolean).slice(-200);
-        setMsgs(arr);
-        localStorage.setItem('rep_klanChat', JSON.stringify(arr));
-      }, () => setOnline(false));
-      return true;
+    // Socket.IO üzerinden klanChat mesajlarını dinle
+    const onChat = (data) => {
+      if (!data?.channel?.startsWith('klan_')) return;
+      const newMsg = {
+        id: data.id,
+        room: data.room || 'Genel',
+        author: data.sender || 'Anonim',
+        text: data.message,
+        ts: data.timestamp || Date.now(),
+        city: data.city || '',
+        photoUrl: data.photoUrl || null,
+      };
+      setMsgs(prev => {
+        if (prev.find(m => m.id === newMsg.id)) return prev;
+        const next = [...prev, newMsg].slice(-200);
+        localStorage.setItem('rep_klanChat', JSON.stringify(next));
+        return next;
+      });
+      setOnline(true);
     };
-    if (!tryConnect()) {
-      const h = () => tryConnect();
-      window.addEventListener('firebase-ready', h);
-      return () => window.removeEventListener('firebase-ready', h);
+    if (window._socket) {
+      window._socket.on('chat', onChat);
+    } else {
+      const h = () => window._socket?.on('chat', onChat);
+      window.addEventListener('socket-connected', h, { once: true });
+      return () => window.removeEventListener('socket-connected', h);
     }
-    return () => { rtdbRef.current?.off('value'); };
+    setOnline(!!window._socket?.connected);
+    return () => { window._socket?.off('chat', onChat); };
   }, []);
 
   useEffect(() => {
@@ -9925,18 +9933,28 @@ function KlanChatPage({ profile }) {
     const text = (textOverride || input).trim();
     if (!text || sending) return;
     setSending(true);
-    const msg = { id:Date.now(), room, author:cu.username||'Anonim', text, ts:Date.now(), city:cu.city||'', photoUrl: cu.avatarUrl||cu.photoUrl||null };
+    const msg = { id: Date.now() + '_' + Math.random().toString(36).slice(2,6), room, author: cu.username||'Anonim', text, ts: Date.now(), city: cu.city||'', photoUrl: cu.avatarUrl||cu.photoUrl||null };
     if (!textOverride) setInput('');
     setShowGifPicker(false);
+    // Optimistic local update
+    setMsgs(prev => { const next = [...prev, msg].slice(-200); localStorage.setItem('rep_klanChat', JSON.stringify(next)); return next; });
     try {
-      if (window._fb?.rtdb && window._gameId) {
-        const ref = window._fb.rtdb.ref(`games/${window._gameId}/realtime/klanChat`);
-        await ref.transaction((cur) => { const arr = Array.isArray(cur)?cur:[]; return [...arr,msg].slice(-200); });
+      if (window._socket?.connected) {
+        window._socket.emit('chat', {
+          id: msg.id,
+          channel: `klan_${cu.gang || cu.klan || 'global'}`,
+          room: msg.room,
+          message: msg.text,
+          sender: msg.author,
+          userId: cu.uid || cu.id || null,
+          city: msg.city,
+          photoUrl: msg.photoUrl,
+          timestamp: msg.ts,
+        });
       } else {
-        setMsgs(prev => [...prev, msg].slice(-200));
-        localStorage.setItem('rep_klanChat', JSON.stringify([...msgs,msg].slice(-200)));
+        console.warn('[KlanChat] Socket bağlı değil');
       }
-    } catch(e) { setMsgs(prev => [...prev, msg].slice(-200)); }
+    } catch(e) { console.error('[KlanChat] emit hatası:', e); }
     setSending(false);
   };
 
