@@ -515,6 +515,13 @@ async function start() {
 
 start();
 
+// ── Render ücretsiz plan uyku önleyici ────────────────────────────────────────
+if (IS_PROD && PUBLIC_URL) {
+  setInterval(() => {
+    fetch(`${PUBLIC_URL}/health`).catch(() => {});
+  }, 14 * 60 * 1000); // 14 dakikada bir self-ping
+}
+
 // --- Graceful shutdown ---
 const { flushAllPending } = require('./services/saveService');
 
