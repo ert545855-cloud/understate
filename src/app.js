@@ -2035,39 +2035,96 @@ function AdminPage({ profile, showNotif, onNavigate }) {
   const giveMoney = (u) => {
     const amt = parseInt(giftAmount);
     if (!amt || amt <= 0) { setMsg('Geçerli bir miktar girin'); return; }
-    const updated = allUsers.map(x => x.id===u.id ? {...x, money:(x.money||0)+amt} : x);
-    saveUsers(updated);
-    const currentUserId = localStorage.getItem('userId');
-    if (currentUserId === u.id) {
-      try { const p=JSON.parse(localStorage.getItem('rep_userProfile')||'{}'); const np={...p,money:(p.money||0)+amt}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); window.dispatchEvent(new CustomEvent('fb-sync',{detail:{key:'userProfile',value:np}})); } catch(e){}
-    }
-    if (selectedUser?.id === u.id) setSelectedUser({...selectedUser, money:(selectedUser.money||0)+amt});
-    setGiftAmount('');
-    setMsg(`✅ ${u.username} kullanıcısına ${fmtM(amt)} verildi`);
+    // ── Supabase'e yaz ──────────────────────────────────────────────────────
+    const jwt = localStorage.getItem('us_jwt') || '';
+    const apiBase = window._SOCKET_URL || window.__ENV__?.API_BASE || '';
+    fetch(apiBase + '/api/admin/users/' + u.id + '/money', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({ amount: amt, operation: 'add', reason: 'Admin hediye' })
+    }).then(r => r.json()).then(data => {
+      if (data.success) {
+        const newMoney = data.newMoney !== undefined ? data.newMoney : (u.money||0)+amt;
+        const updated = allUsers.map(x => x.id===u.id ? {...x, money: newMoney} : x);
+        saveUsers(updated);
+        const currentUserId = localStorage.getItem('userId');
+        if (currentUserId === u.id) {
+          try { const p=JSON.parse(localStorage.getItem('rep_userProfile')||'{}'); const np={...p,money:newMoney}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); window.dispatchEvent(new CustomEvent('fb-sync',{detail:{key:'userProfile',value:np}})); } catch(e){}
+        }
+        if (selectedUser?.id === u.id) setSelectedUser({...selectedUser, money: newMoney});
+        setGiftAmount('');
+        setMsg('✅ ' + u.username + ' kullanıcısına ' + fmtM(amt) + ' verildi (DB güncellendi)');
+      } else {
+        setMsg('❌ Hata: ' + (data.message || 'API hatası'));
+      }
+    }).catch(e => {
+      // API başarısız olursa en azından local güncelle
+      const updated = allUsers.map(x => x.id===u.id ? {...x, money:(x.money||0)+amt} : x);
+      saveUsers(updated);
+      setGiftAmount('');
+      setMsg('⚠️ ' + u.username + ' local güncellendi (sunucu hatası: ' + e.message + ')');
+    });
   };
 
   const giveUC = (u) => {
     const amt = parseInt(giftUC);
     if (!amt || amt <= 0) { setMsg('Geçerli bir UC miktarı girin'); return; }
-    const updated = allUsers.map(x => x.id===u.id ? {...x, underCoin:(x.underCoin||0)+amt} : x);
-    saveUsers(updated);
-    const currentUserId = localStorage.getItem('userId');
-    if (currentUserId === u.id) {
-      try { const p=JSON.parse(localStorage.getItem('rep_userProfile')||'{}'); const np={...p,underCoin:(p.underCoin||0)+amt}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); window.dispatchEvent(new CustomEvent('fb-sync',{detail:{key:'userProfile',value:np}})); } catch(e){}
-    }
-    if (selectedUser?.id === u.id) setSelectedUser({...selectedUser, underCoin:(selectedUser.underCoin||0)+amt});
-    setGiftUC('');
-    setMsg(`✅ ${u.username} kullanıcısına ${amt} UC verildi`);
+    const jwt = localStorage.getItem('us_jwt') || '';
+    const apiBase = window._SOCKET_URL || window.__ENV__?.API_BASE || '';
+    // UC için de admin money endpoint'ini kullan (under_coin alanı)
+    fetch(apiBase + '/api/admin/users/' + u.id + '/coins', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({ amount: amt, operation: 'add', reason: 'Admin UC hediye' })
+    }).then(r => r.json()).then(data => {
+      const newUC = data.success && data.newCoins !== undefined ? data.newCoins : (u.underCoin||0)+amt;
+      const updated = allUsers.map(x => x.id===u.id ? {...x, underCoin: newUC} : x);
+      saveUsers(updated);
+      const currentUserId = localStorage.getItem('userId');
+      if (currentUserId === u.id) {
+        try { const p=JSON.parse(localStorage.getItem('rep_userProfile')||'{}'); const np={...p,underCoin:newUC}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); window.dispatchEvent(new CustomEvent('fb-sync',{detail:{key:'userProfile',value:np}})); } catch(e){}
+      }
+      if (selectedUser?.id === u.id) setSelectedUser({...selectedUser, underCoin: newUC});
+      setGiftUC('');
+      setMsg(data.success ? ('✅ ' + u.username + ' kullanıcısına ' + amt + ' UC verildi') : ('⚠️ Local güncellendi: ' + (data.message||'')));
+    }).catch(() => {
+      const updated = allUsers.map(x => x.id===u.id ? {...x, underCoin:(x.underCoin||0)+amt} : x);
+      saveUsers(updated);
+      setGiftUC('');
+      setMsg('⚠️ ' + u.username + ' UC local güncellendi (sunucu bağlantı hatası)');
+    });
   };
 
   const setMoneyDirect = (u) => {
     const amt = parseInt(editMoney);
     if (isNaN(amt)) { setMsg('Geçerli bir miktar girin'); return; }
-    const updated = allUsers.map(x => x.id===u.id ? {...x, money:amt} : x);
-    saveUsers(updated);
-    if (selectedUser?.id === u.id) setSelectedUser({...selectedUser, money:amt});
-    setEditMoney('');
-    setMsg(`✅ ${u.username} bakiyesi ${fmtM(amt)} olarak ayarlandı`);
+    const jwt = localStorage.getItem('us_jwt') || '';
+    const apiBase = window._SOCKET_URL || window.__ENV__?.API_BASE || '';
+    fetch(apiBase + '/api/admin/users/' + u.id + '/money', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({ amount: amt, operation: 'set', reason: 'Admin direkt ayarlama' })
+    }).then(r => r.json()).then(data => {
+      if (data.success) {
+        const newMoney = data.newMoney !== undefined ? data.newMoney : amt;
+        const updated = allUsers.map(x => x.id===u.id ? {...x, money: newMoney} : x);
+        saveUsers(updated);
+        const currentUserId = localStorage.getItem('userId');
+        if (currentUserId === u.id) {
+          try { const p=JSON.parse(localStorage.getItem('rep_userProfile')||'{}'); const np={...p,money:newMoney}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); window.dispatchEvent(new CustomEvent('fb-sync',{detail:{key:'userProfile',value:np}})); } catch(e){}
+        }
+        if (selectedUser?.id === u.id) setSelectedUser({...selectedUser, money: newMoney});
+        setEditMoney('');
+        setMsg('✅ ' + u.username + ' bakiyesi ' + fmtM(newMoney) + ' olarak ayarlandı (DB güncellendi)');
+      } else {
+        setMsg('❌ Hata: ' + (data.message || 'API hatası'));
+      }
+    }).catch(e => {
+      const updated = allUsers.map(x => x.id===u.id ? {...x, money:amt} : x);
+      saveUsers(updated);
+      setEditMoney('');
+      setMsg('⚠️ Local güncellendi (sunucu hatası: ' + e.message + ')');
+    });
   };
 
   const makeAdmin = (u) => {
