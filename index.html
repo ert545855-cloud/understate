@@ -809,10 +809,20 @@ function boot() {
       // Socket heartbeat
       if (!userId || window._socketHeartbeatTimer) return;
       var update = function() {
-        emit('playerHeartbeat', { userId: userId, username: username, at: Date.now() });
+        var hbProf = {};
+        try { hbProf = JSON.parse(localStorage.getItem('rep_userProfile') || '{}'); } catch(e) {}
+        emit('heartbeat', {
+          userId:   userId,
+          username: username,
+          at:       Date.now(),
+          level:    hbProf.level || 1,
+          city:     hbProf.city  || '',
+          party:    hbProf.party || null,
+          gang:     hbProf.gang  || null,
+        });
       };
       update();
-      window._socketHeartbeatTimer = setInterval(update, 30000);
+      window._socketHeartbeatTimer = setInterval(update, 15000);
       window.addEventListener('beforeunload', function() {
         clearInterval(window._socketHeartbeatTimer);
         if (_socket) _socket.emit('playerLeave', { userId: userId });
