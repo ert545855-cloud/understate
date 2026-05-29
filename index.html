@@ -179,6 +179,28 @@
 
 <!-- Boot Script -->
 <script>
+// ── APK / Capacitor — Socket URL ayarı ────────────────────────────────────
+// Capacitor'da window.location.origin "capacitor://localhost" döner, sunucuya ulaşamaz.
+// Bu satır APK içinden doğrudan Render sunucusuna bağlanmayı sağlar.
+(function() {
+  var isCapacitor = (
+    typeof window !== 'undefined' &&
+    (window.location.protocol === 'capacitor:' ||
+     window.location.protocol === 'ionic:' ||
+     navigator.userAgent.indexOf('wv') !== -1 || // Android WebView
+     (typeof Capacitor !== 'undefined'))
+  );
+  if (isCapacitor || window.location.hostname === 'localhost') {
+    window._SOCKET_URL = 'https://understate.onrender.com';
+    window.__ENV__ = window.__ENV__ || {};
+    window.__ENV__.SOCKET_URL = 'https://understate.onrender.com';
+    window.__ENV__.API_BASE    = 'https://understate.onrender.com';
+    console.log('[APK] Socket URL ayarlandı:', window._SOCKET_URL);
+  }
+})();
+</script>
+
+<script>
 // ── Loading helpers ────────────────────────────────────────────────────────
 var _lb = document.getElementById('loading-bar');
 var _lt = document.getElementById('loading-text');
@@ -373,7 +395,7 @@ function boot() {
 
   // Sunucudan ilk state yükle
   function loadInitialStateFromServer() {
-    fetch('/api/state')
+    fetch((window._SOCKET_URL||'')+'/api/state')
       .then(function(r) { return r.json(); })
       .then(function(data) {
         Object.entries(data).forEach(function(entry) {
@@ -384,7 +406,7 @@ function boot() {
       .catch(function(e) { console.warn('[Socket Bridge] State yüklenemedi:', e.message); });
 
     // Partileri yükle
-    fetch('/api/parties')
+    fetch((window._SOCKET_URL||'')+'/api/parties')
       .then(function(r) { return r.json(); })
       .then(function(parties) {
         if (!parties || !parties.length) return;
@@ -394,7 +416,7 @@ function boot() {
       }).catch(function(){});
 
     // Çeteleri yükle
-    fetch('/api/gangs')
+    fetch((window._SOCKET_URL||'')+'/api/gangs')
       .then(function(r) { return r.json(); })
       .then(function(gangs) {
         if (!gangs || !gangs.length) return;
@@ -404,7 +426,7 @@ function boot() {
       }).catch(function(){});
 
     // Market anlık
-    fetch('/api/market')
+    fetch((window._SOCKET_URL||'')+'/api/market')
       .then(function(r) { return r.json(); })
       .then(function(market) {
         if (!market || !market.length) return;
@@ -416,14 +438,14 @@ function boot() {
     // Envanter
     var uid = localStorage.getItem('userId') || localStorage.getItem('rep_userId');
     if (uid) {
-      fetch('/api/inventory/' + uid)
+      fetch((window._SOCKET_URL||'')+'/api/inventory/' + uid)
         .then(function(r) { return r.json(); })
         .then(function(inv) { if (inv) applyStateUpdate('inventory_' + uid, inv); })
         .catch(function(){});
     }
 
     // Şehir sahipliği
-    fetch('/api/city-ownership')
+    fetch((window._SOCKET_URL||'')+'/api/city-ownership')
       .then(function(r) { return r.json(); })
       .then(function(data) { if (data) applyStateUpdate('cityOwnership', data); })
       .catch(function(){});
@@ -479,9 +501,28 @@ function boot() {
       window.dispatchEvent(new CustomEvent('socket-disconnected'));
     });
 
+    // Sunucu oyuncuyu odaya atadığında roomId'yi sakla
+    _socket.on('roomAssigned', function(data) {
+      if (data && data.roomId) {
+        localStorage.setItem('us_roomId', data.roomId);
+        console.log('[Socket Bridge] Odaya atandı:', data.roomId, data.roomName);
+        window.dispatchEvent(new CustomEvent('room-assigned', { detail: data }));
+      }
+    });
+
     _socket.on('reconnect', function() {
       _socketReady = true;
       window.dispatchEvent(new CustomEvent('socket-reconnected'));
+      // Reconnect'te eski socket ID ile odaya geri dön
+      var oldSocketId = localStorage.getItem('us_lastSocketId');
+      if (oldSocketId) {
+        _socket.emit('reconnectToRoom', { oldSocketId: oldSocketId });
+      }
+    });
+
+    // Her bağlantıda socket ID'yi sakla (disconnect sonrası reconnect için)
+    _socket.on('connect', function() {
+      localStorage.setItem('us_lastSocketId', _socket.id);
     });
 
     // ── Sunucudan gelen eventler ─────────────────────────────────────
@@ -770,7 +811,7 @@ function boot() {
         avatar: prof.avatar || null
       });
       // Kullanıcıya özgü inventory yükle
-      fetch('/api/inventory/' + data.userId)
+      fetch((window._SOCKET_URL||'')+'/api/inventory/' + data.userId)
         .then(function(r) { return r.json(); })
         .then(function(inv) { if (inv) applyStateUpdate('inventory_' + data.userId, inv); })
         .catch(function(){});
@@ -933,7 +974,7 @@ window._US_AUDIO_SRC = "audio/background.mp3";
       if (!isSupported()) return null;
       try {
         _reg = await navigator.serviceWorker.ready;
-        var vapidKey = await fetch('/api/vapid-public-key').then(r => r.text());
+        var vapidKey = await fetch((window._SOCKET_URL||'')+'/api/vapid-public-key').then(r => r.text());
         var sub = await _reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: vapidKey
@@ -951,7 +992,7 @@ window._US_AUDIO_SRC = "audio/background.mp3";
       if (!sub) return;
       try {
         var token = localStorage.getItem('understate_token') || '';
-        await fetch('/api/push/subscribe', {
+        await fetch((window._SOCKET_URL||'')+'/api/push/subscribe', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1011,7 +1052,7 @@ window._US_AUDIO_SRC = "audio/background.mp3";
     }
 
     function refresh() {
-      fetch('/api/refresh-token', { method: 'POST' })
+      fetch((window._SOCKET_URL||'')+'/api/refresh-token', { method: 'POST' })
         .then(function(r) { return r.json(); })
         .then(function(data) {
           if (data.token) {
