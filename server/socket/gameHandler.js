@@ -168,6 +168,8 @@ function registerGameHandlers(io, socket) {
           username: player.username,
           roomId:   defaultRoom.roomId,
         });
+        // Client'a roomId'yi bildir — reconnect'te kullanılır
+        socket.emit('roomAssigned', { roomId: defaultRoom.roomId, roomName: defaultRoom.name });
         logger.info(`[Room] ${player.username} → Ana Dünya (${defaultRoom.roomId})`);
       }
     } catch (e) {
