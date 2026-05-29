@@ -21,7 +21,7 @@ export function initSocket(serverUrl, token) {
   if (socket) return socket;
   const url = serverUrl || _resolveServerUrl();
   const jwt = token
-    || (typeof window !== 'undefined' && (localStorage.getItem('us_jwt') || ''))
+    || (typeof window !== 'undefined' && (localStorage.getItem('authToken') || localStorage.getItem('us_jwt') || ''))
     || '';
 
   socket = io(url, {
@@ -53,10 +53,10 @@ export function initSocket(serverUrl, token) {
     console.log('[Socket Bridge] Yeniden bağlandı ↻');
     window.dispatchEvent(new CustomEvent('socket-reconnected'));
     try {
-      const userId   = localStorage.getItem('rep_userId');
+      const userId   = localStorage.getItem('rep_userId') || localStorage.getItem('userId');
       const username = localStorage.getItem('rep_username');
       if (userId) {
-        const profile = JSON.parse(localStorage.getItem('rep_profile') || '{}');
+        const profile = JSON.parse(localStorage.getItem('rep_userProfile') || '{}');
         socket.emit('playerJoin', {
           userId,
           username: username || profile.username || 'Oyuncu',
