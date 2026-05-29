@@ -401,44 +401,23 @@ function AuthScreen({ onLogin }) {
         });
       };
 
-      // Bozuk (bağlı değil) socket varsa temizle
-      if (window._socket && !window._socket.connected) {
-        try { window._socket.disconnect(); } catch(_) {}
-        window._socket = null;
-      }
-
-      if (!window._socket) {
-        window._socket = io(window.location.origin, {
-          auth: { token: jwt },
-          reconnection: true,
-          reconnectionAttempts: 15,
-          reconnectionDelay: 1000,
-          transports: ['websocket', 'polling'],
-        });
-
-        window._socket.on('connect', () => {
-          console.log('✓ Socket.IO bağlandı', window._socket.id);
-          // Reconnect: eski oda kurtarma
-          const oldId = localStorage.getItem('us_last_socket_id');
-          if (oldId && oldId !== window._socket.id) {
-            window._socket.emit('reconnectToRoom', { oldSocketId: oldId });
+      // index.html Socket Bridge zaten bağlantıyı kuruyor (window._gameSocket)
+      // Çift bağlantı açmamak için önce onu kullan
+      if (window._gameSocket && window._gameSocket.connected) {
+        window._socket = window._gameSocket;
+        _doPlayerJoin(window._socket, user);
+        window._socket.emit('requestOnlinePlayers');
+      } else if (!window._socket || !window._socket.connected) {
+        // Fallback: bridge henüz hazır değilse bekle, hazır olunca al
+        const onBridgeReady = () => {
+          if (window._gameSocket) {
+            window._socket = window._gameSocket;
+            _doPlayerJoin(window._socket, window._socketUser);
+            window._socket.emit('requestOnlinePlayers');
           }
-          localStorage.setItem('us_last_socket_id', window._socket.id);
-          // Her bağlanmada playerJoin gönder (reconnect dahil)
-          _doPlayerJoin(window._socket, window._socketUser);
-          window._socket.emit('requestOnlinePlayers');
-        });
-
-        window._socket.on('disconnect', (reason) => {
-          console.log('Socket bağlantısı kesildi:', reason);
-          if (window._socket?.id) localStorage.setItem('us_last_socket_id', window._socket.id);
-        });
-
-        window._socket.on('onlineCount', (cnt) =>
-          window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: 'onlineCount', value: cnt } }))
-        );
+        };
+        window.addEventListener('socket-connected', onBridgeReady, { once: true });
       } else {
-        // Socket zaten bağlı — sadece playerJoin + online liste güncelle
         _doPlayerJoin(window._socket, user);
         window._socket.emit('requestOnlinePlayers');
       }
@@ -1296,8 +1275,9 @@ function HomePage({ profile, onNavigate }) {
       localStorage.setItem('rep_supportMsgs', JSON.stringify(upd));
       window.dispatchEvent(new CustomEvent('fb-sync', {detail:{key:'supportMsgs',value:upd}}));
       // Support mesajı socket üzerinden admin'e ilet
-      if (window._socket?.connected) {
-        window._socket.emit('support:message', { msg });
+      const _sockS = window._socket || window._gameSocket;
+      if (_sockS?.connected) {
+        _sockS.emit('support:message', { msg });
       }
     } catch(e) {}
     setSupportSent(true);
@@ -2798,8 +2778,9 @@ function ChatPage({ profile }) {
       setGlobalChat(updated);
       // Socket.IO üzerinden gönder (sunucu tüm oyunculara broadcast eder)
       try {
-        if (window._socket?.connected) {
-          window._socket.emit('chat', {
+        const _sock = window._socket || window._gameSocket;
+        if (_sock?.connected) {
+          _sock.emit('chat', {
             id: newMsg.id,
             channel: 'globalChat',
             message: newMsg.text,
@@ -2820,8 +2801,9 @@ function ChatPage({ profile }) {
       setCityChats(upd);
       // Socket.IO üzerinden şehir kanalına gönder
       try {
-        if (window._socket?.connected) {
-          window._socket.emit('chat', {
+        const _sock2 = window._socket || window._gameSocket;
+        if (_sock2?.connected) {
+          _sock2.emit('chat', {
             id: newMsg.id,
             channel: `city_${cityKey}`,
             message: newMsg.text,
@@ -2834,7 +2816,7 @@ function ChatPage({ profile }) {
             timestamp: newMsg.ts,
           });
         } else {
-          console.warn('[Chat] Socket bağlı değil, şehir mesajı sadece local kaldı');
+          console.warn('[Chat] Socket bağlı değil (city), şehir mesajı sadece local kaldı');
         }
       } catch(e) { console.error('[Chat] city emit hatası:', e); }
     }
@@ -9939,8 +9921,9 @@ function KlanChatPage({ profile }) {
     // Optimistic local update
     setMsgs(prev => { const next = [...prev, msg].slice(-200); localStorage.setItem('rep_klanChat', JSON.stringify(next)); return next; });
     try {
-      if (window._socket?.connected) {
-        window._socket.emit('chat', {
+      const _sockK = window._socket || window._gameSocket;
+      if (_sockK?.connected) {
+        _sockK.emit('chat', {
           id: msg.id,
           channel: `klan_${cu.gang || cu.klan || 'global'}`,
           room: msg.room,
