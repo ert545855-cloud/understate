@@ -190,13 +190,14 @@
      navigator.userAgent.indexOf('wv') !== -1 || // Android WebView
      (typeof Capacitor !== 'undefined'))
   );
-  if (isCapacitor || window.location.hostname === 'localhost') {
-    window._SOCKET_URL = 'https://understate.onrender.com';
-    window.__ENV__ = window.__ENV__ || {};
-    window.__ENV__.SOCKET_URL = 'https://understate.onrender.com';
-    window.__ENV__.API_BASE    = 'https://understate.onrender.com';
-    console.log('[APK] Socket URL ayarlandı:', window._SOCKET_URL);
-  }
+  // Capacitor/APK builds must point to the production server explicitly.
+  // In a normal browser (Replit preview, deployment, etc.) use the current origin.
+  var backendUrl = isCapacitor ? 'https://understate.onrender.com' : window.location.origin;
+  window._SOCKET_URL = backendUrl;
+  window.__ENV__ = window.__ENV__ || {};
+  window.__ENV__.SOCKET_URL = backendUrl;
+  window.__ENV__.API_BASE    = backendUrl;
+  console.log('[Socket] URL ayarlandı:', backendUrl);
 })();
 </script>
 

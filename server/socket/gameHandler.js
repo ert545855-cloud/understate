@@ -148,34 +148,35 @@ function registerGameHandlers(io, socket) {
     socket.userId   = data.userId;
     socket.username = player.username;
 
-    // ── Oyuncuyu otomatik olarak varsayılan odaya ekle ─────────────────────
+    // ── Oyuncuyu şehir bazlı odaya ekle ──────────────────────────────────
     try {
       const { rooms, createRoom, joinRoom } = require('../rooms/roomManager');
-      let defaultRoom = Array.from(rooms.values()).find(r => r.name === 'Ana Dünya');
-      if (!defaultRoom) {
-        defaultRoom = createRoom('Ana Dünya', 'system', 500);
-      } else if (!defaultRoom.isActive) {
-        defaultRoom.isActive = true; // yeniden aktifleştir
+      const cityName  = player.city ? String(player.city).slice(0, 30) : 'Ana Dünya';
+      const roomLabel = `${cityName} - Şehir`;
+      let cityRoom = Array.from(rooms.values()).find(r => r.name === roomLabel && r.isActive !== false);
+      if (!cityRoom) {
+        cityRoom = createRoom(roomLabel, 'system', 500);
       }
-      const alreadyIn = Array.from(defaultRoom.players?.values() || []).some(p => p.userId === data.userId);
+      const alreadyIn = Array.from(cityRoom.players?.values() || []).some(p => p.userId === data.userId);
       if (!alreadyIn) {
-        joinRoom(defaultRoom.roomId, {
+        joinRoom(cityRoom.roomId, {
           socketId: socket.id,
           userId:   data.userId,
           username: player.username,
         });
-        socket.join(`room_${defaultRoom.roomId}`);
-        io.to(`room_${defaultRoom.roomId}`).emit('playerJoined', {
+        socket.join(`room_${cityRoom.roomId}`);
+        socket.join(`city_${cityName}`);
+        io.to(`room_${cityRoom.roomId}`).emit('playerJoined', {
           socketId: socket.id,
           username: player.username,
-          roomId:   defaultRoom.roomId,
+          city:     cityName,
+          roomId:   cityRoom.roomId,
         });
-        // Client'a roomId'yi bildir — reconnect'te kullanılır
-        socket.emit('roomAssigned', { roomId: defaultRoom.roomId, roomName: defaultRoom.name });
-        logger.info(`[Room] ${player.username} → Ana Dünya (${defaultRoom.roomId})`);
+        socket.emit('roomAssigned', { roomId: cityRoom.roomId, roomName: cityRoom.name, city: cityName });
+        logger.info(`[Room] ${player.username} → ${roomLabel} (${cityRoom.roomId})`);
       }
     } catch (e) {
-      logger.warn('[Room] Otomatik oda katılımı başarısız:', e.message);
+      logger.warn('[Room] Şehir odası katılımı başarısız:', e.message);
     }
     // ──────────────────────────────────────────────────────────────────────
 

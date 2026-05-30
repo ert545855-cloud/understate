@@ -37,7 +37,9 @@ function registerPlayerHandlers(io, socket) {
     });
     onlinePlayers.set(socket.id, playerState);
 
-    socket.broadcast.emit('playerUpdate', {
+    // Aynı şehirdeki oyunculara ilet
+    const myCity = (onlinePlayers.get(socket.id) || {}).city || '';
+    const payload = {
       socketId: socket.id,
       userId: socket.userId,
       username: socket.username,
@@ -47,7 +49,17 @@ function registerPlayerHandlers(io, socket) {
       animation: data.animation,
       health: data.health,
       timestamp: Date.now(),
-    });
+    };
+    if (myCity) {
+      for (const [sid, p] of onlinePlayers.entries()) {
+        if (sid !== socket.id && p.city === myCity) {
+          const tgt = io.sockets.sockets.get(sid);
+          if (tgt) tgt.emit('playerUpdate', payload);
+        }
+      }
+    } else {
+      socket.broadcast.emit('playerUpdate', payload);
+    }
 
     monitoring.increment('playerUpdates');
   });

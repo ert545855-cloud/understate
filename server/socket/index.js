@@ -1,5 +1,5 @@
 const { socketAuthMiddleware } = require('../middleware/authMiddleware');
-const { registerChatHandlers, cleanupChatRates } = require('./chatHandler');
+const { registerChatHandlers, registerSupportHandler, cleanupChatRates } = require('./chatHandler');
 const { registerPlayerHandlers, removePlayer, getOnlinePlayers } = require('./playerHandler');
 const { registerRoomHandlers } = require('./roomHandler');
 const { registerGameHandlers, removeGamePlayer } = require('./gameHandler');
@@ -28,16 +28,12 @@ function initSocket(io) {
       sb.updateUser(socket.userId, { is_online: true, socket_id: socket.id }).catch(() => {});
     }
 
-    // JWT'den kimlik doğrulanmış kullanıcıları anında onlinePlayers'a ekle
-    // (playerJoin gelmeden önce de diğer oyuncular görebilsin)
     if (socket.userId) {
-      const { getOnlineGamePlayers, removeGamePlayer } = require('./gameHandler');
-      // gameHandler'ın onlinePlayers map'ine erişmek için playerJoin benzeri kayıt
-      // playerJoin gelince üzerine yazılır (daha fazla detayla)
       socket.emit('requestOnlinePlayers');
     }
 
     registerChatHandlers(io, socket);
+    registerSupportHandler(io, socket);
     registerPlayerHandlers(io, socket);
     registerRoomHandlers(io, socket);
     registerGameHandlers(io, socket);
@@ -53,20 +49,7 @@ function initSocket(io) {
       scheduleSave(socket.userId, data);
     });
 
-    // State update (anlık profil alanları)
-    socket.on('stateUpdate', (data) => {
-      if (!socket.userId || !data) return;
-      if (!checkSocketRate(socket.id, 'stateUpdate')) {
-        socket.emit('rateLimited', { code: 'SOCKET_RATE_LIMIT', event: 'stateUpdate', message: 'Çok hızlı güncelleme.' });
-        return;
-      }
-      if (getConnectionStatus()) {
-        const { scheduleSave } = require('../services/saveService');
-        scheduleSave(socket.userId, data);
-      }
-    });
-
-    // Logout senkronizasyonu — isOnline=false + socketId temizle
+    // Logout senkronizasyonu
     socket.on('userLogout', async () => {
       if (socket.userId && getConnectionStatus()) {
         await sb.updateUser(socket.userId, {
@@ -78,7 +61,7 @@ function initSocket(io) {
       }
     });
 
-    // Token yenileme durumu bildirimi
+    // Token yenileme
     socket.on('tokenRefreshed', (data) => {
       if (data?.userId) {
         socket.userId   = data.userId   || socket.userId;
@@ -93,13 +76,12 @@ function initSocket(io) {
       if (typeof cb === 'function') cb({ time: Date.now() });
     });
 
-    // #18 Direct Message via socket (real-time delivery)
+    // Direct Message via socket (real-time delivery)
     socket.on('dm:send', async (data) => {
       if (!socket.userId || !data?.to || !data?.message) return;
       const dmSvc = require('../services/dmService');
       const result = await dmSvc.sendDM(socket.userId, data.to, data.message);
       if (result.ok) {
-        // Deliver to receiver if online
         const { getOnlineGamePlayers } = require('./gameHandler');
         const online = getOnlineGamePlayers();
         const receiver = online.find(p => p.id === result.receiverId || p.userId === result.receiverId);
@@ -121,30 +103,15 @@ function initSocket(io) {
       }
     });
 
-    // #5 — Heartbeat timeout: force-disconnect sockets silent for >90s
-    const heartbeatTimer = setTimeout(() => {
-      if (!socket.connected) return;
-      logger.warn(`[Socket] Heartbeat timeout: ${socket.id} (${socket.username || 'guest'}) — bağlantı kesiliyor`);
-      socket.disconnect(true);
-    }, 2 * 60 * 1000); // 2 dakika (gameHandler'daki 45s stale cleaner ile uyumlu)
-    socket.on('heartbeat', () => heartbeatTimer.refresh());
-    socket.on('ping',      () => heartbeatTimer.refresh());
-
     socket.on('disconnect', async (reason) => {
-      clearTimeout(heartbeatTimer);
       monitoring.decrement('connectedSockets');
       monitoring.increment('totalDisconnections');
       logger.socket('disconnected', socket.id, `reason=${reason}`);
 
-      // isOnline=false + socketId temizle
       if (socket.userId && getConnectionStatus()) {
-        await sb.updateUser(socket.userId, {
-          is_online: false,
-          socket_id: null,
-        }).catch(() => {});
+        await sb.updateUser(socket.userId, { is_online: false, socket_id: null }).catch(() => {});
       }
 
-      // Oda yönetimi
       const room = roomManager.getPlayerRoom(socket.id);
       if (room) {
         roomManager.leaveRoom(room.roomId, socket.id);
@@ -165,7 +132,6 @@ function initSocket(io) {
       cleanupChatRates(socket.id);
       cleanupSocketRL(socket.id);
 
-      // Son kayıt
       if (socket.userId) {
         await saveUser(socket.userId, { lastSeen: Date.now() }).catch(() => {});
       }

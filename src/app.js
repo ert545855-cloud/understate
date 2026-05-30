@@ -3810,7 +3810,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
     'Genelkurmay Başkanı','Ticaret Bakanı','Maliye Bakanı'
   ];
 
-  const PARTY_CREATE_COST = 500000;
+  const PARTY_CREATE_COST = 100000;
 
   const createParty = () => {
     if (!pForm.name.trim()) { showNotif('Parti adı gerekli', 'error'); return; }
@@ -5134,7 +5134,37 @@ function YetkilerimPage({ profile, setProfile, showNotif }) {
             Seçim sayfasına giderek aday ol!
           </div>
         </div>
-        <div style={{marginTop:'1rem',background:card,border:`1px solid ${border}`,borderRadius:'14px',padding:'1rem'}}>
+        {/* ── Etki Puanı Kazan (tüm oyuncular) ── */}
+        <div style={{background:'rgba(139,92,246,0.06)',border:'1px solid rgba(139,92,246,0.2)',borderRadius:'14px',padding:'1rem',marginTop:'0.75rem',marginBottom:'0.75rem'}}>
+          <div style={{fontWeight:800,color:'#A78BFA',fontSize:'0.88rem',marginBottom:'0.2rem'}}>⚡ Etki Puanı Kazan</div>
+          <div style={{fontSize:'0.7rem',color:'#5A7089',marginBottom:'0.65rem'}}>Oyun parası harcayarak etki puanı (liyakat) kazan. Az ücretliden çok ücretliye.</div>
+          {[
+            {key:'inf_local',   label:'📣 Yerel Etkinlik',     cost:5000,   merit:5,   cd:2*3600000},
+            {key:'inf_region',  label:'🗺️ Bölgesel Kampanya',  cost:25000,  merit:20,  cd:4*3600000},
+            {key:'inf_media',   label:'📺 Medya Görünümü',     cost:75000,  merit:55,  cd:8*3600000},
+            {key:'inf_national',label:'🏛️ Ulusal Lobi',        cost:200000, merit:150, cd:16*3600000},
+            {key:'inf_intl',    label:'🌍 Uluslararası Zirve', cost:750000, merit:500, cd:48*3600000},
+          ].map(act => {
+            const rem = Math.max(0, act.cd - (Date.now() - (actionCooldowns[act.key]||0)));
+            const canAct = rem === 0;
+            const canAfford = (profile?.money||0) >= act.cost;
+            return (
+              React.createElement('div',{key:act.key,style:{display:'flex',alignItems:'center',gap:'0.5rem',background:'rgba(255,255,255,0.03)',borderRadius:'10px',padding:'0.55rem 0.75rem',marginBottom:'0.4rem',border:'1px solid rgba(255,255,255,0.05)'}},
+                React.createElement('div',{style:{flex:1,minWidth:0}},
+                  React.createElement('div',{style:{fontWeight:700,color:'#E8EDF2',fontSize:'0.82rem'}},act.label),
+                  React.createElement('div',{style:{fontSize:'0.62rem',color:'#5A7089'}},`₺${act.cost.toLocaleString('tr-TR')} → +${act.merit} Etki Puanı`)
+                ),
+                canAct
+                  ? canAfford
+                    ? React.createElement('button',{onClick:()=>yetkiAction(act.key,act.cd,()=>{setProfile(p=>{const np={...p,money:(p.money||0)-act.cost,meritPoints:(p.meritPoints||0)+act.merit};localStorage.setItem('rep_userProfile',JSON.stringify(np));return np;});showNotif(`${act.label} başarılı! +${act.merit} Etki Puanı`,'success');}),style:{background:'rgba(139,92,246,0.15)',border:'1px solid rgba(139,92,246,0.3)',borderRadius:'8px',padding:'5px 12px',color:'#A78BFA',cursor:'pointer',fontSize:'0.7rem',fontWeight:700,flexShrink:0}},'Kazan')
+                    : React.createElement('span',{style:{color:'#EF4444',fontSize:'0.65rem',flexShrink:0,fontWeight:700}},'Yetersiz ₺')
+                  : React.createElement('span',{style:{color:'#3B4E63',fontSize:'0.65rem',flexShrink:0}},`⏳ ${Math.ceil(rem/3600000)}s`)
+              )
+            );
+          })}
+        </div>
+
+        <div style={{marginTop:'0.25rem',background:card,border:`1px solid ${border}`,borderRadius:'14px',padding:'1rem'}}>
           <div style={{fontWeight:800,color:'#E8EDF2',marginBottom:'0.65rem',fontSize:'0.85rem'}}>📋 Tüm Makamlar</div>
           {Object.entries(POSITION_POWERS).map(([pos, def]) => (
             <div key={pos} style={{display:'flex',alignItems:'center',gap:'0.6rem',padding:'0.45rem 0',borderBottom:`1px solid ${border}`}}>
@@ -5153,6 +5183,36 @@ function YetkilerimPage({ profile, setProfile, showNotif }) {
 
   return (
     <div style={{padding:'1rem',background:bg,minHeight:'100%'}}>
+      {/* ── Etki Puanı Kazan ── */}
+      <div style={{background:'rgba(139,92,246,0.06)',border:'1px solid rgba(139,92,246,0.2)',borderRadius:'14px',padding:'1rem',marginBottom:'0.75rem'}}>
+        <div style={{fontWeight:800,color:'#A78BFA',fontSize:'0.88rem',marginBottom:'0.2rem'}}>⚡ Etki Puanı Kazan</div>
+        <div style={{fontSize:'0.7rem',color:'#5A7089',marginBottom:'0.65rem'}}>Oyun parası harcayarak etki puanı (liyakat) kazan.</div>
+        {[
+          {key:'inf_local',   label:'📣 Yerel Etkinlik',     cost:5000,   merit:5,   cd:2*3600000},
+          {key:'inf_region',  label:'🗺️ Bölgesel Kampanya',  cost:25000,  merit:20,  cd:4*3600000},
+          {key:'inf_media',   label:'📺 Medya Görünümü',     cost:75000,  merit:55,  cd:8*3600000},
+          {key:'inf_national',label:'🏛️ Ulusal Lobi',        cost:200000, merit:150, cd:16*3600000},
+          {key:'inf_intl',    label:'🌍 Uluslararası Zirve', cost:750000, merit:500, cd:48*3600000},
+        ].map(act => {
+          const rem = Math.max(0, act.cd - (Date.now() - (actionCooldowns[act.key]||0)));
+          const canAct = rem === 0;
+          const canAfford = (profile?.money||0) >= act.cost;
+          return (
+            React.createElement('div',{key:act.key,style:{display:'flex',alignItems:'center',gap:'0.5rem',background:'rgba(255,255,255,0.03)',borderRadius:'10px',padding:'0.5rem 0.75rem',marginBottom:'0.35rem',border:'1px solid rgba(255,255,255,0.05)'}},
+              React.createElement('div',{style:{flex:1,minWidth:0}},
+                React.createElement('div',{style:{fontWeight:700,color:'#E8EDF2',fontSize:'0.82rem'}},act.label),
+                React.createElement('div',{style:{fontSize:'0.62rem',color:'#5A7089'}},`₺${act.cost.toLocaleString('tr-TR')} → +${act.merit} Etki Puanı`)
+              ),
+              canAct
+                ? canAfford
+                  ? React.createElement('button',{onClick:()=>yetkiAction(act.key,act.cd,()=>{setProfile(p=>{const np={...p,money:(p.money||0)-act.cost,meritPoints:(p.meritPoints||0)+act.merit};localStorage.setItem('rep_userProfile',JSON.stringify(np));return np;});showNotif(`${act.label} başarılı! +${act.merit} Etki Puanı`,'success');}),style:{background:'rgba(139,92,246,0.15)',border:'1px solid rgba(139,92,246,0.3)',borderRadius:'8px',padding:'5px 12px',color:'#A78BFA',cursor:'pointer',fontSize:'0.7rem',fontWeight:700,flexShrink:0}},'Kazan')
+                  : React.createElement('span',{style:{color:'#EF4444',fontSize:'0.65rem',flexShrink:0,fontWeight:700}},'Yetersiz ₺')
+                : React.createElement('span',{style:{color:'#3B4E63',fontSize:'0.65rem',flexShrink:0}},`⏳ ${Math.ceil(rem/3600000)}s`)
+            )
+          );
+        })}
+      </div>
+
       <div style={{background:'linear-gradient(135deg,rgba(245,200,66,0.12),rgba(11,21,39,0.97))',border:'1px solid rgba(245,200,66,0.25)',borderRadius:'14px',padding:'1rem',marginBottom:'0.75rem'}}>
         <div style={{fontSize:'0.6rem',color:'#F5C842',fontWeight:800,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:'0.2rem'}}>⭐ SENİN MAKAMLARLIN</div>
         <div style={{display:'flex',gap:'0.4rem',flexWrap:'wrap'}}>
@@ -5808,8 +5868,8 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
     if (myGang) { showNotif('Zaten bir çeteye/aileye üyesin','error'); return; }
     if (profile?.party) { showNotif('🏛️ Parti üyeleri çete veya aile kuramazlar. Önce partiden ayrılın.','error'); return; }
     const actualType = typeFilter || gForm.type;
-    const cost = actualType==='family' ? 5000000000 : 2000000000;
-    if ((profile?.money||0) < cost) { showNotif(`${actualType==='family'?'Aile kurmak için ₺5.000.000.000':'Çete kurmak için ₺2.000.000.000'} gerekli`,'error'); return; }
+    const cost = actualType==='family' ? 500000 : 100000;
+    if ((profile?.money||0) < cost) { showNotif(`${actualType==='family'?'Aile kurmak için ₺500.000':'Çete kurmak için ₺100.000'} gerekli`,'error'); return; }
     const gang = {
       id:genId(), name:gForm.name.trim(), type:actualType, desc:gForm.desc,
       leaderId:uid, leaderName:profile?.username,
@@ -6439,6 +6499,7 @@ function PlayersPage({ profile, onNavigate, onlinePlayers = [] }) {
   const [search, setSearch] = useState('');
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [tab, setTab] = useState('all');
+  const [cityFilterActive, setCityFilterActive] = useState(false);
   const [parties] = useLs('parties', []);
   const [gangs] = useLs('gangs', []);
   const [lbSub, setLbSub] = useState('money');
@@ -6507,14 +6568,28 @@ function PlayersPage({ profile, onNavigate, onlinePlayers = [] }) {
         </div>
       )}
 
-      {/* Çevrimiçi tab */}
-      {tab==='online' && onlinePlayers.length===0 && (
-        <div style={{textAlign:'center',color:'#3B4E63',padding:'2rem',fontSize:'0.85rem'}}>
-          <div style={{fontSize:'2rem',marginBottom:'0.5rem'}}>👤</div>
-          Şu an başka çevrimiçi oyuncu yok
+      {/* Çevrimiçi tab — şehir filtresi */}
+      {tab==='online' && (
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'0.5rem'}}>
+          <span style={{fontSize:'0.68rem',color:'#5A7089'}}>
+            {cityFilterActive && profile?.city ? `📍 ${profile.city} şehri` : 'Tüm şehirler'}
+          </span>
+          <button onClick={()=>setCityFilterActive(v=>!v)}
+            style={{background:cityFilterActive?'rgba(59,130,246,0.15)':'rgba(255,255,255,0.04)',border:`1px solid ${cityFilterActive?'rgba(59,130,246,0.4)':'rgba(255,255,255,0.1)'}`,borderRadius:'8px',padding:'3px 10px',color:cityFilterActive?'#60A5FA':'#5A7089',fontSize:'0.65rem',fontWeight:700,cursor:'pointer'}}>
+            {cityFilterActive?'🌍 Tümü Göster':'📍 Şehrimde'}
+          </button>
         </div>
       )}
-      {tab==='online' && onlinePlayers.map((op,i) => {
+      {tab==='online' && (() => {
+        const filtered = cityFilterActive && profile?.city
+          ? onlinePlayers.filter(op => (op.city||'') === profile.city)
+          : onlinePlayers;
+        if (filtered.length === 0) return React.createElement('div',{style:{textAlign:'center',color:'#3B4E63',padding:'2rem',fontSize:'0.85rem'}},
+          React.createElement('div',{style:{fontSize:'2rem',marginBottom:'0.5rem'}},'👤'),
+          cityFilterActive ? `${profile?.city||''} şehrinde başka çevrimiçi oyuncu yok` : 'Şu an başka çevrimiçi oyuncu yok');
+        return null;
+      })()}
+      {tab==='online' && (cityFilterActive && profile?.city ? onlinePlayers.filter(op=>(op.city||'')===profile.city) : onlinePlayers).map((op,i) => {
         const pData = combined.find(u => u.id===op.userId||u.username===op.username) || {username:op.username, city:op.city||'?', level:op.level||1, xp:0};
         return (
           <button key={op.userId||op.username||i} onClick={()=>setSelectedPlayer(pData)}
