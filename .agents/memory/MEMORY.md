@@ -1,4 +1,5 @@
-- [UNDERSTATE stack & architecture](understate-stack.md) — Babel-standalone React monolith (src/app.js ~13200 lines), external screens as window globals in src/screens/*.js.
+- [UNDERSTATE stack & architecture](understate-stack.md) — Babel-standalone React monolith (src/app.js ~13700 lines), external screens as window globals in src/screens/*.js.
 - [UNDERSTATE localStorage conventions](understate-localstorage.md) — All useLs() keys use rep_ prefix; daily task state key is rep_dailyTaskState; user profile is rep_userProfile.
 - [Multiplayer Architecture](multiplayer-arch.md) — full real-time multiplayer + DB persistence layer design decisions for gangs/parties/alliances/elections/laws/announcements.
 - [Socket Emit Patterns](socket-emit-patterns.md) — where gang/party/alliance/election/law mutations emit to server in app.js; setGangs/setParties/etc. all have inline socket.emit calls.
+- [Turkey Map Component](turkey-map.md) — TurkeyMap SVG component with PROVINCE_MAP_DATA (81 provinces, geographic circle positions) and GANG_PALETTE; placed before TerritorySystem in app.js; used in both gang Bölge tab and politics Harita tab.

@@ -4012,7 +4012,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
   const userVoted = !!(elections.votes||{})[profile?.uid];
   const myVote = (elections.votes||{})[profile?.uid];
   const inputSt = {width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'10px',padding:'0.65rem 0.9rem',color:'#E8EDF2',fontFamily:"'DM Sans',sans-serif",fontSize:'16px',outline:'none',boxSizing:'border-box'};
-  const subs = [{id:'parties',label:'🏛️ Partiler'},{id:'management',label:'⚙️ Yönetim'},{id:'govpanel',label:'🏛️ Makam'},{id:'laws',label:'⚖️ Yasalar'},{id:'election',label:'🗳️ Seçim'}];
+  const subs = [{id:'parties',label:'🏛️ Partiler'},{id:'harita',label:'🗺️ Harita'},{id:'management',label:'⚙️ Yönetim'},{id:'govpanel',label:'🏛️ Makam'},{id:'laws',label:'⚖️ Yasalar'},{id:'election',label:'🗳️ Seçim'}];
 
   const ALL_POSITIONS = [
     { id:'devlet_baskani', title:'Devlet Başkanı', icon:'👑', desc:'En yüksek yönetim makamı', req:'Parti üyesi olmak zorunlu', openTo:'parti', electionKey:'presElection' },
@@ -4037,6 +4037,49 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
         ))}
       </div>
       <div style={{padding:'0.7rem'}}>
+
+        {sub==='harita' && (
+          <div>
+            <div style={{background:'rgba(139,92,246,0.08)',border:'1px solid rgba(139,92,246,0.2)',borderRadius:'14px',padding:'1rem',marginBottom:'0.75rem'}}>
+              <div style={{fontSize:'0.65rem',color:'#A78BFA',fontWeight:800,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:'0.5rem'}}>🗺️ Parti Yayılım Haritası</div>
+              <div style={{fontSize:'0.7rem',color:'#5A7089',marginBottom:'0.6rem'}}>Üye sayısına göre her ilde hangi partinin baskın olduğunu gösterir.</div>
+              <TurkeyMap parties={parties} partyMode={true} />
+              {parties.length > 0 ? (
+                <div style={{display:'flex',flexWrap:'wrap',gap:'0.35rem',marginTop:'0.6rem'}}>
+                  {parties.map(p => {
+                    const allU = (() => { try { return JSON.parse(localStorage.getItem('rep_users')||'[]'); } catch { return []; } })();
+                    const cities = new Set((p.members||[]).map(uid => allU.find(u=>u.id===uid)?.city).filter(Boolean));
+                    return (
+                      <div key={p.id} style={{display:'flex',alignItems:'center',gap:'4px',background:'rgba(255,255,255,0.04)',borderRadius:'6px',padding:'3px 9px',border:'1px solid rgba(255,255,255,0.06)'}}>
+                        <div style={{width:'8px',height:'8px',borderRadius:'50%',background:p.color||'#8B5CF6',flexShrink:0}}/>
+                        <span style={{fontSize:'0.66rem',color:'#E8EDF2',fontWeight:700}}>{p.name}</span>
+                        <span style={{fontSize:'0.58rem',color:'#5A7089'}}>({cities.size} il)</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{textAlign:'center',color:'#3B4E63',padding:'0.75rem',fontSize:'0.78rem',marginTop:'0.4rem'}}>Haritada renk görmek için parti kur ve üye topla</div>
+              )}
+            </div>
+
+            <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:'14px',padding:'1rem'}}>
+              <div style={{fontWeight:800,color:'#E8EDF2',fontSize:'0.85rem',marginBottom:'0.6rem'}}>🏛️ Güncel Kabine</div>
+              {Object.entries(cabinet).length === 0 ? (
+                <div style={{textAlign:'center',color:'#3B4E63',padding:'1rem',fontSize:'0.8rem'}}>Henüz kabine oluşturulmamış</div>
+              ) : (
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.4rem'}}>
+                  {CABINET_ROLES.map(role => (
+                    <div key={role} style={{background:'rgba(255,255,255,0.03)',borderRadius:'8px',padding:'0.5rem 0.65rem',border:'1px solid rgba(255,255,255,0.05)'}}>
+                      <div style={{fontSize:'0.6rem',color:'#5A7089',marginBottom:'1px'}}>{role}</div>
+                      <div style={{fontSize:'0.78rem',fontWeight:700,color:cabinet[role]?'#60A5FA':'#3B4E63',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{cabinet[role]||'Boş'}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {sub==='parties' && (
           <div>
@@ -4689,6 +4732,148 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
 }
 
 // ═══════════════════════════════════════════════════════
+// TÜRKİYE HARİTASI – ORTAK KOMPONENT
+// ═══════════════════════════════════════════════════════
+const PROVINCE_MAP_DATA = [
+  {n:'Adana',x:397,y:295},{n:'Adıyaman',x:532,y:253},{n:'Afyonkarahisar',x:203,y:199},
+  {n:'Ağrı',x:736,y:146},{n:'Aksaray',x:352,y:220},{n:'Amasya',x:429,y:95},
+  {n:'Ankara',x:302,y:135},{n:'Antalya',x:210,y:301},{n:'Ardahan',x:721,y:70},
+  {n:'Artvin',x:684,y:66},{n:'Aydın',x:89,y:249},{n:'Balıkesir',x:91,y:150},
+  {n:'Bartın',x:280,y:41},{n:'Batman',x:654,y:246},{n:'Bayburt',x:617,y:117},
+  {n:'Bilecik',x:179,y:122},{n:'Bingöl',x:627,y:192},{n:'Bitlis',x:696,y:218},
+  {n:'Bolu',x:249,y:91},{n:'Burdur',x:193,y:256},{n:'Bursa',x:140,y:119},
+  {n:'Çanakkale',x:27,y:122},{n:'Çankırı',x:334,y:98},{n:'Çorum',x:391,y:100},
+  {n:'Denizli',x:141,y:253},{n:'Diyarbakır',x:615,y:245},{n:'Düzce',x:229,y:84},
+  {n:'Edirne',x:34,y:39},{n:'Elazığ',x:573,y:204},{n:'Erzincan',x:585,y:144},
+  {n:'Erzurum',x:660,y:136},{n:'Eskişehir',x:203,y:143},{n:'Gaziantep',x:494,y:292},
+  {n:'Giresun',x:537,y:81},{n:'Gümüşhane',x:584,y:105},{n:'Hakkari',x:765,y:264},
+  {n:'Hatay',x:443,y:330},{n:'Iğdır',x:778,y:135},{n:'Isparta',x:204,y:253},
+  {n:'İstanbul',x:140,y:75},{n:'İzmir',x:59,y:217},{n:'Kahramanmaraş',x:475,y:263},
+  {n:'Karabük',x:292,y:65},{n:'Karaman',x:317,y:285},{n:'Kars',x:738,y:98},
+  {n:'Kastamonu',x:341,y:55},{n:'Kayseri',x:414,y:201},{n:'Kırıkkale',x:329,y:139},
+  {n:'Kırklareli',x:62,y:35},{n:'Kırşehir',x:357,y:178},{n:'Kilis',x:483,y:311},
+  {n:'Kocaeli',x:178,y:92},{n:'Konya',x:286,y:247},{n:'Kütahya',x:180,y:162},
+  {n:'Malatya',x:535,y:221},{n:'Manisa',x:71,y:206},{n:'Mardin',x:638,y:278},
+  {n:'Mersin',x:378,y:306},{n:'Muğla',x:111,y:283},{n:'Muş',x:670,y:200},
+  {n:'Nevşehir',x:381,y:206},{n:'Niğde',x:380,y:242},{n:'Ordu',x:516,y:77},
+  {n:'Osmaniye',x:447,y:291},{n:'Rize',x:628,y:75},{n:'Sakarya',x:197,y:88},
+  {n:'Samsun',x:450,y:60},{n:'Siirt',x:688,y:244},{n:'Sinop',x:400,y:19},
+  {n:'Sivas',x:479,y:144},{n:'Şanlıurfa',x:554,y:287},{n:'Şırnak',x:711,y:266},
+  {n:'Tekirdağ',x:74,y:76},{n:'Tokat',x:459,y:114},{n:'Trabzon',x:594,y:76},
+  {n:'Tunceli',x:587,y:179},{n:'Uşak',x:155,y:203},{n:'Van',x:749,y:213},
+  {n:'Yalova',x:149,y:94},{n:'Yozgat',x:384,y:140},{n:'Zonguldak',x:257,y:51}
+];
+const GANG_PALETTE = ['#EF4444','#F97316','#EAB308','#22C55E','#06B6D4','#3B82F6','#8B5CF6','#EC4899','#14B8A6','#84CC16','#F43F5E','#D946EF'];
+
+function TurkeyMap({ territories={}, gangs=[], parties=[], partyMode=false, onCityClick=null, selectedCity=null }) {
+  const [hovered, setHovered] = React.useState(null);
+
+  const gangColorMap = React.useMemo(() => {
+    const m = {};
+    gangs.forEach((g, i) => { m[g.id] = GANG_PALETTE[i % GANG_PALETTE.length]; });
+    return m;
+  }, [gangs.map(g=>g.id).join(',')]);
+
+  const partyColorMap = React.useMemo(() => {
+    const m = {};
+    parties.forEach(p => { m[p.id] = p.color || '#8B5CF6'; });
+    return m;
+  }, [parties.map(p=>p.id+p.color).join(',')]);
+
+  const cityDominance = React.useMemo(() => {
+    if (!partyMode) return {};
+    const allUsers = (() => { try { return JSON.parse(localStorage.getItem('rep_users')||'[]'); } catch { return []; } })();
+    const result = {};
+    PROVINCE_MAP_DATA.forEach(({ n: city }) => {
+      const counts = {};
+      parties.forEach(party => {
+        const cnt = (party.members||[]).filter(uid => {
+          const u = allUsers.find(x => x.id === uid);
+          return u?.city === city;
+        }).length;
+        if (cnt > 0) counts[party.id] = cnt;
+      });
+      const top = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+      if (top) result[city] = top[0];
+    });
+    return result;
+  }, [partyMode, parties.map(p=>(p.members||[]).join('')).join('|')]);
+
+  const getColor = (n) => {
+    if (partyMode) {
+      const pid = cityDominance[n];
+      return pid ? (partyColorMap[pid] || '#8B5CF6') : null;
+    }
+    const t = territories[n];
+    return t ? (gangColorMap[t.gangId] || '#888') : null;
+  };
+
+  const getOwner = (n) => {
+    if (partyMode) {
+      const pid = cityDominance[n];
+      return pid ? (parties.find(p=>p.id===pid)?.name || null) : null;
+    }
+    return territories[n]?.gangName || null;
+  };
+
+  return (
+    <div style={{position:'relative',width:'100%',borderRadius:'12px',overflow:'hidden',background:'rgba(4,9,20,0.97)',border:'1px solid rgba(255,255,255,0.08)'}}>
+      <svg viewBox="0 0 820 360" style={{width:'100%',height:'auto',display:'block'}} xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="tmglow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        {[60,120,180,240,300].map(y => <line key={y} x1="0" y1={y} x2="820" y2={y} stroke="rgba(255,255,255,0.025)" strokeWidth="1"/>)}
+        {[150,300,450,600,750].map(x => <line key={x} x1={x} y1="0" x2={x} y2="360" stroke="rgba(255,255,255,0.025)" strokeWidth="1"/>)}
+        {PROVINCE_MAP_DATA.map(({ n, x, y }) => {
+          const color = getColor(n);
+          const isControlled = !!color;
+          const isSelected = selectedCity === n;
+          const isHov = hovered === n;
+          const r = isHov || isSelected ? 11 : 7;
+          const fill = color || 'rgba(255,255,255,0.07)';
+          return (
+            <g key={n} style={{cursor: onCityClick ? 'pointer' : 'default'}}
+               onClick={() => onCityClick && onCityClick(n)}
+               onMouseEnter={() => setHovered(n)}
+               onMouseLeave={() => setHovered(null)}>
+              {isControlled && (
+                <circle cx={x} cy={y} r={r + 6} fill="none" stroke={fill} strokeWidth="0.6" opacity="0.22"/>
+              )}
+              <circle cx={x} cy={y} r={r}
+                fill={fill}
+                stroke={isSelected ? '#fff' : isControlled ? fill : 'rgba(255,255,255,0.15)'}
+                strokeWidth={isSelected ? 2.5 : 0.8}
+                opacity={isHov || isSelected ? 1 : isControlled ? 0.88 : 0.42}
+                filter={isControlled ? 'url(#tmglow)' : 'none'}
+              />
+            </g>
+          );
+        })}
+        {hovered && (() => {
+          const prov = PROVINCE_MAP_DATA.find(p => p.n === hovered);
+          if (!prov) return null;
+          const owner = getOwner(hovered);
+          const color = getColor(hovered);
+          const bx = Math.min(720, Math.max(60, prov.x));
+          const by = prov.y < 65 ? prov.y + 24 : prov.y - 34;
+          return (
+            <g>
+              <rect x={bx-58} y={by-15} width={116} height={owner ? 32 : 22} rx="5"
+                fill="rgba(5,10,22,0.97)" stroke="rgba(255,255,255,0.2)" strokeWidth="0.7"/>
+              <text x={bx} y={by-1} textAnchor="middle" fontSize="9.5" fontWeight="800" fill="#E8EDF2" fontFamily="'DM Sans',sans-serif">{hovered}</text>
+              {owner && <text x={bx} y={by+13} textAnchor="middle" fontSize="8" fill={color||'#5A7089'} fontFamily="'DM Sans',sans-serif">{owner}</text>}
+            </g>
+          );
+        })()}
+      </svg>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
 // BÖLGE SİSTEMİ (81 İL)
 // ═══════════════════════════════════════════════════════
 function TerritorySystem({ profile, setProfile, showNotif, myGang, gangs, setGangs, isGangLeader }) {
@@ -4784,6 +4969,38 @@ function TerritorySystem({ profile, setProfile, showNotif, myGang, gangs, setGan
         </div>
         {!myGang && <div style={{marginTop:'0.5rem',fontSize:'0.75rem',color:'#F87171',textAlign:'center'}}>Bölge almak için bir çeteye katıl!</div>}
         <div style={{marginTop:'0.5rem',fontSize:'0.65rem',color:'#5A7089'}}>💡 Bölge almak: ₺150.000 • Ele geçirme sonrası 1 gün savaş yok • Kaybedince 2 hafta savaş yok</div>
+      </div>
+
+      {/* ── Türkiye Haritası ── */}
+      <div style={{marginBottom:'0.75rem'}}>
+        <div style={{fontSize:'0.65rem',color:'#EF4444',fontWeight:800,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:'0.4rem'}}>🗺️ Türkiye Bölge Haritası — İl tıkla → saldır</div>
+        <TurkeyMap
+          territories={territories}
+          gangs={gangs}
+          onCityClick={(city) => {
+            if (!myGang || !isGangLeader) return;
+            const ter = territories[city];
+            const warKey = `war_${city}`;
+            const blocked = (warCooldowns[warKey]||0) > nowTs;
+            if (!ter || (ter.gangId !== myGang.id && !blocked)) setAttackModal(city);
+          }}
+          selectedCity={attackModal}
+        />
+        {gangs.some(g => Object.values(territories).some(t => t.gangId === g.id)) && (
+          <div style={{display:'flex',flexWrap:'wrap',gap:'0.3rem',marginTop:'0.45rem'}}>
+            {gangs.map((g, i) => {
+              const count = Object.values(territories).filter(t => t.gangId === g.id).length;
+              if (!count) return null;
+              return (
+                <div key={g.id} style={{display:'flex',alignItems:'center',gap:'4px',background:'rgba(255,255,255,0.04)',borderRadius:'5px',padding:'2px 8px',border:'1px solid rgba(255,255,255,0.06)'}}>
+                  <div style={{width:'7px',height:'7px',borderRadius:'50%',background:GANG_PALETTE[i%GANG_PALETTE.length],flexShrink:0}}/>
+                  <span style={{fontSize:'0.62rem',color:'#8BA0B5',fontWeight:700}}>{g.name}</span>
+                  <span style={{fontSize:'0.58rem',color:'#3B4E63'}}>({count} il)</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.45rem'}}>
@@ -5156,7 +5373,7 @@ function YetkilerimPage({ profile, setProfile, showNotif }) {
                 ),
                 canAct
                   ? canAfford
-                    ? React.createElement('button',{onClick:()=>yetkiAction(act.key,act.cd,()=>{setProfile(p=>{const np={...p,money:(p.money||0)-act.cost,meritPoints:(p.meritPoints||0)+act.merit};localStorage.setItem('rep_userProfile',JSON.stringify(np));return np;});showNotif(`${act.label} başarılı! +${act.merit} Etki Puanı`,'success');}),style:{background:'rgba(139,92,246,0.15)',border:'1px solid rgba(139,92,246,0.3)',borderRadius:'8px',padding:'5px 12px',color:'#A78BFA',cursor:'pointer',fontSize:'0.7rem',fontWeight:700,flexShrink:0}},'Kazan')
+                    ? React.createElement('button',{onClick:()=>yetkiAction(act.key,act.cd,()=>{setProfile(p=>{const np={...p,money:(p.money||0)-act.cost,meritPoints:(p.meritPoints||0)+act.merit};localStorage.setItem('rep_userProfile',JSON.stringify(np));try{const _tk=localStorage.getItem('rep_token');if(_tk)fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_tk},body:JSON.stringify({money:np.money,xp:np.xp||0,level:np.level||1,meritPoints:np.meritPoints||0})}).catch(()=>{});}catch(e){}return np;});showNotif(`${act.label} başarılı! +${act.merit} Etki Puanı`,'success');}),style:{background:'rgba(139,92,246,0.15)',border:'1px solid rgba(139,92,246,0.3)',borderRadius:'8px',padding:'5px 12px',color:'#A78BFA',cursor:'pointer',fontSize:'0.7rem',fontWeight:700,flexShrink:0}},'Kazan')
                     : React.createElement('span',{style:{color:'#EF4444',fontSize:'0.65rem',flexShrink:0,fontWeight:700}},'Yetersiz ₺')
                   : React.createElement('span',{style:{color:'#3B4E63',fontSize:'0.65rem',flexShrink:0}},`⏳ ${Math.ceil(rem/3600000)}s`)
               )
@@ -5205,7 +5422,7 @@ function YetkilerimPage({ profile, setProfile, showNotif }) {
               ),
               canAct
                 ? canAfford
-                  ? React.createElement('button',{onClick:()=>yetkiAction(act.key,act.cd,()=>{setProfile(p=>{const np={...p,money:(p.money||0)-act.cost,meritPoints:(p.meritPoints||0)+act.merit};localStorage.setItem('rep_userProfile',JSON.stringify(np));return np;});showNotif(`${act.label} başarılı! +${act.merit} Etki Puanı`,'success');}),style:{background:'rgba(139,92,246,0.15)',border:'1px solid rgba(139,92,246,0.3)',borderRadius:'8px',padding:'5px 12px',color:'#A78BFA',cursor:'pointer',fontSize:'0.7rem',fontWeight:700,flexShrink:0}},'Kazan')
+                  ? React.createElement('button',{onClick:()=>yetkiAction(act.key,act.cd,()=>{setProfile(p=>{const np={...p,money:(p.money||0)-act.cost,meritPoints:(p.meritPoints||0)+act.merit};localStorage.setItem('rep_userProfile',JSON.stringify(np));try{const _tk=localStorage.getItem('rep_token');if(_tk)fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_tk},body:JSON.stringify({money:np.money,xp:np.xp||0,level:np.level||1,meritPoints:np.meritPoints||0})}).catch(()=>{});}catch(e){}return np;});showNotif(`${act.label} başarılı! +${act.merit} Etki Puanı`,'success');}),style:{background:'rgba(139,92,246,0.15)',border:'1px solid rgba(139,92,246,0.3)',borderRadius:'8px',padding:'5px 12px',color:'#A78BFA',cursor:'pointer',fontSize:'0.7rem',fontWeight:700,flexShrink:0}},'Kazan')
                   : React.createElement('span',{style:{color:'#EF4444',fontSize:'0.65rem',flexShrink:0,fontWeight:700}},'Yetersiz ₺')
                 : React.createElement('span',{style:{color:'#3B4E63',fontSize:'0.65rem',flexShrink:0}},`⏳ ${Math.ceil(rem/3600000)}s`)
             )
