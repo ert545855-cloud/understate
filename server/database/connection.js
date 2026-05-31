@@ -17,10 +17,16 @@ async function connectDB(io) {
   }
 
   try {
-    await db.query('SELECT 1');
-    if (typeof markConnected === 'function') markConnected(); // guarantee flag is set
+    // 5 saniyelik timeout: Render deploy sirasinda DB yanitlamazsa
+    // sunucunun health-check'e cevap veremez hale gelmesini onler.
+    const timeoutPromise = new Promise((_, rej) =>
+      setTimeout(() => rej(new Error('DB baglanti testi zaman asimina ugradi (5s)')), 5000)
+    );
+    await Promise.race([db.query('SELECT 1'), timeoutPromise]);
+
+    if (typeof markConnected === 'function') markConnected();
     _ready = true;
-    logger.success('PostgreSQL bağlantısı başarılı ✓');
+    logger.success('PostgreSQL baglantisi basarili');
     if (_io) _io.emit('dbStatus', { status: 'connected', timestamp: Date.now() });
 
     const REQUIRED_TABLES = ['users', 'chat_messages', 'game_state', 'rooms', 'economy'];
@@ -29,13 +35,14 @@ async function connectDB(io) {
         const { rows } = await db.query(
           "SELECT to_regclass($1) AS exists", [table]
         );
-        if (!rows[0].exists) logger.error(`[DB] TABLO EKSİK: ${table} — lütfen şemayı uygulayın`);
+        if (!rows[0].exists) logger.error(`[DB] TABLO EKSIK: ${table} — lutfen semay uygulayin`);
       } catch (_) {}
     }
   } catch (err) {
-    logger.error('PostgreSQL bağlantı testi başarısız:', err.message);
-    logger.warn('DB bağlı değil — veriler kalıcı olmayacak');
+    logger.error('PostgreSQL baglanti testi basarisiz:', err.message);
+    logger.warn('DB bagli degil — veriler kalici olmayacak. Sunucu yine de calismaya devam ediyor.');
     if (_io) _io.emit('dbStatus', { status: 'error', timestamp: Date.now() });
+    // Hata firlatmiyoruz: sunucu DB olmadan da ayaga kalkmali
   }
 }
 
