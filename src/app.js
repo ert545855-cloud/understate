@@ -5168,6 +5168,11 @@ function YetkilerimPage({ profile, setProfile, showNotif }) {
   const [actionCooldowns, setActionCooldowns] = useLs('yetkiCooldowns', {});
   const [budgetModal, setBudgetModal] = useState(false);
   const [budgetAmt, setBudgetAmt] = useState('');
+  const [selectedTaxCity, setSelectedTaxCity] = useState(profile?.city || 'İstanbul');
+  const [cityTaxForm, setCityTaxForm] = useState({income:15,trade:10,property:5});
+  const [taxCityData, setTaxCityData] = useState([]);
+  const [taxLoading, setTaxLoading] = useState(false);
+  const [economy, setEconomy] = useLs('rep_economy', {inflation:5});
 
   const myPositions = Object.entries(cabinet).filter(([,name]) => name === profile?.username).map(([role]) => role);
   const isPresident = cabinet['Devlet Başkanı'] === profile?.username;
@@ -5222,6 +5227,25 @@ function YetkilerimPage({ profile, setProfile, showNotif }) {
     });
   };
 
+  useEffect(() => {
+    if (!isFinance) return;
+    setTaxLoading(true);
+    const token = localStorage.getItem('rep_token') || '';
+    fetch('/api/tax', { headers: { Authorization: 'Bearer ' + token } })
+      .then(r => r.json())
+      .then(d => {
+        if (d.rates) setTaxCityData(d.rates);
+        const found = d.rates?.find(r => r.city === selectedTaxCity);
+        if (found) setCityTaxForm({ income: found.income_tax_rate, trade: found.trade_tax_rate, property: found.property_tax_rate });
+      })
+      .catch(() => {})
+      .finally(() => setTaxLoading(false));
+    fetch('/api/tax/summary/economy')
+      .then(r => r.json())
+      .then(d => { if (d.inflation != null) setEconomy(prev => ({ ...prev, inflation: d.inflation, serverTreasury: d.treasury })); })
+      .catch(() => {});
+  }, [isFinance]);
+
   const saveTaxRates = () => {
     if (!isFinance) { showNotif('Bu yetki Maliye Bakanına ait!', 'error'); return; }
     const income = Math.max(0, Math.min(50, parseInt(taxForm.income)||15));
@@ -5229,7 +5253,40 @@ function YetkilerimPage({ profile, setProfile, showNotif }) {
     const property = Math.max(0, Math.min(25, parseInt(taxForm.property)||5));
     const interest = Math.max(0, Math.min(20, parseInt(taxForm.interest)||5));
     setTaxRates({ income, trade, property, interest });
-    showNotif('✅ Vergi oranları güncellendi!', 'success');
+    const token = localStorage.getItem('rep_token') || '';
+    CITIES.forEach(city => {
+      fetch(`/api/tax/${encodeURIComponent(city)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ income, trade, property })
+      }).catch(() => {});
+    });
+    showNotif('✅ Ulusal vergi oranları güncellendi!', 'success');
+  };
+
+  const saveCityTaxRates = () => {
+    if (!isFinance) { showNotif('Bu yetki Maliye Bakanına ait!', 'error'); return; }
+    const income = Math.max(0, Math.min(50, parseInt(cityTaxForm.income)||15));
+    const trade = Math.max(0, Math.min(30, parseInt(cityTaxForm.trade)||10));
+    const property = Math.max(0, Math.min(25, parseInt(cityTaxForm.property)||5));
+    const token = localStorage.getItem('rep_token') || '';
+    fetch(`/api/tax/${encodeURIComponent(selectedTaxCity)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ income, trade, property })
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (d.success) {
+        setTaxCityData(prev => {
+          const exists = prev.find(r => r.city === selectedTaxCity);
+          if (exists) return prev.map(r => r.city === selectedTaxCity ? { ...r, income_tax_rate: income, trade_tax_rate: trade, property_tax_rate: property } : r);
+          return [...prev, { city: selectedTaxCity, income_tax_rate: income, trade_tax_rate: trade, property_tax_rate: property }];
+        });
+        showNotif(`✅ ${selectedTaxCity} vergi oranları kaydedildi!`, 'success');
+      }
+    })
+    .catch(() => showNotif('Sunucu hatası', 'error'));
   };
 
   const fundMilitary = () => {
@@ -5566,20 +5623,39 @@ function YetkilerimPage({ profile, setProfile, showNotif }) {
             })()}
 
             {pos === 'Maliye Bakanı' && (
-              <div style={{marginBottom:'0.75rem',padding:'0.75rem',background:'rgba(245,158,11,0.06)',border:'1px solid rgba(245,158,11,0.2)',borderRadius:'10px'}}>
-                <div style={{fontWeight:700,color:'#F59E0B',marginBottom:'0.5rem',fontSize:'0.78rem'}}>🖨️ Para Basma (Merkez Bankası Yetkisi)</div>
-                <div style={{fontSize:'0.65rem',color:'#5A7089',marginBottom:'0.5rem'}}>Aşırı para basımı enflasyonu artırır. Dikkatli kullanın.</div>
-                <div style={{display:'flex',gap:'0.5rem',marginBottom:'0.5rem'}}>
-                  <input type="number" value={printAmt} onChange={e=>setPrintAmt(e.target.value)} placeholder="Basılacak tutar (₺)"
-                    style={{flex:1,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'8px',padding:'0.5rem 0.75rem',color:'#E8EDF2',fontFamily:"'DM Sans',sans-serif",fontSize:'14px',outline:'none'}} />
-                  <button onClick={printMoney} style={{padding:'0.5rem 0.85rem',borderRadius:'8px',border:'none',background:'linear-gradient(135deg,#F59E0B,#D97706)',color:'#fff',fontWeight:800,fontSize:'0.75rem',cursor:'pointer'}}>Bas</button>
+              <div style={{marginBottom:'0.75rem'}}>
+
+                {/* ── Hazine Özeti ── */}
+                <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.4rem',marginBottom:'0.75rem'}}>
+                  {[
+                    {label:'Devlet Hazinesi', value: fmtWord(treasury.balance||0), color:'#10B981', icon:'🏦'},
+                    {label:'Askeri Bütçe',    value: fmtWord(treasury.militaryBudget||0), color:'#EF4444', icon:'⚔️'},
+                    {label:'Enflasyon',       value: `%${(economy.inflation||5).toFixed(1)}`, color: (economy.inflation||5)<40?'#10B981':(economy.inflation||5)<70?'#F59E0B':'#EF4444', icon:'📉'},
+                  ].map(s=>(
+                    <div key={s.label} style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:'10px',padding:'0.6rem 0.5rem',textAlign:'center'}}>
+                      <div style={{fontSize:'1rem',marginBottom:'2px'}}>{s.icon}</div>
+                      <div style={{fontWeight:800,color:s.color,fontSize:'0.82rem'}}>{s.value}</div>
+                      <div style={{fontSize:'0.55rem',color:'#3B4E63',marginTop:'1px'}}>{s.label}</div>
+                    </div>
+                  ))}
                 </div>
 
-                {/* Belediye Hazine Talepleri */}
+                {/* ── Para Basma ── */}
+                <div style={{padding:'0.75rem',background:'rgba(245,158,11,0.06)',border:'1px solid rgba(245,158,11,0.2)',borderRadius:'10px',marginBottom:'0.5rem'}}>
+                  <div style={{fontWeight:700,color:'#F59E0B',marginBottom:'0.35rem',fontSize:'0.78rem'}}>🖨️ Para Basma (Merkez Bankası Yetkisi)</div>
+                  <div style={{fontSize:'0.63rem',color:'#5A7089',marginBottom:'0.45rem'}}>Aşırı para basımı enflasyonu artırır. Dikkatli kullanın.</div>
+                  <div style={{display:'flex',gap:'0.5rem'}}>
+                    <input type="number" value={printAmt} onChange={e=>setPrintAmt(e.target.value)} placeholder="Basılacak tutar (₺)"
+                      style={{flex:1,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'8px',padding:'0.5rem 0.75rem',color:'#E8EDF2',fontFamily:"'DM Sans',sans-serif",fontSize:'14px',outline:'none'}} />
+                    <button onClick={printMoney} style={{padding:'0.5rem 0.85rem',borderRadius:'8px',border:'none',background:'linear-gradient(135deg,#F59E0B,#D97706)',color:'#fff',fontWeight:800,fontSize:'0.75rem',cursor:'pointer'}}>Bas</button>
+                  </div>
+                </div>
+
+                {/* ── Belediye Hazine Talepleri ── */}
                 {(()=>{
                   const reqs = JSON.parse(localStorage.getItem('rep_treasuryRequests')||'[]');
                   const pending = reqs.filter(r=>r.status==='bekliyor');
-                  if(!pending.length) return <div style={{fontSize:'0.65rem',color:'#3B4E63',marginBottom:'0.5rem'}}>✅ Bekleyen belediye hazine talebi yok.</div>;
+                  if(!pending.length) return <div style={{fontSize:'0.63rem',color:'#3B4E63',marginBottom:'0.5rem',padding:'0.4rem 0.6rem',background:'rgba(255,255,255,0.02)',borderRadius:'8px'}}>✅ Bekleyen belediye hazine talebi yok.</div>;
                   return (
                     <div style={{marginBottom:'0.5rem'}}>
                       <div style={{fontWeight:700,color:'#10B981',fontSize:'0.72rem',marginBottom:'0.4rem'}}>🏙️ Belediye Hazine Talepleri ({pending.length})</div>
@@ -5614,17 +5690,63 @@ function YetkilerimPage({ profile, setProfile, showNotif }) {
                   );
                 })()}
 
-                <div style={{fontWeight:700,color:'#F59E0B',marginBottom:'0.5rem',fontSize:'0.78rem',marginTop:'0.75rem'}}>📊 Vergi Oranları (%)</div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.4rem',marginBottom:'0.5rem'}}>
-                  {[['income','Gelir Vergisi'],['trade','Ticaret Vergisi'],['property','Mülk Vergisi'],['interest','Faiz Oranı']].map(([k,lb])=>(
-                    <div key={k}>
-                      <div style={{fontSize:'0.62rem',color:'#5A7089',marginBottom:'2px'}}>{lb}</div>
-                      <input type="number" value={taxForm[k]} onChange={e=>setTaxForm(p=>({...p,[k]:e.target.value}))} min={0} max={50}
-                        style={{width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'6px',padding:'0.4rem 0.6rem',color:'#E8EDF2',fontFamily:"'DM Sans',sans-serif",fontSize:'14px',outline:'none',boxSizing:'border-box'}} />
-                    </div>
-                  ))}
+                {/* ── Ulusal Vergi Oranları ── */}
+                <div style={{background:'rgba(245,158,11,0.05)',border:'1px solid rgba(245,158,11,0.18)',borderRadius:'10px',padding:'0.75rem',marginBottom:'0.5rem'}}>
+                  <div style={{fontWeight:700,color:'#F59E0B',marginBottom:'0.4rem',fontSize:'0.78rem'}}>📊 Ulusal Vergi Oranları (%)</div>
+                  <div style={{fontSize:'0.62rem',color:'#5A7089',marginBottom:'0.5rem'}}>Tüm şehirlere tek seferde uygula.</div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.4rem',marginBottom:'0.5rem'}}>
+                    {[['income','Gelir Vergisi',50],['trade','Ticaret Vergisi',30],['property','Mülk Vergisi',25],['interest','Faiz Oranı',20]].map(([k,lb,mx])=>(
+                      <div key={k}>
+                        <div style={{fontSize:'0.6rem',color:'#5A7089',marginBottom:'2px'}}>{lb} (max %{mx})</div>
+                        <input type="number" value={taxForm[k]} onChange={e=>setTaxForm(p=>({...p,[k]:e.target.value}))} min={0} max={mx}
+                          style={{width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'6px',padding:'0.4rem 0.6rem',color:'#E8EDF2',fontFamily:"'DM Sans',sans-serif",fontSize:'14px',outline:'none',boxSizing:'border-box'}} />
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={saveTaxRates} style={{width:'100%',padding:'0.45rem',borderRadius:'8px',border:'none',background:'rgba(245,158,11,0.15)',color:'#F59E0B',fontWeight:800,fontSize:'0.78rem',cursor:'pointer'}}>💾 Tüm Şehirlere Uygula</button>
                 </div>
-                <button onClick={saveTaxRates} style={{width:'100%',padding:'0.45rem',borderRadius:'8px',border:'none',background:'rgba(245,158,11,0.15)',color:'#F59E0B',fontWeight:800,fontSize:'0.78rem',cursor:'pointer'}}>💾 Vergileri Kaydet</button>
+
+                {/* ── Şehre Özel Vergi ── */}
+                <div style={{background:'rgba(59,130,246,0.05)',border:'1px solid rgba(59,130,246,0.18)',borderRadius:'10px',padding:'0.75rem',marginBottom:'0.5rem'}}>
+                  <div style={{fontWeight:700,color:'#60A5FA',marginBottom:'0.4rem',fontSize:'0.78rem'}}>🏙️ Şehre Özel Vergi Oranı</div>
+                  <select value={selectedTaxCity} onChange={e=>{
+                    setSelectedTaxCity(e.target.value);
+                    const found = taxCityData.find(r=>r.city===e.target.value);
+                    setCityTaxForm(found ? {income:found.income_tax_rate,trade:found.trade_tax_rate,property:found.property_tax_rate} : {income:taxForm.income||15,trade:taxForm.trade||10,property:taxForm.property||5});
+                  }} style={{width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'8px',padding:'0.45rem 0.75rem',color:'#E8EDF2',fontFamily:"'DM Sans',sans-serif",fontSize:'14px',outline:'none',marginBottom:'0.45rem',boxSizing:'border-box'}}>
+                    {CITIES.map(c=><option key={c} value={c} style={{background:'#0B1527'}}>{c}</option>)}
+                  </select>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'0.35rem',marginBottom:'0.45rem'}}>
+                    {[['income','Gelir %'],['trade','Ticaret %'],['property','Mülk %']].map(([k,lb])=>(
+                      <div key={k}>
+                        <div style={{fontSize:'0.58rem',color:'#5A7089',marginBottom:'2px'}}>{lb}</div>
+                        <input type="number" value={cityTaxForm[k]||''} onChange={e=>setCityTaxForm(p=>({...p,[k]:e.target.value}))} min={0} max={50}
+                          style={{width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'6px',padding:'0.4rem 0.5rem',color:'#E8EDF2',fontFamily:"'DM Sans',sans-serif",fontSize:'14px',outline:'none',boxSizing:'border-box'}} />
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={saveCityTaxRates} style={{width:'100%',padding:'0.45rem',borderRadius:'8px',border:'none',background:'rgba(59,130,246,0.15)',color:'#60A5FA',fontWeight:800,fontSize:'0.78rem',cursor:'pointer'}}>💾 {selectedTaxCity} için Kaydet</button>
+                </div>
+
+                {/* ── Tüm Şehirler Tablosu ── */}
+                {taxCityData.length > 0 && (
+                  <div style={{background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.06)',borderRadius:'10px',padding:'0.75rem'}}>
+                    <div style={{fontWeight:700,color:'#E8EDF2',fontSize:'0.75rem',marginBottom:'0.5rem'}}>📋 Kayıtlı Şehir Vergi Oranları {taxLoading && '⏳'}</div>
+                    <div style={{display:'grid',gridTemplateColumns:'auto 1fr 1fr 1fr',gap:'2px 6px',fontSize:'0.58rem',color:'#5A7089',marginBottom:'0.3rem',paddingBottom:'0.3rem',borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
+                      <span style={{fontWeight:700}}>Şehir</span><span style={{textAlign:'center'}}>Gelir</span><span style={{textAlign:'center'}}>Ticaret</span><span style={{textAlign:'center'}}>Mülk</span>
+                    </div>
+                    <div style={{maxHeight:'160px',overflowY:'auto',scrollbarWidth:'none'}}>
+                      {taxCityData.map(r=>(
+                        <div key={r.city} style={{display:'grid',gridTemplateColumns:'auto 1fr 1fr 1fr',gap:'2px 6px',fontSize:'0.65rem',padding:'2px 0',borderBottom:'1px solid rgba(255,255,255,0.03)'}}>
+                          <span style={{color:'#A78BFA',fontWeight:700,whiteSpace:'nowrap'}}>{r.city}</span>
+                          <span style={{color:'#10B981',textAlign:'center',fontWeight:600}}>%{r.income_tax_rate}</span>
+                          <span style={{color:'#06B6D4',textAlign:'center',fontWeight:600}}>%{r.trade_tax_rate}</span>
+                          <span style={{color:'#F59E0B',textAlign:'center',fontWeight:600}}>%{r.property_tax_rate}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
