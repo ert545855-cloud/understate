@@ -4467,8 +4467,37 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
             {key:'maliye_bakani',    title:'Maliye Bakanı',        icon:'💰',  openTo:'parti'},
           ];
           const activeElections = VOTE_POSITIONS.filter(p => elections_multi[p.key]?.active);
+          const sortedByInfEl = [...parties].sort((a,b)=>(b.influencePoints||0)-(a.influencePoints||0));
+          const top5IdsEl = sortedByInfEl.slice(0,5).map(p=>p.id);
           return (
             <div>
+              {/* ── Parti Etki Puanı & Seçim Hakkı ── */}
+              <div style={{background:'rgba(167,139,250,0.07)',border:'1px solid rgba(167,139,250,0.25)',borderRadius:'14px',padding:'0.85rem',marginBottom:'0.75rem'}}>
+                <div style={{fontWeight:800,color:'#C4B5FD',fontSize:'0.8rem',marginBottom:'0.5rem',display:'flex',alignItems:'center',gap:'0.4rem'}}>
+                  ⚡ Parti Etki Puanı Sıralaması
+                  <span style={{fontSize:'0.62rem',color:'#5A7089',fontWeight:400}}>— İlk 5 parti seçime aday çıkarabilir</span>
+                </div>
+                {sortedByInfEl.length === 0 ? (
+                  <div style={{fontSize:'0.75rem',color:'#3B4E63',textAlign:'center',padding:'0.5rem'}}>Henüz parti yok</div>
+                ) : sortedByInfEl.map((p,i) => {
+                  const canRun = top5IdsEl.includes(p.id);
+                  const isMyP = p.id === myPartyId;
+                  return (
+                    <div key={p.id} style={{display:'flex',alignItems:'center',gap:'0.5rem',padding:'0.4rem 0.5rem',borderRadius:'8px',marginBottom:'3px',background:isMyP?'rgba(167,139,250,0.08)':'transparent'}}>
+                      <div style={{width:'20px',textAlign:'center',fontSize:'0.72rem',fontWeight:800,color:i<3?['#FFD700','#C0C0C0','#CD7F32'][i]:'#3B4E63',flexShrink:0}}>{i<3?['🥇','🥈','🥉'][i]:`#${i+1}`}</div>
+                      <div style={{width:'8px',height:'8px',borderRadius:'50%',background:p.color||'#8B5CF6',flexShrink:0}}/>
+                      <div style={{flex:1,fontSize:'0.78rem',fontWeight:isMyP?800:600,color:isMyP?'#C4B5FD':'#E8EDF2',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}{isMyP?' (Senin)':''}</div>
+                      <div style={{fontSize:'0.72rem',fontWeight:800,color:'#A78BFA',flexShrink:0}}>{(p.influencePoints||0).toLocaleString()} ⚡</div>
+                      {canRun ? (
+                        <span style={{fontSize:'0.58rem',fontWeight:800,color:'#10B981',background:'rgba(16,185,129,0.12)',border:'1px solid rgba(16,185,129,0.3)',borderRadius:'5px',padding:'1px 6px',flexShrink:0}}>✅ ADAY</span>
+                      ) : (
+                        <span style={{fontSize:'0.58rem',fontWeight:800,color:'#5A7089',background:'rgba(255,255,255,0.04)',borderRadius:'5px',padding:'1px 6px',flexShrink:0}}>❌</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
               <div style={{background:'linear-gradient(135deg,rgba(245,158,11,0.08),rgba(11,21,39,0.9))',border:'1px solid rgba(245,158,11,0.2)',borderRadius:'14px',padding:'0.85rem',marginBottom:'0.75rem',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                 <div>
                   <div style={{fontWeight:800,color:'#F59E0B',fontSize:'0.85rem'}}>🗳️ SEÇİM ODASI</div>
@@ -10985,8 +11014,11 @@ function LeaderboardPage({ profile, onNavigate }) {
   ];
   const [tab, setTab] = useState('money');
   const activeTab = TABS.find(t=>t.id===tab);
-  const users = Array.isArray(allUsers) ? allUsers : [];
-  const sorted = [...users].filter(u=>!u.banned).sort((a,b)=>(b[activeTab.key]||0)-(a[activeTab.key]||0)).slice(0,50);
+  const usersRaw = Array.isArray(allUsers) ? allUsers : [];
+  const usersWithMe = usersRaw.map(u => u.id===cu.id ? {...u, ...cu} : u);
+  const meInList = usersWithMe.find(u => u.id===cu.id);
+  const finalUsers = (meInList || !cu.id) ? usersWithMe : [...usersWithMe, cu];
+  const sorted = [...finalUsers].filter(u=>!u.banned).sort((a,b)=>(b[activeTab.key]||0)-(a[activeTab.key]||0)).slice(0,50);
   const myRank = sorted.findIndex(u=>u.id===cu.id)+1;
   const medal = i => i===0?{icon:'🥇',color:'#FFD700',glow:'rgba(255,215,0,0.3)'}:i===1?{icon:'🥈',color:'#C0C0C0',glow:'rgba(192,192,192,0.3)'}:i===2?{icon:'🥉',color:'#CD7F32',glow:'rgba(205,127,50,0.3)'}:null;
   const fmtVal = u => {
@@ -12752,16 +12784,16 @@ function JobsPage({ profile, setProfile, showNotif }) {
 // ═══════════════════════════════════════════════════════
 const PARTNER_JOBS = [
   { cat:'LOJİSTİK', icon:'🚛', color:'#3B82F6', jobs:[
-    { id:'city_log',  name:'Şehir İçi Lojistik',     dur:'15 Dakika', cdLabel:'30 dk',  cdMs:30*60*1000,  slots:3, earn:50000,  tp:50,  minLevel:1 },
-    { id:'inter_log', name:'Şehirlerarası Taşıma',   dur:'45 Dakika', cdLabel:'2 saat', cdMs:120*60*1000, slots:2, earn:120000, tp:110, minLevel:3 },
+    { id:'city_log',  name:'Şehir İçi Lojistik',      dur:'Anında', cdLabel:'3 dk',  cdMs:3*60*1000,  slots:3, earn:50000,  tp:50,  minLevel:1 },
+    { id:'inter_log', name:'Şehirlerarası Taşıma',    dur:'Anında', cdLabel:'5 dk',  cdMs:5*60*1000,  slots:2, earn:120000, tp:110, minLevel:1 },
   ]},
   { cat:'ÜRETİM', icon:'⚙️', color:'#F59E0B', jobs:[
-    { id:'sub_prod',  name:'Taşeron Üretim Siparişi', dur:'30 Dakika', cdLabel:'1 saat', cdMs:60*60*1000,  slots:2, earn:125000, tp:120, minLevel:2 },
-    { id:'factory_s', name:'Fabrika Vardiyası',       dur:'1 Saat',    cdLabel:'3 saat', cdMs:180*60*1000, slots:2, earn:280000, tp:250, minLevel:5 },
+    { id:'sub_prod',  name:'Taşeron Üretim Siparişi', dur:'Anında', cdLabel:'4 dk',  cdMs:4*60*1000,  slots:2, earn:125000, tp:120, minLevel:1 },
+    { id:'factory_s', name:'Fabrika Vardiyası',        dur:'Anında', cdLabel:'8 dk',  cdMs:8*60*1000,  slots:2, earn:280000, tp:250, minLevel:1 },
   ]},
   { cat:'DIŞ TİCARET', icon:'🌐', color:'#10B981', jobs:[
-    { id:'customs',   name:'Gümrük Beyannamesi Onayı', dur:'45 Dakika', cdLabel:'1.5 saat', cdMs:90*60*1000,  slots:2, earn:220000, tp:200, minLevel:3 },
-    { id:'export',    name:'İhracat Anlaşması',         dur:'2 Saat',    cdLabel:'4 saat',   cdMs:240*60*1000, slots:1, earn:500000, tp:450, minLevel:8 },
+    { id:'customs',   name:'Gümrük Beyannamesi Onayı', dur:'Anında', cdLabel:'6 dk',  cdMs:6*60*1000,  slots:2, earn:220000, tp:200, minLevel:1 },
+    { id:'export',    name:'İhracat Anlaşması',         dur:'Anında', cdLabel:'10 dk', cdMs:10*60*1000, slots:1, earn:500000, tp:450, minLevel:1 },
   ]},
 ];
 
@@ -12772,6 +12804,7 @@ function PartnerJobsSection({ profile, setProfile, showNotif }) {
   const [cooldowns, setCooldowns] = useState(() => { try { return JSON.parse(localStorage.getItem('partnerJobCd')||'{}'); } catch { return {}; } });
   const [tick, setTick] = useState(0);
   const [partnerModal, setPartnerModal] = useState(null);
+  const [partnerSearch, setPartnerSearch] = useState('');
   const [allUsers] = useLs('users', []);
   useEffect(() => { const t = setInterval(() => setTick(p=>p+1), 1000); return () => clearInterval(t); }, []);
 
@@ -12806,7 +12839,10 @@ function PartnerJobsSection({ profile, setProfile, showNotif }) {
     return `${Math.floor(s/3600)}sa`;
   };
 
-  const otherUsers = (Array.isArray(allUsers) ? allUsers : []).filter(u => u.id !== profile?.id && !u.banned).slice(0,20);
+  const allOtherUsers = (Array.isArray(allUsers) ? allUsers : []).filter(u => u.id !== profile?.id && !u.banned);
+  const otherUsers = partnerSearch.trim()
+    ? allOtherUsers.filter(u => u.username?.toLowerCase().includes(partnerSearch.trim().toLowerCase()) || (u.city||'').toLowerCase().includes(partnerSearch.trim().toLowerCase()))
+    : allOtherUsers.slice(0, 20);
 
   return (
     <div style={{paddingBottom:'1rem'}}>
@@ -12864,8 +12900,14 @@ function PartnerJobsSection({ profile, setProfile, showNotif }) {
           <div onClick={e=>e.stopPropagation()} style={{width:'100%',maxWidth:'480px',margin:'0 auto',background:dark?'#1E293B':'#fff',borderRadius:'20px 20px 0 0',padding:'1.25rem',maxHeight:'70vh',overflowY:'auto'}}>
             <div style={{width:'32px',height:'3px',background:'rgba(255,255,255,0.1)',borderRadius:'2px',margin:'0 auto 1rem'}}/>
             <div style={{fontWeight:800,color:dark?'#E8EDF2':'#1E293B',marginBottom:'0.3rem'}}>👥 Ortak Seç</div>
-            <div style={{fontSize:'0.75rem',color:'#5A7089',marginBottom:'0.85rem'}}>{partnerModal.job.name} — Her iki oyuncu da {fmtWord(Math.floor(partnerModal.job.earn/2))} + {Math.floor(partnerModal.job.tp/2)} TP kazanır.</div>
-            {otherUsers.length === 0 && <div style={{color:'#5A7089',fontSize:'0.82rem',textAlign:'center',padding:'1rem'}}>Kayıtlı başka oyuncu yok.</div>}
+            <div style={{fontSize:'0.75rem',color:'#5A7089',marginBottom:'0.65rem'}}>{partnerModal.job.name} — Her iki oyuncu da {fmtWord(Math.floor(partnerModal.job.earn/2))} + {Math.floor(partnerModal.job.tp/2)} TP kazanır.</div>
+            <input
+              value={partnerSearch}
+              onChange={e=>setPartnerSearch(e.target.value)}
+              placeholder="🔍 Oyuncu adı veya şehir ara..."
+              style={{width:'100%',padding:'0.55rem 0.75rem',background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:'10px',color:dark?'#E8EDF2':'#1E293B',fontSize:'0.82rem',outline:'none',marginBottom:'0.65rem',fontFamily:"'DM Sans',sans-serif",boxSizing:'border-box'}}
+            />
+            {otherUsers.length === 0 && <div style={{color:'#5A7089',fontSize:'0.82rem',textAlign:'center',padding:'1rem'}}>{partnerSearch.trim() ? 'Sonuç bulunamadı.' : 'Kayıtlı başka oyuncu yok.'}</div>}
             {otherUsers.map(u => (
               <button key={u.id} onClick={() => startJob(partnerModal.job, u.id)}
                 style={{width:'100%',display:'flex',alignItems:'center',gap:'0.6rem',padding:'0.65rem',border:`1px solid ${border}`,borderRadius:'12px',background:'transparent',cursor:'pointer',marginBottom:'0.4rem',textAlign:'left'}}>
