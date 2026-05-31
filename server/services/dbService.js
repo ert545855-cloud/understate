@@ -23,7 +23,7 @@ function buildPoolConfig() {
         ssl: { rejectUnauthorized: false },
         max: 10,
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 10000,
+        connectionTimeoutMillis: 5000, // 10s -> 5s: Render deploy timeout giderildi
         family: 4,
       };
     }
@@ -34,7 +34,7 @@ function buildPoolConfig() {
     ssl: { rejectUnauthorized: false },
     max: 10,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
+    connectionTimeoutMillis: 5000, // 10s -> 5s: Render deploy timeout giderildi
     family: 4,
   };
 }
@@ -47,15 +47,10 @@ pool.on('connect', () => {
   _connected = true;
 });
 
-// İlk bağlantıyı test et ve _connected'ı güncelle
-pool.connect()
-  .then(client => {
-    _connected = true;
-    client.release();
-  })
-  .catch(() => {
-    _connected = false;
-  });
+// NOT: Burada erken pool.connect() çağrısı KASITLI OLARAK kaldırıldı.
+// connection.js içindeki connectDB() zaten sunucu başladıktan sonra
+// bağlantıyı test eder. Buradaki erken çağrı Render'da deploy
+// timeout'una yol açıyordu (DB yanıt vermezse 10s bekliyordu).
 
 pool.on('error', (err) => {
   logger.error('[DB] Pool bağlantı hatası:', err.message);
