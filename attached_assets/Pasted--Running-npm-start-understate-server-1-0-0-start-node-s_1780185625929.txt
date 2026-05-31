@@ -1,0 +1,41 @@
+=> Running 'npm start'
+> understate-server@1.0.0 start
+> node server/index.js
+[INFO] 2026-05-30T23:41:52.751Z [Monitor] Online:0 | Peak:1 | Rooms:1 | Uptime:23s 52d
+==> No open ports detected, continuing to scan...
+==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+[INFO] 2026-05-30T23:42:52.750Z [Monitor] Online:0 | Peak:1 | Rooms:1 | Uptime:23s 53d
+==> No open ports detected, continuing to scan...
+==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+[INFO] 2026-05-30T23:43:52.750Z [Monitor] Online:0 | Peak:1 | Rooms:1 | Uptime:23s 54d
+==> No open ports detected, continuing to scan...
+==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+[INFO] 2026-05-30T23:44:52.750Z [Monitor] Online:0 | Peak:1 | Rooms:1 | Uptime:23s 55d
+[INFO] 2026-05-30T23:44:53.196Z [GameEngine] Oyun durumu DB'den yüklendi — çete:0 parti:0 ittifak:0
+[INFO] 2026-05-30T23:45:52.751Z [Monitor] Online:0 | Peak:1 | Rooms:1 | Uptime:23s 56d
+==> No open ports detected, continuing to scan...
+==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+==> Port scan timeout reached, no open ports detected. Bind your service to at least one port. If you don't need to receive traffic on any port, create a background worker instead.
+[INFO] 2026-05-30T23:46:52.751Z [Monitor] Online:0 | Peak:1 | Rooms:1 | Uptime:23s 57d
+==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+[INFO] 2026-05-30T23:47:52.752Z [Monitor] Online:0 | Peak:1 | Rooms:1 | Uptime:23s 58d
+[INFO] 2026-05-30T23:48:52.752Z [Monitor] Online:0 | Peak:1 | Rooms:1 | Uptime:23s 59d
+[INFO] 2026-05-30T23:49:51.101Z [Portfolio] 5 kullanıcı snapshot alındı
+[WARN] 2026-05-30T23:49:51.108Z [Sched] tax: Cannot convert a BigInt value to a number
+[INFO] 2026-05-30T23:49:52.753Z [Monitor] Online:0 | Peak:1 | Rooms:1 | Uptime:1g 0s
+[INFO] 2026-05-30T23:49:53.220Z [GameEngine] Oyun durumu DB'den yüklendi — çete:0 parti:0 ittifak:0
+[INFO] 2026-05-30T23:50:52.753Z [Monitor] Online:0 | Peak:1 | Rooms:1 | Uptime:1g 0s
+[INFO] 2026-05-30T23:51:52.753Z [Monitor] Online:0 | Peak:1 | Rooms:1 | Uptime:1g 0s
+[INFO] 2026-05-30T23:52:52.753Z [Monitor] Online:0 | Peak:1 | Rooms:1 | Uptime:1g 0s
+[INFO] 2026-05-30T23:53:52.753Z [Monitor] Online:0 | Peak:1 | Rooms:1 | Uptime:1g 0s
+[INFO] 2026-05-30T23:54:52.754Z [Monitor] Online:0 | Peak:1 | Rooms:1 | Uptime:1g 0s
+[INFO] 2026-05-30T23:54:53.205Z [GameEngine] Oyun durumu DB'den yüklendi — çete:0 parti:0 ittifak:0
+[INFO] 2026-05-30T23:55:52.754Z [Monitor] Online:0 | Peak:1 | Rooms:1 | Uptime:1g 0s
+==> Timed Out
+==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
+==> Running 'npm start'
+[INFO] 2026-05-30T23:56:52.755Z [Monitor] Online:0 | Peak:1 | Rooms:1 | Uptime:1g 0s
+[INFO] 2026-05-30T23:57:52.755Z [Monitor] Online:0 | Peak:1 | Rooms:1 | Uptime:1g 0s
+[INFO] 2026-05-30T23:58:52.754Z [Monitor] Online:0 | Peak:1 | Rooms:1 | Uptime:1g 0s
+[INFO] 2026-05-30T23:59:52.754Z [Monitor] Online:0 | Peak:1 | Rooms:1 | Uptime:1g 0s
+[INFO] 2026-05-30T23:59:53.323Z [GameEngine] Oyun durumu DB'den yüklendi — çete:0 parti:0 ittifak:0

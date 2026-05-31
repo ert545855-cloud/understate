@@ -59,7 +59,7 @@ async function collectPropertyTax() {
   let totalCollected = 0;
   for (const u of users) {
     const rates = await getRates(u.city);
-    const tax = Math.ceil(BigInt(u.bank_money) * BigInt(Math.ceil(rates.property * 10)) / 1000n);
+    const tax = Math.ceil(Number(u.bank_money) * rates.property / 100);
     if (tax > 0) {
       await db.query(`UPDATE users SET bank_money=GREATEST(0,bank_money-$2) WHERE id=$1`, [u.id, tax])
         .catch(() => {});
