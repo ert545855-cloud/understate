@@ -3965,6 +3965,13 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
   const registerCandidate = () => {
     if (elections.candidates?.some(c=>c.uid===profile?.uid)) { showNotif('Zaten adaysın','error'); return; }
     if (!myParty) { showNotif('Aday olmak için parti üyesi olun','error'); return; }
+    const sortedByInf = [...parties].sort((a,b)=>(b.influencePoints||0)-(a.influencePoints||0));
+    const top5Ids = sortedByInf.slice(0,5).map(p=>p.id);
+    if (!top5Ids.includes(myParty.id)) {
+      const myRank = sortedByInf.findIndex(p=>p.id===myParty.id)+1;
+      showNotif(`❌ Seçime aday çıkarmak için ilk 5 partiden biri olmalısın! Şu an: #${myRank} (Etki: ${(myParty.influencePoints||0).toLocaleString()} ⚡)`, 'error');
+      return;
+    }
     setElections(e => { const next={...e, candidates:[...(e.candidates||[]),{uid:profile.uid,username:profile.username,party:myParty.name,partyId:myParty.id,votes:0,slogan:'Değişim için oyunuzu isterim!'}]}; try{window._socket?.emit('election:sync',{elections:next});}catch(ex){}; return next; });
     showNotif('🗳️ Devlet başkanlığı adaylığın kaydedildi!', 'success');
   };
@@ -4162,7 +4169,6 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
                   {/* Base actions */}
                   <div style={{display:'flex',gap:'0.4rem',flexWrap:'wrap',marginBottom:'0.5rem'}}>
                     <Btn variant='ghost' size='sm' onClick={()=>setDonateModal(true)}>💰 Bağış</Btn>
-                    {isLeader && <Btn variant='ghost' size='sm' onClick={()=>setCabinetModal(true)}>👔 Bakan Ata</Btn>}
                     {!isLeader && <Btn variant='danger' size='sm' onClick={leaveParty}>🚪 Ayrıl</Btn>}
                   </div>
                 </Card>
