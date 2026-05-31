@@ -7703,19 +7703,39 @@ const EDU_POSITION_REQS = {
 // ═══════════════════════════════════════════════════════
 const EDU_INFLUENCE_BONUS = { ilkokul:1.0, ortaokul:1.1, lise:1.2, universite:1.5, yukseklisans:1.8, doktora:2.0, profesor:2.5 };
 const PARTI_ETKI_ACTIONS = [
-  { id:'kucuk_miting',     icon:'📣', label:'Küçük Miting',         desc:'Mahalle mitingi düzenle',            cost:10000,   inf:8,   xp:100, cd:2*3600000  },
-  { id:'kampanya_konusma', icon:'🎙️', label:'Kampanya Konuşması',   desc:'Parti adına kamuoyu açıklaması',     cost:25000,   inf:15,  xp:200, cd:4*3600000  },
-  { id:'sosyal_medya',     icon:'📱', label:'Sosyal Medya Atağı',   desc:'Sosyal medyada kampanya yürüt',      cost:5000,    inf:6,   xp:80,  cd:1*3600000  },
-  { id:'basin_bulteni',    icon:'🗞️', label:'Basın Bülteni',        desc:'Medyaya demeç ver',                  cost:40000,   inf:20,  xp:250, cd:6*3600000  },
-  { id:'secim_turu',       icon:'🚌', label:'Seçim Turu',           desc:'Şehri dolaşarak seçmen kazan',       cost:80000,   inf:35,  xp:400, cd:8*3600000  },
-  { id:'buyuk_miting',     icon:'🎤', label:'Büyük Parti Mitingi',  desc:'Büyük çaplı ulusal miting düzenle',  cost:200000,  inf:80,  xp:800, cd:12*3600000 },
-  { id:'tv_roportaj',      icon:'📺', label:'TV Röportajı',         desc:'Ulusal kanalda canlı röportaj',      cost:350000,  inf:130, xp:1200,cd:24*3600000 },
-  { id:'kapi_kapi',        icon:'🚪', label:'Kapı Kapı Kampanya',   desc:'Vatandaşlarla birebir görüş',        cost:15000,   inf:10,  xp:150, cd:3*3600000  },
-  { id:'genclik_kolu',     icon:'🎓', label:'Gençlik Kolu Etkinliği',desc:'Gençlere yönelik etkinlik',         cost:30000,   inf:18,  xp:300, cd:5*3600000  },
-  { id:'ticaret_destegi',  icon:'🤝', label:'Ticaret Ağı Desteği',  desc:'İş dünyasıyla lobi (TP bonusu)',     cost:60000,   inf:25,  xp:350, cd:8*3600000,  tpBonus:true },
-  { id:'akademik_panel',   icon:'🔬', label:'Akademik Panel',       desc:'Üniversitede panel düzenle (Eğitim bonusu)', cost:50000, inf:22, xp:400, cd:6*3600000, eduBonus:true },
-  { id:'ulusal_kongre',    icon:'🏛️', label:'Ulusal Kongre',        desc:'Tüm partili üyelerin büyük buluşması',cost:500000, inf:200, xp:2000,cd:48*3600000 },
+  { id:'kucuk_miting',     icon:'📣', label:'Küçük Miting',          desc:'Mahalle mitingi düzenle',             cost:10000,   inf:8,   xp:100,  cd:3000 },
+  { id:'kampanya_konusma', icon:'🎙️', label:'Kampanya Konuşması',    desc:'Parti adına kamuoyu açıklaması',      cost:25000,   inf:15,  xp:200,  cd:3000 },
+  { id:'sosyal_medya',     icon:'📱', label:'Sosyal Medya Atağı',    desc:'Sosyal medyada kampanya yürüt',       cost:5000,    inf:6,   xp:80,   cd:3000 },
+  { id:'basin_bulteni',    icon:'🗞️', label:'Basın Bülteni',         desc:'Medyaya demeç ver',                   cost:40000,   inf:20,  xp:250,  cd:3000 },
+  { id:'secim_turu',       icon:'🚌', label:'Seçim Turu',            desc:'Şehri dolaşarak seçmen kazan',        cost:80000,   inf:35,  xp:400,  cd:3000 },
+  { id:'buyuk_miting',     icon:'🎤', label:'Büyük Parti Mitingi',   desc:'Büyük çaplı ulusal miting düzenle',   cost:200000,  inf:80,  xp:800,  cd:3000 },
+  { id:'tv_roportaj',      icon:'📺', label:'TV Röportajı',          desc:'Ulusal kanalda canlı röportaj',       cost:350000,  inf:130, xp:1200, cd:3000 },
+  { id:'kapi_kapi',        icon:'🚪', label:'Kapı Kapı Kampanya',    desc:'Vatandaşlarla birebir görüş',         cost:15000,   inf:10,  xp:150,  cd:3000 },
+  { id:'genclik_kolu',     icon:'🎓', label:'Gençlik Kolu Etkinliği',desc:'Gençlere yönelik etkinlik',           cost:30000,   inf:18,  xp:300,  cd:3000 },
+  { id:'ticaret_destegi',  icon:'🤝', label:'Ticaret Ağı Desteği',   desc:'İş dünyasıyla lobi (TP bonusu)',      cost:60000,   inf:25,  xp:350,  cd:3000, tpBonus:true },
+  { id:'akademik_panel',   icon:'🔬', label:'Akademik Panel',        desc:'Üniversitede panel (Eğitim bonusu)',  cost:50000,   inf:22,  xp:400,  cd:3000, eduBonus:true },
+  { id:'ulusal_kongre',    icon:'🏛️', label:'Ulusal Kongre',         desc:'Tüm partili üyelerin büyük buluşması',cost:500000,  inf:200, xp:2000, cd:3000 },
 ];
+
+const LOBI_DONATION_TIERS = [
+  { id:'kucuk', label:'Küçük Bağış',   amount:100000,    inf:10  },
+  { id:'orta',  label:'Orta Bağış',    amount:500000,    inf:60  },
+  { id:'buyuk', label:'Büyük Bağış',   amount:2000000,   inf:300 },
+  { id:'dev',   label:'Dev Bağış',     amount:10000000,  inf:2000},
+];
+
+function useLobiStore() {
+  const [lobiler, setLobiRaw] = useState(() => { try { return JSON.parse(localStorage.getItem('rep_lobiAnlasmalari')||'[]'); } catch{ return []; } });
+  const setLobiler = (fn) => {
+    setLobiRaw(prev => {
+      const next = typeof fn === 'function' ? fn(prev) : fn;
+      localStorage.setItem('rep_lobiAnlasmalari', JSON.stringify(next));
+      try { window._socket?.emit('lobi:sync',{lobiler:next}); } catch(e){}
+      return next;
+    });
+  };
+  return [lobiler, setLobiler];
+}
 
 function PartiEtkiPage({ profile, setProfile, parties, setParties, showNotif }) {
   const { dark } = useTheme();
@@ -7725,13 +7745,24 @@ function PartiEtkiPage({ profile, setProfile, parties, setParties, showNotif }) 
 
   const [cds, setCds] = useState(() => { try { return JSON.parse(localStorage.getItem('rep_partiEtkiCds')||'{}'); } catch{ return {}; } });
   const [now, setNow] = useState(Date.now());
+  const [lobiler, setLobiler] = useLobiStore();
+  const [showLobiModal, setShowLobiModal] = useState(false);
+  const [lobiDonateModal, setLobiDonateModal] = useState(null);
+
   useEffect(() => { const t = setInterval(()=>setNow(Date.now()),1000); return ()=>clearInterval(t); }, []);
 
   const saveCds = (next) => { setCds(next); localStorage.setItem('rep_partiEtkiCds', JSON.stringify(next)); };
 
+  const uid = profile?.uid || profile?.id;
   const myPartyId = profile?.party || null;
   const allParties = [...parties].sort((a,b)=>(b.influencePoints||0)-(a.influencePoints||0));
   const myParty = parties.find(p=>p.id===myPartyId) || null;
+  const isPartyLeader = myParty && (myParty.leaderId===uid);
+
+  const allGangs = (() => { try { return JSON.parse(localStorage.getItem('rep_gangs')||'[]'); } catch{ return []; } })();
+  const allFamilies = allGangs.filter(g=>g.type==='family');
+  const myFamily = allFamilies.find(f=>f.leaderId===uid || (f.members||[]).includes(uid));
+  const isFamilyLeader = myFamily && myFamily.leaderId===uid;
 
   const diploma = profile?.education?.diploma || 'ilkokul';
   const eduMult = EDU_INFLUENCE_BONUS[diploma] || 1.0;
@@ -7742,48 +7773,85 @@ function PartiEtkiPage({ profile, setProfile, parties, setParties, showNotif }) 
     if (!myParty) { showNotif('Önce bir partiye katıl!', 'error'); return; }
     const rem = Math.max(0, act.cd - (now - (cds[act.id]||0)));
     if (rem > 0) return;
-    if ((profile?.money||0) < act.cost) { showNotif(`Yeterli para yok! Gerekli: ₺${act.cost.toLocaleString('tr-TR')}`, 'error'); return; }
-
-    let mult = act.eduBonus ? eduMult : (act.tpBonus ? tpMult : 1.0);
+    if ((profile?.money||0) < act.cost) { showNotif(`Yeterli para yok! ₺${act.cost.toLocaleString('tr-TR')} gerekli`, 'error'); return; }
+    const mult = act.eduBonus ? eduMult : (act.tpBonus ? tpMult : 1.0);
     const finalInf = Math.round(act.inf * mult);
     const finalXp  = Math.round(act.xp * mult);
-
     setParties(prev => {
-      const next = prev.map(p => p.id===myPartyId
-        ? { ...p, influencePoints:(p.influencePoints||0)+finalInf, support:Math.min(100,(p.support||0)+Math.floor(finalInf/20)) }
-        : p
-      );
+      const next = prev.map(p => p.id===myPartyId ? { ...p, influencePoints:(p.influencePoints||0)+finalInf } : p);
       try { window._socket?.emit('party:sync',{parties:next}); } catch(e){}
       return next;
     });
     setProfile(p => {
-      const np = {...p, money:(p.money||0)-act.cost, xp:(p.xp||0)+finalXp };
+      const np = {...p, money:(p.money||0)-act.cost, xp:(p.xp||0)+finalXp};
       localStorage.setItem('rep_userProfile', JSON.stringify(np));
-      try {
-        const tk = localStorage.getItem('rep_token');
-        if (tk) fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({money:np.money,xp:np.xp,level:np.level||1})}).catch(()=>{});
-      } catch(e){}
+      try { const tk=localStorage.getItem('rep_token'); if(tk) fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({money:np.money,xp:np.xp,level:np.level||1})}).catch(()=>{}); } catch(e){}
       return np;
     });
     saveCds({...cds,[act.id]:now});
     const bonusText = mult>1.05 ? ` (×${mult.toFixed(1)} bonus!)` : '';
-    showNotif(`${act.icon} ${act.label} tamamlandı! +${finalInf} Etki Puanı → ${myParty.name}${bonusText}`, 'success');
+    showNotif(`${act.icon} ${act.label} → +${finalInf} Etki Puanı${bonusText}`, 'success');
   };
 
-  const fmtCd = (ms) => {
-    if (ms <= 0) return null;
-    const h = Math.floor(ms/3600000), m = Math.floor((ms%3600000)/60000), s = Math.ceil((ms%60000)/1000);
-    if (h>0) return `${h}s ${m}dk`;
-    if (m>0) return `${m}dk ${s}sn`;
-    return `${s}sn`;
+  const sendLobiInvite = (family) => {
+    if (!myParty || !isPartyLeader) return;
+    const already = lobiler.find(l=>l.partyId===myPartyId && l.familyId===family.id && l.status!=='rejected');
+    if (already) { showNotif('Bu aileyle zaten bir lobi isteği var', 'error'); return; }
+    const lobi = {
+      id: 'lobi_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+      partyId: myPartyId, partyName: myParty.name, partyLeaderId: uid, partyLeaderName: profile?.username,
+      familyId: family.id, familyName: family.name, familyLeaderId: family.leaderId, familyLeaderName: family.leaderName||'Lider',
+      status: 'pending', createdAt: Date.now(), totalDonated: 0, totalInf: 0,
+    };
+    setLobiler(prev=>[...prev, lobi]);
+    setShowLobiModal(false);
+    showNotif(`📨 Lobi daveti ${family.name} ailesine gönderildi!`, 'success');
   };
+
+  const acceptLobi = (lobi) => {
+    if (!isFamilyLeader) return;
+    setLobiler(prev=>prev.map(l=>l.id===lobi.id ? {...l, status:'active'} : l));
+    showNotif(`🤝 Lobi anlaşması kabul edildi! ${lobi.partyName} ile lobi kuruldu.`, 'success');
+  };
+
+  const rejectLobi = (lobi) => {
+    setLobiler(prev=>prev.map(l=>l.id===lobi.id ? {...l, status:'rejected'} : l));
+    showNotif('Lobi daveti reddedildi', 'info');
+  };
+
+  const donatToParty = (lobi, tier) => {
+    if ((profile?.money||0) < tier.amount) { showNotif(`Yeterli para yok! ₺${tier.amount.toLocaleString('tr-TR')} gerekli`, 'error'); return; }
+    setLobiler(prev=>prev.map(l=>l.id===lobi.id ? {...l, totalDonated:(l.totalDonated||0)+tier.amount, totalInf:(l.totalInf||0)+tier.inf} : l));
+    setParties(prev=>{
+      const next=prev.map(p=>p.id===lobi.partyId?{...p,influencePoints:(p.influencePoints||0)+tier.inf}:p);
+      try{window._socket?.emit('party:sync',{parties:next});}catch(e){}
+      return next;
+    });
+    setProfile(p=>{
+      const np={...p,money:(p.money||0)-tier.amount};
+      localStorage.setItem('rep_userProfile',JSON.stringify(np));
+      try{const tk=localStorage.getItem('rep_token');if(tk)fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({money:np.money,xp:np.xp||0,level:np.level||1})}).catch(()=>{});}catch(e){}
+      return np;
+    });
+    setLobiDonateModal(null);
+    showNotif(`💰 ${tier.label}: ₺${tier.amount.toLocaleString('tr-TR')} bağışlandı → ${lobi.partyName} +${tier.inf} Etki Puanı`, 'success');
+  };
+
+  const fmtCd = (ms) => { if(ms<=0)return null; const s=Math.ceil(ms/1000); return `${s}sn`; };
+
+  const activeLobiler = lobiler.filter(l=>l.status==='active');
+  const pendingForMe  = lobiler.filter(l=>l.status==='pending' && isFamilyLeader && myFamily && l.familyId===myFamily.id);
+  const myPartyLobiler= lobiler.filter(l=>l.status==='active' && l.partyId===myPartyId);
+  const myFamilyLobiler=lobiler.filter(l=>l.status==='active' && myFamily && l.familyId===myFamily.id);
+  const visibleLobiler = [...new Map([...myPartyLobiler,...myFamilyLobiler].map(l=>[l.id,l])).values()];
+  const canDonate = myFamily && (myFamilyLobiler.length>0 || myPartyLobiler.length>0);
 
   return (
     <div style={{padding:'0.75rem',background:bg,minHeight:'100%'}}>
       <div style={{fontWeight:800,color:'#A78BFA',fontSize:'1.05rem',marginBottom:'0.15rem',letterSpacing:'0.03em'}}>⚡ Devlet Etki Puanı</div>
       <div style={{fontSize:'0.75rem',color:'#5A7089',marginBottom:'0.75rem'}}>Faaliyetlerle partine etki puanı kazan. Eğitim ve ticaret puanın bonus verir.</div>
 
-      {/* Bonus bilgisi */}
+      {/* Bonus kartları */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.5rem',marginBottom:'0.75rem'}}>
         <div style={{background:'rgba(59,130,246,0.08)',border:'1px solid rgba(59,130,246,0.2)',borderRadius:'10px',padding:'0.6rem',textAlign:'center'}}>
           <div style={{fontSize:'0.65rem',color:'#60A5FA',fontWeight:700,marginBottom:'2px'}}>🎓 Eğitim Bonusu</div>
@@ -7815,6 +7883,55 @@ function PartiEtkiPage({ profile, setProfile, parties, setParties, showNotif }) 
         </div>
       )}
 
+      {/* ── AİLE FONU — Bekleyen Davetler (sadece aile lideri) ── */}
+      {pendingForMe.length>0 && (
+        <div style={{background:'rgba(245,158,11,0.08)',border:'1px solid rgba(245,158,11,0.35)',borderRadius:'12px',padding:'0.75rem',marginBottom:'0.75rem'}}>
+          <div style={{fontWeight:700,color:'#FCD34D',fontSize:'0.82rem',marginBottom:'0.5rem'}}>📨 Lobi Daveti</div>
+          {pendingForMe.map(lobi=>(
+            <div key={lobi.id} style={{background:'rgba(255,255,255,0.04)',borderRadius:'10px',padding:'0.6rem',marginBottom:'0.4rem'}}>
+              <div style={{fontWeight:700,color:'#E8EDF2',fontSize:'0.82rem'}}>{lobi.partyName}</div>
+              <div style={{fontSize:'0.65rem',color:'#5A7089',marginBottom:'0.5rem'}}>Lider: {lobi.partyLeaderName} • Lobi kurmak istiyor</div>
+              <div style={{display:'flex',gap:'0.5rem'}}>
+                <button onClick={()=>acceptLobi(lobi)} style={{flex:1,background:'rgba(16,185,129,0.15)',border:'1px solid rgba(16,185,129,0.4)',borderRadius:'8px',padding:'5px',color:'#6EE7B7',cursor:'pointer',fontWeight:700,fontSize:'0.72rem'}}>✅ Kabul Et</button>
+                <button onClick={()=>rejectLobi(lobi)} style={{flex:1,background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.3)',borderRadius:'8px',padding:'5px',color:'#FCA5A5',cursor:'pointer',fontWeight:700,fontSize:'0.72rem'}}>❌ Reddet</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── AİLE FONU — Aktif Lobiler (sadece taraflar görür) ── */}
+      {visibleLobiler.length>0 && (
+        <div style={{background:'rgba(245,158,11,0.06)',border:'1px solid rgba(245,158,11,0.25)',borderRadius:'12px',padding:'0.75rem',marginBottom:'0.75rem'}}>
+          <div style={{fontWeight:700,color:'#FCD34D',fontSize:'0.82rem',marginBottom:'0.5rem'}}>💼 Aile Fonu Anlaşmaları</div>
+          {visibleLobiler.map(lobi=>{
+            const isMine = myFamily && lobi.familyId===myFamily.id;
+            return (
+              <div key={lobi.id} style={{background:'rgba(255,255,255,0.04)',borderRadius:'10px',padding:'0.65rem',marginBottom:'0.4rem'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'0.35rem'}}>
+                  <div>
+                    <div style={{fontWeight:700,color:'#E8EDF2',fontSize:'0.82rem'}}>👨‍👩‍👧‍👦 {lobi.familyName} → 🏛️ {lobi.partyName}</div>
+                    <div style={{fontSize:'0.62rem',color:'#5A7089'}}>Toplam bağış: ₺{(lobi.totalDonated||0).toLocaleString('tr-TR')} • +{(lobi.totalInf||0).toLocaleString()} Etki</div>
+                  </div>
+                </div>
+                {isMine && (
+                  <button onClick={()=>setLobiDonateModal(lobi)} style={{width:'100%',background:'rgba(245,158,11,0.15)',border:'1px solid rgba(245,158,11,0.4)',borderRadius:'8px',padding:'5px',color:'#FCD34D',cursor:'pointer',fontWeight:700,fontSize:'0.72rem'}}>
+                    💰 Bağış Yap
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Lobi Kur butonu — sadece parti lideri ── */}
+      {isPartyLeader && (
+        <button onClick={()=>setShowLobiModal(true)} style={{width:'100%',background:'rgba(245,158,11,0.1)',border:'1px solid rgba(245,158,11,0.35)',borderRadius:'12px',padding:'0.65rem',color:'#FCD34D',cursor:'pointer',fontWeight:700,fontSize:'0.8rem',marginBottom:'0.75rem',textAlign:'center'}}>
+          🤝 Aile ile Lobi Kur
+        </button>
+      )}
+
       {/* Faaliyetler */}
       <div style={{fontWeight:700,color:'#E8EDF2',fontSize:'0.82rem',marginBottom:'0.4rem'}}>🎯 Faaliyetler</div>
       <div style={{display:'flex',flexDirection:'column',gap:'0.4rem',marginBottom:'0.85rem'}}>
@@ -7823,12 +7940,11 @@ function PartiEtkiPage({ profile, setProfile, parties, setParties, showNotif }) 
           const onCd = rem > 0;
           const canAfford = (profile?.money||0) >= act.cost;
           const hasParty = !!myParty;
-          const disabled = onCd || !hasParty;
-          let mult = act.eduBonus ? eduMult : (act.tpBonus ? tpMult : 1.0);
+          const mult = act.eduBonus ? eduMult : (act.tpBonus ? tpMult : 1.0);
           const finalInf = Math.round(act.inf * mult);
           const bonusActive = mult > 1.05;
           return (
-            <div key={act.id} style={{background:card,border:`1px solid ${onCd?'rgba(255,255,255,0.06)':bonusActive?'rgba(251,191,36,0.3)':'rgba(167,139,250,0.2)'}`,borderRadius:'12px',padding:'0.6rem 0.75rem',display:'flex',alignItems:'center',gap:'0.6rem',opacity:disabled&&!onCd?0.7:1}}>
+            <div key={act.id} style={{background:card,border:`1px solid ${onCd?'rgba(255,255,255,0.06)':bonusActive?'rgba(251,191,36,0.3)':'rgba(167,139,250,0.2)'}`,borderRadius:'12px',padding:'0.6rem 0.75rem',display:'flex',alignItems:'center',gap:'0.6rem'}}>
               <div style={{fontSize:'1.4rem',flexShrink:0}}>{act.icon}</div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontWeight:700,color:onCd?'#3B4E63':'#E8EDF2',fontSize:'0.82rem',display:'flex',alignItems:'center',gap:'0.3rem'}}>
@@ -7838,24 +7954,19 @@ function PartiEtkiPage({ profile, setProfile, parties, setParties, showNotif }) 
                 <div style={{fontSize:'0.62rem',color:'#5A7089'}}>{act.desc}</div>
                 <div style={{fontSize:'0.65rem',marginTop:'2px',display:'flex',gap:'0.5rem',flexWrap:'wrap'}}>
                   <span style={{color:'#EF4444'}}>₺{act.cost.toLocaleString('tr-TR')}</span>
-                  <span style={{color:bonusActive?'#FCD34D':'#A78BFA'}}>+{finalInf} Etki{bonusActive&&` (×${mult.toFixed(1)})`}</span>
+                  <span style={{color:bonusActive?'#FCD34D':'#A78BFA'}}>+{finalInf} Etki{bonusActive?` (×${mult.toFixed(1)})`:''}</span>
                   <span style={{color:'#6B7280'}}>+{Math.round(act.xp*mult)} XP</span>
                 </div>
               </div>
               <div style={{flexShrink:0}}>
                 {onCd ? (
-                  <div style={{fontSize:'0.68rem',color:'#3B4E63',textAlign:'center',minWidth:'52px'}}>
-                    <div>⏳</div>
-                    <div style={{fontWeight:700}}>{fmtCd(rem)}</div>
-                  </div>
+                  <div style={{fontSize:'0.68rem',color:'#3B4E63',textAlign:'center',minWidth:'40px'}}>⏳<div style={{fontWeight:700}}>{fmtCd(rem)}</div></div>
                 ) : !hasParty ? (
                   <span style={{fontSize:'0.62rem',color:'#5A7089'}}>Parti yok</span>
                 ) : !canAfford ? (
                   <span style={{fontSize:'0.62rem',color:'#EF4444',fontWeight:700}}>Yetersiz ₺</span>
                 ) : (
-                  <button onClick={()=>doAction(act)} style={{background:'rgba(167,139,250,0.15)',border:'1px solid rgba(167,139,250,0.4)',borderRadius:'8px',padding:'5px 12px',color:'#C4B5FD',cursor:'pointer',fontWeight:700,fontSize:'0.72rem',whiteSpace:'nowrap'}}>
-                    Yap
-                  </button>
+                  <button onClick={()=>doAction(act)} style={{background:'rgba(167,139,250,0.15)',border:'1px solid rgba(167,139,250,0.4)',borderRadius:'8px',padding:'5px 12px',color:'#C4B5FD',cursor:'pointer',fontWeight:700,fontSize:'0.72rem',whiteSpace:'nowrap'}}>Yap</button>
                 )}
               </div>
             </div>
@@ -7865,17 +7976,15 @@ function PartiEtkiPage({ profile, setProfile, parties, setParties, showNotif }) 
 
       {/* Parti Sıralaması */}
       <div style={{fontWeight:700,color:'#E8EDF2',fontSize:'0.82rem',marginBottom:'0.4rem'}}>🏆 Parti Etki Puanı Sıralaması</div>
-      <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:'12px',overflow:'hidden'}}>
+      <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:'12px',overflow:'hidden',marginBottom:'1.5rem'}}>
         {allParties.length===0 ? (
           <div style={{padding:'1.5rem',textAlign:'center',color:'#3B4E63',fontSize:'0.8rem'}}>Henüz parti yok</div>
         ) : allParties.map((p,i) => {
-          const isMe = p.id === myPartyId;
-          const medals = ['🥇','🥈','🥉'];
+          const isMe = p.id===myPartyId;
+          const medals=['🥇','🥈','🥉'];
           return (
             <div key={p.id} style={{display:'flex',alignItems:'center',gap:'0.6rem',padding:'0.6rem 0.75rem',borderBottom:i<allParties.length-1?`1px solid ${bdr}`:'none',background:isMe?'rgba(167,139,250,0.07)':'transparent'}}>
-              <div style={{width:'24px',textAlign:'center',fontWeight:800,fontSize:i<3?'1rem':'0.78rem',color:i<3?'inherit':'#5A7089',flexShrink:0}}>
-                {i<3 ? medals[i] : `#${i+1}`}
-              </div>
+              <div style={{width:'24px',textAlign:'center',fontWeight:800,fontSize:i<3?'1rem':'0.78rem',color:i<3?'inherit':'#5A7089',flexShrink:0}}>{i<3?medals[i]:`#${i+1}`}</div>
               <div style={{width:'10px',height:'10px',borderRadius:'50%',background:p.color||'#8B5CF6',flexShrink:0}}/>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontWeight:isMe?800:600,color:isMe?'#C4B5FD':'#E8EDF2',fontSize:'0.82rem',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}{isMe&&<span style={{fontSize:'0.6rem',color:'#A78BFA',marginLeft:'4px'}}>(Senin)</span>}</div>
@@ -7890,6 +7999,55 @@ function PartiEtkiPage({ profile, setProfile, parties, setParties, showNotif }) 
         })}
       </div>
 
+      {/* ── Modal: Lobi Kur (aile seç) ── */}
+      {showLobiModal && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem'}} onClick={()=>setShowLobiModal(false)}>
+          <div style={{background:dark?'#131E30':'#fff',borderRadius:'16px',padding:'1.25rem',width:'100%',maxWidth:'360px',maxHeight:'80vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontWeight:800,color:'#FCD34D',fontSize:'0.95rem',marginBottom:'0.5rem'}}>🤝 Lobi Davet Gönder</div>
+            <div style={{fontSize:'0.72rem',color:'#5A7089',marginBottom:'0.75rem'}}>Bir aile seç ve lobi daveti gönder. Aile lideri kabul ederse lobi kurulur.</div>
+            {allFamilies.length===0 ? (
+              <div style={{textAlign:'center',color:'#3B4E63',fontSize:'0.82rem',padding:'1rem'}}>Henüz kurulmuş aile yok</div>
+            ) : allFamilies.map(f=>{
+              const existing = lobiler.find(l=>l.partyId===myPartyId&&l.familyId===f.id&&l.status!=='rejected');
+              return (
+                <div key={f.id} style={{display:'flex',alignItems:'center',gap:'0.6rem',padding:'0.6rem',background:'rgba(255,255,255,0.04)',borderRadius:'10px',marginBottom:'0.4rem'}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:700,color:'#E8EDF2',fontSize:'0.82rem'}}>👨‍👩‍👧‍👦 {f.name}</div>
+                    <div style={{fontSize:'0.62rem',color:'#5A7089'}}>{f.memberCount||1} üye</div>
+                  </div>
+                  {existing ? (
+                    <span style={{fontSize:'0.65rem',color:'#FCD34D',fontWeight:700}}>{existing.status==='pending'?'⏳ Bekliyor':'✅ Aktif'}</span>
+                  ) : (
+                    <button onClick={()=>sendLobiInvite(f)} style={{background:'rgba(245,158,11,0.15)',border:'1px solid rgba(245,158,11,0.4)',borderRadius:'8px',padding:'4px 10px',color:'#FCD34D',cursor:'pointer',fontWeight:700,fontSize:'0.7rem'}}>Davet Et</button>
+                  )}
+                </div>
+              );
+            })}
+            <button onClick={()=>setShowLobiModal(false)} style={{width:'100%',marginTop:'0.5rem',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'8px',padding:'7px',color:'#5A7089',cursor:'pointer',fontSize:'0.75rem'}}>Kapat</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Bağış Yap ── */}
+      {lobiDonateModal && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem'}} onClick={()=>setLobiDonateModal(null)}>
+          <div style={{background:dark?'#131E30':'#fff',borderRadius:'16px',padding:'1.25rem',width:'100%',maxWidth:'340px'}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontWeight:800,color:'#FCD34D',fontSize:'0.95rem',marginBottom:'0.25rem'}}>💰 Bağış Yap</div>
+            <div style={{fontSize:'0.72rem',color:'#5A7089',marginBottom:'0.75rem'}}>→ {lobiDonateModal.partyName} • Bakiye: ₺{(profile?.money||0).toLocaleString('tr-TR')}</div>
+            {LOBI_DONATION_TIERS.map(tier=>{
+              const canAfford=(profile?.money||0)>=tier.amount;
+              return (
+                <button key={tier.id} onClick={()=>canAfford&&donatToParty(lobiDonateModal,tier)} disabled={!canAfford}
+                  style={{width:'100%',display:'flex',justifyContent:'space-between',alignItems:'center',padding:'0.65rem 0.75rem',marginBottom:'0.4rem',background:canAfford?'rgba(245,158,11,0.1)':'rgba(255,255,255,0.03)',border:`1px solid ${canAfford?'rgba(245,158,11,0.35)':'rgba(255,255,255,0.07)'}`,borderRadius:'10px',color:canAfford?'#FCD34D':'#3B4E63',cursor:canAfford?'pointer':'not-allowed',textAlign:'left'}}>
+                  <span style={{fontWeight:700,fontSize:'0.8rem'}}>{tier.label}</span>
+                  <span style={{fontSize:'0.75rem'}}>₺{tier.amount.toLocaleString('tr-TR')} → +{tier.inf} ⚡</span>
+                </button>
+              );
+            })}
+            <button onClick={()=>setLobiDonateModal(null)} style={{width:'100%',marginTop:'0.25rem',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'8px',padding:'7px',color:'#5A7089',cursor:'pointer',fontSize:'0.75rem'}}>İptal</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
