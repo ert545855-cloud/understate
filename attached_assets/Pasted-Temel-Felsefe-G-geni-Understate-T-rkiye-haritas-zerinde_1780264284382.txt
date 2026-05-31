@@ -1,0 +1,47 @@
+Temel Felsefe: "Güç Üçgeni"
+Understate, Türkiye haritası üzerinde kurulu bir güç simülasyonudur. Oyunda hiç kimse tek başına her şeye sahip olamaz. Üç örgütün her biri diğerine muhtaçtır:
+ÖrgütRolüKaynağıAçığıAileSermaye & ÜretimFabrikalar, holdingler, ihalelerGüvenlik ve yasama gücüne muhtaçÇeteKuvvet & KorumaSilahlı güç, bölge kontrolüParaya ve lojistiğe muhtaçPartiYasama & DevletYasalar, bütçe, makamlarFinansman ve oya muhtaç
+
+Bireysel Oyuncu — Başlangıç
+Oyuncu bir şehir seçer, meslek edinir, para biriktirir. Ama bir tavan var: belirli bir noktadan sonra büyümek için bir örgüte katılmak zorunlu. Tek başına zenginleşebilirsin ama "büyük sermaye"ye geçiş, aile gerektiriyor.
+
+🏛️ AİLE — Sermayenin Sahipleri
+Kodun tasarım dokümanında (UNDERSTATE__Güç_Üçgeni) çok net yazıyor:
+"Fabrika kurma ve işletme yetkisi ailelere aittir. Diğer oyuncular bu fabrikalarda işçi olarak çalışabilir ancak sahibi olamazlar."
+
+Aile kurmak: 500.000.000 TL + 500 UnderCoin (oyunun premium para birimi)
+Holding başvurusu: sadece aile üyeleri yapabilir (mevcut kodda bu kısıtlama eksik — bireyler de yapabiliyor, bu bir bug/eksiklik)
+Aile, devlet ihalelerine katılır, fabrika sahibi olur, borsa portföyü yönetir
+Aile liderinin yetkisiyle üyeler holding CEO'su atanır
+Aileler çeteleri ve partileri finanse ederek dolaylı güç edinir
+
+
+⚔️ ÇETE — Sokağın Hakimleri
+
+Bölge kontrolü: Türkiye haritasında illeri ele geçirir
+Ailelerin fabrikalarından haftalık koruma parası alır — aile ödemezse fabrika sabote edilir
+Silah üretir, paralı asker tutar
+Çete kasası: silah + para, ayrı yönetilir
+İttifak kurabilir: sadece liderler
+
+
+🗳️ PARTİ — Yasanın Gücü
+
+Seçim kazanılırsa kabine kurulur → Ticaret Bakanı, İçişleri Bakanı gibi makamlar dağıtılır
+Bu makamlar kritik: Ticaret Bakanı holding onaylar, İçişleri Bakanı çeteye baskın yaptırabilir
+Aileler partiyi fonlar → karşılığında makam talep eder
+Meclis üzerinden yasa çıkarır: rakip aileleri vergi boğar, çeteleri kısıtlar ya da ayrıcalık tanır
+
+
+Ekonomik Döngü — "Gölge Hükümet"
+Aile fabrika kurar
+  → Çete koruma anlaşması ister → Aile öder → Çete korur
+  → Parti finanse edilir → Seçim kazanılır → Makamlar dağıtılır
+  → Ticaret Bakanı holding onaylar → Fabrika büyür
+  → Daha çok vergi → Devlet bütçesi → Devlet ihalesi açılır
+  → İhaleyi yine aile kazanır → Döngü büyür
+Denge bozulursa:
+
+Aile ödeme kesmezse → Çete fabrika yakar
+Parti aileye makam vermezse → Aile fonu keser → Parti seçim kaybeder
+Çete yasaya uymamızsa → Parti polis baskını yasası çıkarır

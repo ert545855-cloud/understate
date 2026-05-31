@@ -1061,6 +1061,7 @@ const NAV_GROUPS = [
       { id:'alliance',        icon:'🤝',                        label:'İttifak',    rgb:'96,165,250' },
       { id:'world',           icon:'🌍',                        label:'Dünya',      rgb:'59,130,246' },
       { id:'npcplayers',      icon:'🤖',                        label:'NPC',        rgb:'99,102,241' },
+      { id:'parti_etki',     icon:'⚡', label:'Etki Puanı',   rgb:'167,139,250' },
       { id:'party_center',   icon:'🏛️', label:'Meclis',        rgb:'167,139,250' },
       { id:'power_triangle', icon:'⚡', label:'Güç Üçgeni',    rgb:'245,200,66' },
       { id:'tenders',        icon:'🏗️', label:'İhaleler',      rgb:'245,200,66' },
@@ -7667,13 +7668,13 @@ function StorePage({ profile, setProfile, showNotif }) {
 // EĞİTİM SİSTEMİ SAYFASI
 // ═══════════════════════════════════════════════════════
 const EDU_LEVELS = [
-  { id:'ilkokul',      label:'İlkokul',      icon:'📖', costPerClick:2500,   clicksNeeded:20,  desc:'Temel okuma yazma',        grade:'4. Sınıf',  color:'#10B981' },
-  { id:'ortaokul',     label:'Ortaokul',     icon:'📓', costPerClick:8000,   clicksNeeded:50,  desc:'Temel bilimler',           grade:'8. Sınıf',  color:'#3B82F6' },
-  { id:'lise',         label:'Lise',         icon:'🎒', costPerClick:15000,  clicksNeeded:100, desc:'Sosyal ve fen bilimleri',  grade:'12. Sınıf', color:'#8B5CF6' },
-  { id:'universite',   label:'Üniversite',   icon:'🎓', costPerClick:25000,  clicksNeeded:200, desc:'Lisans eğitimi',           grade:'Lisans',    color:'#F59E0B' },
-  { id:'yukseklisans', label:'Yüksek Lisans',icon:'📜', costPerClick:35000,  clicksNeeded:300, desc:'Uzmanlık eğitimi',         grade:'MSc/MBA',   color:'#EC4899' },
-  { id:'doktora',      label:'Doktora',      icon:'🔬', costPerClick:50000,  clicksNeeded:400, desc:'Araştırma ve akademi',     grade:'PhD',       color:'#EF4444' },
-  { id:'profesor',     label:'Profesör',     icon:'🏛️', costPerClick:75000,  clicksNeeded:500, desc:'Akademik kariyer zirvesi', grade:'Prof.Dr.',  color:'#F97316' },
+  { id:'ilkokul',      label:'İlkokul',      icon:'📖', costPerClick:0,      clicksNeeded:50,   desc:'Temel okuma yazma',        grade:'4. Sınıf',  color:'#10B981' },
+  { id:'ortaokul',     label:'Ortaokul',     icon:'📓', costPerClick:500,    clicksNeeded:100,  desc:'Temel bilimler',           grade:'8. Sınıf',  color:'#3B82F6' },
+  { id:'lise',         label:'Lise',         icon:'🎒', costPerClick:1000,   clicksNeeded:200,  desc:'Sosyal ve fen bilimleri',  grade:'12. Sınıf', color:'#8B5CF6' },
+  { id:'universite',   label:'Üniversite',   icon:'🎓', costPerClick:5000,   clicksNeeded:500,  desc:'Lisans eğitimi',           grade:'Lisans',    color:'#F59E0B' },
+  { id:'yukseklisans', label:'Yüksek Lisans',icon:'📜', costPerClick:20000,  clicksNeeded:1000, desc:'Uzmanlık eğitimi',         grade:'MSc/MBA',   color:'#EC4899' },
+  { id:'doktora',      label:'Doktora',      icon:'🔬', costPerClick:50000,  clicksNeeded:2000, desc:'Araştırma ve akademi',     grade:'PhD',       color:'#EF4444' },
+  { id:'profesor',     label:'Profesör',     icon:'🏛️', costPerClick:75000,  clicksNeeded:3000, desc:'Akademik kariyer zirvesi', grade:'Prof.Dr.',  color:'#F97316' },
 ];
 // Eğitim tıklamaları için bekleme süreleri (ms)
 // Normal: 5 dakika, VIP: 2.5 dakika, Paket: 1 saniye
@@ -7696,6 +7697,202 @@ const EDU_POSITION_REQS = {
   'Holding CEO':     'universite',
   'Akademisyen':     'doktora',
 };
+
+// ═══════════════════════════════════════════════════════
+// PARTİ ETKİ PUANI SAYFASI
+// ═══════════════════════════════════════════════════════
+const EDU_INFLUENCE_BONUS = { ilkokul:1.0, ortaokul:1.1, lise:1.2, universite:1.5, yukseklisans:1.8, doktora:2.0, profesor:2.5 };
+const PARTI_ETKI_ACTIONS = [
+  { id:'kucuk_miting',     icon:'📣', label:'Küçük Miting',         desc:'Mahalle mitingi düzenle',            cost:10000,   inf:8,   xp:100, cd:2*3600000  },
+  { id:'kampanya_konusma', icon:'🎙️', label:'Kampanya Konuşması',   desc:'Parti adına kamuoyu açıklaması',     cost:25000,   inf:15,  xp:200, cd:4*3600000  },
+  { id:'sosyal_medya',     icon:'📱', label:'Sosyal Medya Atağı',   desc:'Sosyal medyada kampanya yürüt',      cost:5000,    inf:6,   xp:80,  cd:1*3600000  },
+  { id:'basin_bulteni',    icon:'🗞️', label:'Basın Bülteni',        desc:'Medyaya demeç ver',                  cost:40000,   inf:20,  xp:250, cd:6*3600000  },
+  { id:'secim_turu',       icon:'🚌', label:'Seçim Turu',           desc:'Şehri dolaşarak seçmen kazan',       cost:80000,   inf:35,  xp:400, cd:8*3600000  },
+  { id:'buyuk_miting',     icon:'🎤', label:'Büyük Parti Mitingi',  desc:'Büyük çaplı ulusal miting düzenle',  cost:200000,  inf:80,  xp:800, cd:12*3600000 },
+  { id:'tv_roportaj',      icon:'📺', label:'TV Röportajı',         desc:'Ulusal kanalda canlı röportaj',      cost:350000,  inf:130, xp:1200,cd:24*3600000 },
+  { id:'kapi_kapi',        icon:'🚪', label:'Kapı Kapı Kampanya',   desc:'Vatandaşlarla birebir görüş',        cost:15000,   inf:10,  xp:150, cd:3*3600000  },
+  { id:'genclik_kolu',     icon:'🎓', label:'Gençlik Kolu Etkinliği',desc:'Gençlere yönelik etkinlik',         cost:30000,   inf:18,  xp:300, cd:5*3600000  },
+  { id:'ticaret_destegi',  icon:'🤝', label:'Ticaret Ağı Desteği',  desc:'İş dünyasıyla lobi (TP bonusu)',     cost:60000,   inf:25,  xp:350, cd:8*3600000,  tpBonus:true },
+  { id:'akademik_panel',   icon:'🔬', label:'Akademik Panel',       desc:'Üniversitede panel düzenle (Eğitim bonusu)', cost:50000, inf:22, xp:400, cd:6*3600000, eduBonus:true },
+  { id:'ulusal_kongre',    icon:'🏛️', label:'Ulusal Kongre',        desc:'Tüm partili üyelerin büyük buluşması',cost:500000, inf:200, xp:2000,cd:48*3600000 },
+];
+
+function PartiEtkiPage({ profile, setProfile, parties, setParties, showNotif }) {
+  const { dark } = useTheme();
+  const bg   = dark ? '#0B1527' : '#F0F4FF';
+  const card = dark ? 'rgba(255,255,255,0.04)' : '#fff';
+  const bdr  = dark ? 'rgba(255,255,255,0.08)' : '#E5E7EB';
+
+  const [cds, setCds] = useState(() => { try { return JSON.parse(localStorage.getItem('rep_partiEtkiCds')||'{}'); } catch{ return {}; } });
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(()=>setNow(Date.now()),1000); return ()=>clearInterval(t); }, []);
+
+  const saveCds = (next) => { setCds(next); localStorage.setItem('rep_partiEtkiCds', JSON.stringify(next)); };
+
+  const myPartyId = profile?.party || null;
+  const allParties = [...parties].sort((a,b)=>(b.influencePoints||0)-(a.influencePoints||0));
+  const myParty = parties.find(p=>p.id===myPartyId) || null;
+
+  const diploma = profile?.education?.diploma || 'ilkokul';
+  const eduMult = EDU_INFLUENCE_BONUS[diploma] || 1.0;
+  const tradePoints = profile?.tradePoints || 0;
+  const tpMult = 1 + Math.floor(tradePoints / 500) * 0.05;
+
+  const doAction = (act) => {
+    if (!myParty) { showNotif('Önce bir partiye katıl!', 'error'); return; }
+    const rem = Math.max(0, act.cd - (now - (cds[act.id]||0)));
+    if (rem > 0) return;
+    if ((profile?.money||0) < act.cost) { showNotif(`Yeterli para yok! Gerekli: ₺${act.cost.toLocaleString('tr-TR')}`, 'error'); return; }
+
+    let mult = act.eduBonus ? eduMult : (act.tpBonus ? tpMult : 1.0);
+    const finalInf = Math.round(act.inf * mult);
+    const finalXp  = Math.round(act.xp * mult);
+
+    setParties(prev => {
+      const next = prev.map(p => p.id===myPartyId
+        ? { ...p, influencePoints:(p.influencePoints||0)+finalInf, support:Math.min(100,(p.support||0)+Math.floor(finalInf/20)) }
+        : p
+      );
+      try { window._socket?.emit('party:sync',{parties:next}); } catch(e){}
+      return next;
+    });
+    setProfile(p => {
+      const np = {...p, money:(p.money||0)-act.cost, xp:(p.xp||0)+finalXp };
+      localStorage.setItem('rep_userProfile', JSON.stringify(np));
+      try {
+        const tk = localStorage.getItem('rep_token');
+        if (tk) fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({money:np.money,xp:np.xp,level:np.level||1})}).catch(()=>{});
+      } catch(e){}
+      return np;
+    });
+    saveCds({...cds,[act.id]:now});
+    const bonusText = mult>1.05 ? ` (×${mult.toFixed(1)} bonus!)` : '';
+    showNotif(`${act.icon} ${act.label} tamamlandı! +${finalInf} Etki Puanı → ${myParty.name}${bonusText}`, 'success');
+  };
+
+  const fmtCd = (ms) => {
+    if (ms <= 0) return null;
+    const h = Math.floor(ms/3600000), m = Math.floor((ms%3600000)/60000), s = Math.ceil((ms%60000)/1000);
+    if (h>0) return `${h}s ${m}dk`;
+    if (m>0) return `${m}dk ${s}sn`;
+    return `${s}sn`;
+  };
+
+  return (
+    <div style={{padding:'0.75rem',background:bg,minHeight:'100%'}}>
+      <div style={{fontWeight:800,color:'#A78BFA',fontSize:'1.05rem',marginBottom:'0.15rem',letterSpacing:'0.03em'}}>⚡ Devlet Etki Puanı</div>
+      <div style={{fontSize:'0.75rem',color:'#5A7089',marginBottom:'0.75rem'}}>Faaliyetlerle partine etki puanı kazan. Eğitim ve ticaret puanın bonus verir.</div>
+
+      {/* Bonus bilgisi */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.5rem',marginBottom:'0.75rem'}}>
+        <div style={{background:'rgba(59,130,246,0.08)',border:'1px solid rgba(59,130,246,0.2)',borderRadius:'10px',padding:'0.6rem',textAlign:'center'}}>
+          <div style={{fontSize:'0.65rem',color:'#60A5FA',fontWeight:700,marginBottom:'2px'}}>🎓 Eğitim Bonusu</div>
+          <div style={{fontSize:'1rem',fontWeight:800,color:'#93C5FD'}}>×{eduMult.toFixed(1)}</div>
+          <div style={{fontSize:'0.6rem',color:'#5A7089'}}>{EDU_LEVELS.find(e=>e.id===diploma)?.label||'İlkokul'}</div>
+        </div>
+        <div style={{background:'rgba(6,182,212,0.08)',border:'1px solid rgba(6,182,212,0.2)',borderRadius:'10px',padding:'0.6rem',textAlign:'center'}}>
+          <div style={{fontSize:'0.65rem',color:'#22D3EE',fontWeight:700,marginBottom:'2px'}}>🤝 Ticaret Bonusu</div>
+          <div style={{fontSize:'1rem',fontWeight:800,color:'#67E8F9'}}>×{tpMult.toFixed(2)}</div>
+          <div style={{fontSize:'0.6rem',color:'#5A7089'}}>{tradePoints} TP</div>
+        </div>
+      </div>
+
+      {/* Parti bilgisi */}
+      {myParty ? (
+        <div style={{background:'rgba(167,139,250,0.08)',border:'1px solid rgba(167,139,250,0.3)',borderRadius:'12px',padding:'0.65rem',marginBottom:'0.75rem',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div>
+            <div style={{fontWeight:700,color:'#C4B5FD',fontSize:'0.85rem'}}>{myParty.name}</div>
+            <div style={{fontSize:'0.65rem',color:'#5A7089'}}>Senin partin</div>
+          </div>
+          <div style={{textAlign:'right'}}>
+            <div style={{fontWeight:800,color:'#A78BFA',fontSize:'1rem'}}>{(myParty.influencePoints||0).toLocaleString()} ⚡</div>
+            <div style={{fontSize:'0.65rem',color:'#5A7089'}}>Etki Puanı</div>
+          </div>
+        </div>
+      ) : (
+        <div style={{background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.2)',borderRadius:'12px',padding:'0.65rem',marginBottom:'0.75rem',textAlign:'center',fontSize:'0.8rem',color:'#FCA5A5'}}>
+          ⚠️ Etki puanı kazanmak için önce bir partiye katılman gerekiyor.
+        </div>
+      )}
+
+      {/* Faaliyetler */}
+      <div style={{fontWeight:700,color:'#E8EDF2',fontSize:'0.82rem',marginBottom:'0.4rem'}}>🎯 Faaliyetler</div>
+      <div style={{display:'flex',flexDirection:'column',gap:'0.4rem',marginBottom:'0.85rem'}}>
+        {PARTI_ETKI_ACTIONS.map(act => {
+          const rem = Math.max(0, act.cd - (now - (cds[act.id]||0)));
+          const onCd = rem > 0;
+          const canAfford = (profile?.money||0) >= act.cost;
+          const hasParty = !!myParty;
+          const disabled = onCd || !hasParty;
+          let mult = act.eduBonus ? eduMult : (act.tpBonus ? tpMult : 1.0);
+          const finalInf = Math.round(act.inf * mult);
+          const bonusActive = mult > 1.05;
+          return (
+            <div key={act.id} style={{background:card,border:`1px solid ${onCd?'rgba(255,255,255,0.06)':bonusActive?'rgba(251,191,36,0.3)':'rgba(167,139,250,0.2)'}`,borderRadius:'12px',padding:'0.6rem 0.75rem',display:'flex',alignItems:'center',gap:'0.6rem',opacity:disabled&&!onCd?0.7:1}}>
+              <div style={{fontSize:'1.4rem',flexShrink:0}}>{act.icon}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:700,color:onCd?'#3B4E63':'#E8EDF2',fontSize:'0.82rem',display:'flex',alignItems:'center',gap:'0.3rem'}}>
+                  {act.label}
+                  {bonusActive&&<span style={{fontSize:'0.58rem',background:'rgba(251,191,36,0.2)',color:'#FCD34D',border:'1px solid rgba(251,191,36,0.3)',borderRadius:'4px',padding:'0px 4px',fontWeight:700}}>BONUS</span>}
+                </div>
+                <div style={{fontSize:'0.62rem',color:'#5A7089'}}>{act.desc}</div>
+                <div style={{fontSize:'0.65rem',marginTop:'2px',display:'flex',gap:'0.5rem',flexWrap:'wrap'}}>
+                  <span style={{color:'#EF4444'}}>₺{act.cost.toLocaleString('tr-TR')}</span>
+                  <span style={{color:bonusActive?'#FCD34D':'#A78BFA'}}>+{finalInf} Etki{bonusActive&&` (×${mult.toFixed(1)})`}</span>
+                  <span style={{color:'#6B7280'}}>+{Math.round(act.xp*mult)} XP</span>
+                </div>
+              </div>
+              <div style={{flexShrink:0}}>
+                {onCd ? (
+                  <div style={{fontSize:'0.68rem',color:'#3B4E63',textAlign:'center',minWidth:'52px'}}>
+                    <div>⏳</div>
+                    <div style={{fontWeight:700}}>{fmtCd(rem)}</div>
+                  </div>
+                ) : !hasParty ? (
+                  <span style={{fontSize:'0.62rem',color:'#5A7089'}}>Parti yok</span>
+                ) : !canAfford ? (
+                  <span style={{fontSize:'0.62rem',color:'#EF4444',fontWeight:700}}>Yetersiz ₺</span>
+                ) : (
+                  <button onClick={()=>doAction(act)} style={{background:'rgba(167,139,250,0.15)',border:'1px solid rgba(167,139,250,0.4)',borderRadius:'8px',padding:'5px 12px',color:'#C4B5FD',cursor:'pointer',fontWeight:700,fontSize:'0.72rem',whiteSpace:'nowrap'}}>
+                    Yap
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Parti Sıralaması */}
+      <div style={{fontWeight:700,color:'#E8EDF2',fontSize:'0.82rem',marginBottom:'0.4rem'}}>🏆 Parti Etki Puanı Sıralaması</div>
+      <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:'12px',overflow:'hidden'}}>
+        {allParties.length===0 ? (
+          <div style={{padding:'1.5rem',textAlign:'center',color:'#3B4E63',fontSize:'0.8rem'}}>Henüz parti yok</div>
+        ) : allParties.map((p,i) => {
+          const isMe = p.id === myPartyId;
+          const medals = ['🥇','🥈','🥉'];
+          return (
+            <div key={p.id} style={{display:'flex',alignItems:'center',gap:'0.6rem',padding:'0.6rem 0.75rem',borderBottom:i<allParties.length-1?`1px solid ${bdr}`:'none',background:isMe?'rgba(167,139,250,0.07)':'transparent'}}>
+              <div style={{width:'24px',textAlign:'center',fontWeight:800,fontSize:i<3?'1rem':'0.78rem',color:i<3?'inherit':'#5A7089',flexShrink:0}}>
+                {i<3 ? medals[i] : `#${i+1}`}
+              </div>
+              <div style={{width:'10px',height:'10px',borderRadius:'50%',background:p.color||'#8B5CF6',flexShrink:0}}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:isMe?800:600,color:isMe?'#C4B5FD':'#E8EDF2',fontSize:'0.82rem',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}{isMe&&<span style={{fontSize:'0.6rem',color:'#A78BFA',marginLeft:'4px'}}>(Senin)</span>}</div>
+                <div style={{fontSize:'0.62rem',color:'#5A7089'}}>{p.memberCount||1} üye • %{p.support||0} destek</div>
+              </div>
+              <div style={{textAlign:'right',flexShrink:0}}>
+                <div style={{fontWeight:800,color:'#A78BFA',fontSize:'0.88rem'}}>{(p.influencePoints||0).toLocaleString()} ⚡</div>
+                <div style={{fontSize:'0.6rem',color:'#5A7089'}}>etki puanı</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+    </div>
+  );
+}
 
 function EducationPage({ profile, setProfile, showNotif }) {
   const edu = profile?.education || {};
@@ -11949,6 +12146,7 @@ function App() {
             {page==='duyurular'    && <DuyurularPage   profile={profile} />}
             {page==='leaderboard'  && <LeaderboardPage {...pageProps} />}
             {page==='education'    && <EducationPage   {...pageProps} />}
+            {page==='parti_etki'   && <PartiEtkiPage  profile={profile} setProfile={setProfile} parties={parties} setParties={setParties} showNotif={showNotif} />}
             {page==='citygov'        && <CityGovPage       {...pageProps} />}
             {page==='crime'          && <CrimePage         profile={profile} setProfile={setProfile} showNotif={showNotif} />}
             {page==='daily'          && <DailyTasksPage    {...pageProps} />}
