@@ -150,14 +150,31 @@ function registerGameHandlers(io, socket) {
 
     // ── Oyuncuyu şehir bazlı odaya ekle ──────────────────────────────────
     try {
-      const { rooms, createRoom, joinRoom } = require('../rooms/roomManager');
+      const { rooms, createRoom, joinRoom, leaveRoom, getPlayerRoom } = require('../rooms/roomManager');
       const cityName  = player.city ? String(player.city).slice(0, 30) : 'Ana Dünya';
       const roomLabel = `${cityName} - Şehir`;
+
+      // Önce oyuncunun başka bir odada olup olmadığını kontrol et ve çıkar
+      const prevRoom = getPlayerRoom(socket.id);
+      if (prevRoom && prevRoom.name !== roomLabel) {
+        leaveRoom(prevRoom.roomId, socket.id);
+        socket.leave(`room_${prevRoom.roomId}`);
+        // Eski şehir odası adından şehir adını çıkar (format: "ŞEHİR - Şehir")
+        const prevCity = prevRoom.name.replace(' - Şehir', '');
+        socket.leave(`city_${prevCity}`);
+        logger.info(`[Room] ${player.username} eski odadan çıkarıldı: ${prevRoom.name}`);
+      }
+
+      // BUG FIX: alreadyIn kontrolü artık socket.id üzerinden yapılıyor.
+      // Eski kod userId ile arıyordu; ancak oda players Map'i socketId'yi anahtar kullanır.
+      // Reconnect sonrası yeni socketId ile gelen oyuncu eski userId'yi map'te buluyor
+      // ve odaya hiç katılmıyordu. Şimdi doğrudan socketId kontrolü yapılıyor.
       let cityRoom = Array.from(rooms.values()).find(r => r.name === roomLabel && r.isActive !== false);
       if (!cityRoom) {
         cityRoom = createRoom(roomLabel, 'system', 500);
       }
-      const alreadyIn = Array.from(cityRoom.players?.values() || []).some(p => p.userId === data.userId);
+
+      const alreadyIn = cityRoom.players?.has(socket.id);
       if (!alreadyIn) {
         joinRoom(cityRoom.roomId, {
           socketId: socket.id,
@@ -209,14 +226,45 @@ function registerGameHandlers(io, socket) {
     socket.emit('heartbeatAck', { ts: now });
   });
 
+  // ── Şehir odası geçiş yardımcısı ─────────────────────────────────────────
+  function _migrateCityRoom(newCity) {
+    try {
+      const { rooms, createRoom, joinRoom, leaveRoom, getPlayerRoom } = require('../rooms/roomManager');
+      const cityName  = newCity ? String(newCity).slice(0, 30) : 'Ana Dünya';
+      const roomLabel = `${cityName} - Şehir`;
+      const prevRoom  = getPlayerRoom(socket.id);
+      if (prevRoom && prevRoom.name === roomLabel) return;
+      if (prevRoom) {
+        leaveRoom(prevRoom.roomId, socket.id);
+        socket.leave(`room_${prevRoom.roomId}`);
+        const prevCity = prevRoom.name.replace(' - Şehir', '');
+        socket.leave(`city_${prevCity}`);
+      }
+      let cityRoom = Array.from(rooms.values()).find(r => r.name === roomLabel && r.isActive !== false);
+      if (!cityRoom) cityRoom = createRoom(roomLabel, 'system', 500);
+      joinRoom(cityRoom.roomId, { socketId: socket.id, userId: socket.userId, username: socket.username });
+      socket.join(`room_${cityRoom.roomId}`);
+      socket.join(`city_${cityName}`);
+      socket.emit('roomAssigned', { roomId: cityRoom.roomId, roomName: cityRoom.name, city: cityName });
+    } catch (e) {
+      require('../utils/logger').warn('[Room] Şehir geçişi başarısız:', e.message);
+    }
+  }
+
   socket.on('updatePresence', (data) => {
     if (!data || !checkEventRate(socket.id)) return;
     const player = onlinePlayers.get(socket.id);
     if (player) {
       if (data.level !== undefined) player.level = Number(data.level) || player.level;
-      if (data.city  !== undefined) player.city  = String(data.city).slice(0, 30);
       if (data.party !== undefined) player.party = data.party;
       if (data.gang  !== undefined) player.gang  = data.gang;
+      if (data.city  !== undefined) {
+        const newCity = String(data.city).slice(0, 30);
+        if (player.city !== newCity) {
+          player.city = newCity;
+          _migrateCityRoom(newCity);
+        }
+      }
       io.emit('onlinePlayers', Array.from(onlinePlayers.values()));
     }
   });
