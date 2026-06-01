@@ -1943,7 +1943,7 @@ function AdminSupportTab({ setMsg, inp, cs }) {
         </div>
         <button onClick={refresh} style={{padding:'0.3rem 0.65rem',borderRadius:'8px',border:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.04)',color:'#8BA0B5',fontSize:'0.72rem',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>🔄 Yenile</button>
       </div>
-      {supportMsgs.length === 0 && <div style={{...cs,textAlign:'center',color:'#3B4E63',padding:'2rem',fontSize:'0.85rem'}}>Henüz destek mesajı yok</div>}
+      {supportMsgs.length === 0 && <div style={{...cs,textAlign:'center',color:'#5A7089',padding:'2rem',fontSize:'0.85rem'}}>Henüz destek mesajı yok</div>}
       {[...supportMsgs].reverse().map(m => (
         <div key={m.id} style={{...cs,border:`1px solid ${m.status==='pending'?'rgba(239,68,68,0.25)':'rgba(16,185,129,0.2)'}`,marginBottom:'0.5rem'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'0.5rem'}}>
@@ -2213,7 +2213,7 @@ function AdminPage({ profile, showNotif, onNavigate }) {
               <div key={lbl} style={{...cs,textAlign:'center',padding:'0.75rem'}}>
                 <div style={{fontSize:'1.3rem',marginBottom:'0.1rem'}}>{ic}</div>
                 <div style={{fontSize:'0.95rem',fontWeight:900,color:c}}>{val}</div>
-                <div style={{fontSize:'0.6rem',color:'#3B4E63',fontWeight:700,textTransform:'uppercase'}}>{lbl}</div>
+                <div style={{fontSize:'0.6rem',color:'#5A7089',fontWeight:700,textTransform:'uppercase'}}>{lbl}</div>
               </div>
             ))}
           </div>
@@ -2232,7 +2232,7 @@ function AdminPage({ profile, showNotif, onNavigate }) {
                 <div style={{color:'#10B981',fontWeight:800,fontSize:'0.82rem'}}>{fmtM(u.money||0)}</div>
               </div>
             ))}
-            {allUsers.length===0 && <div style={{color:'#3B4E63',fontSize:'0.8rem',textAlign:'center',padding:'1rem'}}>Henüz kayıtlı kullanıcı yok</div>}
+            {allUsers.length===0 && <div style={{color:'#5A7089',fontSize:'0.8rem',textAlign:'center',padding:'1rem'}}>Henüz kayıtlı kullanıcı yok</div>}
           </div>
 
           <div style={cs}>
@@ -2274,7 +2274,7 @@ function AdminPage({ profile, showNotif, onNavigate }) {
               </div>
             </div>
           ))}
-          {filteredUsers.length===0 && <div style={{...cs,textAlign:'center',color:'#3B4E63',padding:'2rem'}}>Kullanıcı bulunamadı</div>}
+          {filteredUsers.length===0 && <div style={{...cs,textAlign:'center',color:'#5A7089',padding:'2rem'}}>Kullanıcı bulunamadı</div>}
         </div>
       )}
 
@@ -2315,7 +2315,7 @@ function AdminPage({ profile, showNotif, onNavigate }) {
                     <div key={l} style={{background:'rgba(255,255,255,0.03)',borderRadius:'8px',padding:'0.4rem',textAlign:'center'}}>
                       <div style={{fontSize:'0.9rem'}}>{ic}</div>
                       <div style={{fontWeight:700,color:'#E8EDF2',fontSize:'0.75rem'}}>{v}</div>
-                      <div style={{fontSize:'0.55rem',color:'#3B4E63',textTransform:'uppercase'}}>{l}</div>
+                      <div style={{fontSize:'0.55rem',color:'#5A7089',textTransform:'uppercase'}}>{l}</div>
                     </div>
                   ))}
                 </div>
@@ -2431,7 +2431,7 @@ function AdminPage({ profile, showNotif, onNavigate }) {
 
           <div style={cs}>
             <div style={{fontWeight:700,color:'#E8EDF2',marginBottom:'0.65rem',fontSize:'0.85rem'}}>📋 Son Duyurular ({announcements.length})</div>
-            {announcements.length===0 && <div style={{color:'#3B4E63',fontSize:'0.8rem',textAlign:'center',padding:'1rem'}}>Henüz duyuru yok</div>}
+            {announcements.length===0 && <div style={{color:'#5A7089',fontSize:'0.8rem',textAlign:'center',padding:'1rem'}}>Henüz duyuru yok</div>}
             {announcements.map(a => (
               <div key={a.id} style={{padding:'0.6rem',borderBottom:'1px solid rgba(255,255,255,0.04)',borderRadius:'8px',marginBottom:'0.3rem'}}>
                 {a.imageUrl && <img src={a.imageUrl} alt="" style={{width:'100%',maxHeight:'100px',objectFit:'cover',borderRadius:'8px',marginBottom:'0.4rem'}} onError={e=>e.target.style.display='none'} />}
@@ -2477,7 +2477,7 @@ function AdminPage({ profile, showNotif, onNavigate }) {
               </div>
             </div>
           ))}
-          {allUsers.length===0 && <div style={{...cs,textAlign:'center',color:'#3B4E63',padding:'2rem'}}>Henüz kullanıcı yok</div>}
+          {allUsers.length===0 && <div style={{...cs,textAlign:'center',color:'#5A7089',padding:'2rem'}}>Henüz kullanıcı yok</div>}
         </div>
       )}
 
@@ -2496,13 +2496,13 @@ function AdminPage({ profile, showNotif, onNavigate }) {
                 <div key={lbl} style={{...cs,textAlign:'center',padding:'0.75rem',marginBottom:0}}>
                   <div style={{fontSize:'1.1rem'}}>{ic}</div>
                   <div style={{fontSize:'0.9rem',fontWeight:900,color:c}}>{val}</div>
-                  <div style={{fontSize:'0.58rem',color:'#3B4E63',fontWeight:700,textTransform:'uppercase'}}>{lbl}</div>
+                  <div style={{fontSize:'0.58rem',color:'#5A7089',fontWeight:700,textTransform:'uppercase'}}>{lbl}</div>
                 </div>
               ))}
             </div>
             <div style={{fontWeight:700,color:'#E8EDF2',marginBottom:'0.5rem',fontSize:'0.82rem'}}>💎 VIP Üyeler</div>
             {allUsers.filter(u=>u.premium).length === 0
-              ? <div style={{color:'#3B4E63',fontSize:'0.78rem',textAlign:'center',padding:'0.75rem'}}>Henüz VIP üye yok</div>
+              ? <div style={{color:'#5A7089',fontSize:'0.78rem',textAlign:'center',padding:'0.75rem'}}>Henüz VIP üye yok</div>
               : allUsers.filter(u=>u.premium).map(u=>(
                 <div key={u.id} style={{display:'flex',justifyContent:'space-between',padding:'0.35rem 0',borderBottom:'1px solid rgba(255,255,255,0.04)',fontSize:'0.78rem'}}>
                   <span style={{color:'#A78BFA',fontWeight:700}}>💎 {u.username}</span>
@@ -2525,13 +2525,13 @@ function AdminPage({ profile, showNotif, onNavigate }) {
                         <div key={lbl} style={{background:'rgba(255,255,255,0.03)',borderRadius:'10px',padding:'0.65rem',textAlign:'center'}}>
                           <div style={{fontSize:'1.1rem'}}>{ic}</div>
                           <div style={{fontWeight:800,color:c}}>{val}</div>
-                          <div style={{fontSize:'0.6rem',color:'#3B4E63',textTransform:'uppercase'}}>{lbl}</div>
+                          <div style={{fontSize:'0.6rem',color:'#5A7089',textTransform:'uppercase'}}>{lbl}</div>
                         </div>
                       ))}
                     </div>
                   </div>
                 );
-              } catch { return <div style={{color:'#3B4E63',fontSize:'0.78rem'}}>Veri yok</div>; }
+              } catch { return <div style={{color:'#5A7089',fontSize:'0.78rem'}}>Veri yok</div>; }
             })()}
           </div>
           <div style={cs}>
@@ -2897,12 +2897,12 @@ function ChatPage({ profile }) {
                         ) : m.text}
                       </div>
                     )}
-                    <div style={{fontSize:'0.58rem',color:'#3B4E63',marginTop:'2px',textAlign:isMe?'right':'left',paddingLeft:isMe?0:'4px'}}>{timeAgo(m.ts)}</div>
+                    <div style={{fontSize:'0.58rem',color:'#5A7089',marginTop:'2px',textAlign:isMe?'right':'left',paddingLeft:isMe?0:'4px'}}>{timeAgo(m.ts)}</div>
                   </div>
                 </div>
               );
             })}
-            {messages.length === 0 && <div style={{textAlign:'center',color:'#3B4E63',padding:'2rem',fontSize:'0.85rem'}}>Henüz mesaj yok. İlk sen yaz! 💬</div>}
+            {messages.length === 0 && <div style={{textAlign:'center',color:'#5A7089',padding:'2rem',fontSize:'0.85rem'}}>Henüz mesaj yok. İlk sen yaz! 💬</div>}
             <div ref={messagesEndRef} />
           </div>
           {/* GIF Picker */}
@@ -2923,7 +2923,7 @@ function ChatPage({ profile }) {
                     onError={e=>e.target.style.display='none'} />
                 ))}
               </div>
-              <div style={{fontSize:'0.58rem',color:'#3B4E63',textAlign:'right',marginTop:'0.3rem'}}>Powered by GIPHY</div>
+              <div style={{fontSize:'0.58rem',color:'#5A7089',textAlign:'right',marginTop:'0.3rem'}}>Powered by GIPHY</div>
             </div>
           )}
           {/* Input */}
@@ -2944,7 +2944,7 @@ function ChatPage({ profile }) {
       ) : (
         /* DM listesi */
         <div style={{flex:1,overflowY:'auto',padding:'0.7rem'}}>
-          <div style={{color:'#3B4E63',textAlign:'center',padding:'2rem',fontSize:'0.85rem'}}>
+          <div style={{color:'#5A7089',textAlign:'center',padding:'2rem',fontSize:'0.85rem'}}>
             Özel mesaj için kullanıcı arayın 🔍
             <br/>
             <button onClick={()=>setDmModal(true)} style={{marginTop:'1rem',background:'rgba(59,130,246,0.12)',border:'1px solid rgba(59,130,246,0.3)',borderRadius:'10px',padding:'0.5rem 1rem',color:'#60A5FA',fontFamily:"'DM Sans',sans-serif",fontWeight:700,cursor:'pointer'}}>Kullanıcı Ara</button>
@@ -3129,7 +3129,7 @@ function EconomyPage({ profile, setProfile, showNotif, initialSub }) {
                 </button>
               </div>
               {ucConvertAmt>0 && <div style={{fontSize:'0.65rem',color:'#10B981'}}>≈ {fmtWord((parseInt(ucConvertAmt)||0)*1000000)} alacaksın</div>}
-              <div style={{fontSize:'0.62rem',color:'#3B4E63',marginTop:'0.2rem'}}>Mevcut UC: <span style={{color:'#A78BFA',fontWeight:700}}>{fmt(profile?.underCoin||0)} UC</span></div>
+              <div style={{fontSize:'0.62rem',color:'#5A7089',marginTop:'0.2rem'}}>Mevcut UC: <span style={{color:'#A78BFA',fontWeight:700}}>{fmt(profile?.underCoin||0)} UC</span></div>
             </div>
 
             {/* TL → UC */}
@@ -3144,7 +3144,7 @@ function EconomyPage({ profile, setProfile, showNotif, initialSub }) {
                 </button>
               </div>
               {tlConvertAmt>0 && <div style={{fontSize:'0.65rem',color:'#A78BFA'}}>≈ {Math.floor((parseInt(tlConvertAmt)||0)/1000000)} UC alacaksın</div>}
-              <div style={{fontSize:'0.62rem',color:'#3B4E63',marginTop:'0.2rem'}}>Mevcut Para: <span style={{color:'#10B981',fontWeight:700}}>{fmtWord(profile?.money||0)}</span></div>
+              <div style={{fontSize:'0.62rem',color:'#5A7089',marginTop:'0.2rem'}}>Mevcut Para: <span style={{color:'#10B981',fontWeight:700}}>{fmtWord(profile?.money||0)}</span></div>
             </div>
 
             {/* UC → Katsayı */}
@@ -3181,7 +3181,7 @@ function EconomyPage({ profile, setProfile, showNotif, initialSub }) {
                 ['💎','Liyakat (UC)',`${fmt(profile?.underCoin||0)} UC`,'#A78BFA'],
               ].map(([ic,lb,v,c])=>(
                 <div key={lb} style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${c}28`,borderRadius:'10px',padding:'0.55rem 0.35rem',textAlign:'center'}}>
-                  <div style={{fontSize:'0.52rem',color:'#2A3A4A',textTransform:'uppercase',marginBottom:'0.15rem',letterSpacing:'0.04em',lineHeight:1.2}}>{ic} {lb}</div>
+                  <div style={{fontSize:'0.52rem',color:'#7A8FA6',textTransform:'uppercase',marginBottom:'0.15rem',letterSpacing:'0.04em',lineHeight:1.2}}>{ic} {lb}</div>
                   <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.72rem',fontWeight:700,color:c,lineHeight:1.2}}>{v}</div>
                 </div>
               ))}
@@ -3297,7 +3297,7 @@ function EconomyPage({ profile, setProfile, showNotif, initialSub }) {
                     <div style={{flex:1}}>
                       <div style={{display:'flex',alignItems:'baseline',gap:'0.4rem'}}>
                         <span style={{fontWeight:800,fontSize:'0.92rem',color:'#E8EDF2'}}>{sym}</span>
-                        <span style={{fontSize:'0.62rem',color:'#3B4E63'}}>{sectors[sym]||''}</span>
+                        <span style={{fontSize:'0.62rem',color:'#5A7089'}}>{sectors[sym]||''}</span>
                       </div>
                       {held > 0 && <div style={{fontSize:'0.62rem',color:'#60A5FA'}}>{held} adet · ort. ₺{portfolio[sym]?.avgCost}</div>}
                     </div>
@@ -3321,7 +3321,7 @@ function EconomyPage({ profile, setProfile, showNotif, initialSub }) {
 
             {stockBTab==='portfolio' && (
               <div>
-                {Object.keys(portfolio).length === 0 && <div style={{textAlign:'center',color:'#3B4E63',padding:'2rem',fontSize:'0.85rem'}}>📊 Portföyünde henüz hisse yok.</div>}
+                {Object.keys(portfolio).length === 0 && <div style={{textAlign:'center',color:'#5A7089',padding:'2rem',fontSize:'0.85rem'}}>📊 Portföyünde henüz hisse yok.</div>}
                 {Object.entries(portfolio).map(([sym, pos]) => {
                   const cur = stocks[sym] || pos.avgCost;
                   const val = cur * pos.qty;
@@ -3349,7 +3349,7 @@ function EconomyPage({ profile, setProfile, showNotif, initialSub }) {
                     <div style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:800,color:'#60A5FA',fontSize:'1.15rem'}}>
                       {fmtM(Object.entries(portfolio).reduce((s,[sym,p])=>s+(stocks[sym]||p.avgCost)*p.qty, 0))}
                     </div>
-                    <div style={{fontSize:'0.62rem',color:'#3B4E63',marginTop:'0.2rem'}}>Kar/Zarar: {(()=>{const tot=Object.entries(portfolio).reduce((s,[sym,p])=>s+(stocks[sym]||p.avgCost)*p.qty-(p.avgCost*p.qty),0);return <span style={{color:tot>=0?'#10B981':'#EF4444',fontWeight:700}}>{tot>=0?'+':''}{fmtM(tot)}</span>;})()} </div>
+                    <div style={{fontSize:'0.62rem',color:'#5A7089',marginTop:'0.2rem'}}>Kar/Zarar: {(()=>{const tot=Object.entries(portfolio).reduce((s,[sym,p])=>s+(stocks[sym]||p.avgCost)*p.qty-(p.avgCost*p.qty),0);return <span style={{color:tot>=0?'#10B981':'#EF4444',fontWeight:700}}>{tot>=0?'+':''}{fmtM(tot)}</span>;})()} </div>
                   </Card>
                 )}
               </div>
@@ -3406,7 +3406,7 @@ function EconomyPage({ profile, setProfile, showNotif, initialSub }) {
               <div style={{color:'#5A7089',fontSize:'0.78rem'}}>🌾 Tarla Durumu</div>
               <Btn variant='green' size='sm' onClick={()=>setFarmModal(true)}>+ Ek</Btn>
             </div>
-            {farms.length === 0 && <div style={{textAlign:'center',color:'#3B4E63',padding:'2rem',fontSize:'0.85rem'}}>Henüz tarlanız yok. Tohum ek!</div>}
+            {farms.length === 0 && <div style={{textAlign:'center',color:'#5A7089',padding:'2rem',fontSize:'0.85rem'}}>Henüz tarlanız yok. Tohum ek!</div>}
             {farms.map(farm => {
               const ready = Date.now() >= farm.harvestAt;
               const pct = ready ? 100 : Math.min(100, ((Date.now()-farm.plantedAt)/(farm.harvestAt-farm.plantedAt))*100);
@@ -3539,6 +3539,9 @@ function BankPage({ profile, setProfile, showNotif }) {
   const [tab, setTab] = useState('account');
   const [loan, setLoan] = useLs('activeLoan', null);
   const [loanModal, setLoanModal] = useState(null);
+  const [sendTo, setSendTo] = useState('');
+  const [sendAmt, setSendAmt] = useState('');
+  const [sendSearch, setSendSearch] = useState('');
 
   const inp = {width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'12px',padding:'0.7rem 1rem',color:'#E8EDF2',fontFamily:"'DM Sans',sans-serif",fontSize:'16px',outline:'none',boxSizing:'border-box'};
 
@@ -3555,6 +3558,29 @@ function BankPage({ profile, setProfile, showNotif }) {
       showNotif(`💰 ${fmtM(n)} çekildi`, 'success');
     }
     setAmount('');
+  };
+
+  const doSendMoney = () => {
+    const n = parseInt(sendAmt);
+    if (!n || n <= 0) { showNotif('Geçerli tutar girin', 'error'); return; }
+    if (!sendTo.trim()) { showNotif('Alıcı kullanıcı adı girin', 'error'); return; }
+    if (n > (profile?.money||0)) { showNotif('Yetersiz nakit', 'error'); return; }
+    if (sendTo.trim().toLowerCase() === (profile?.username||'').toLowerCase()) { showNotif('Kendinize para gönderemezsiniz', 'error'); return; }
+    try {
+      const users = JSON.parse(localStorage.getItem('rep_users')||'[]');
+      const targetIdx = users.findIndex(u => u.username?.toLowerCase() === sendTo.trim().toLowerCase());
+      if (targetIdx === -1) { showNotif('Oyuncu bulunamadı: ' + sendTo.trim(), 'error'); return; }
+      const target = users[targetIdx];
+      const fee = Math.max(100, Math.floor(n * 0.01));
+      const totalCost = n + fee;
+      if (totalCost > (profile?.money||0)) { showNotif(`Yetersiz nakit (tutar + %1 komisyon = ${fmtM(totalCost)})`, 'error'); return; }
+      users[targetIdx] = { ...target, money: (target.money||0) + n };
+      localStorage.setItem('rep_users', JSON.stringify(users));
+      setProfile(p => { const np={...p, money:(p.money||0)-totalCost}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
+      try { window._socket?.emit('money:transfer', { fromId:profile?.id, toId:target.id, amount:n }); } catch(e){}
+      setSendAmt(''); setSendTo('');
+      showNotif(`💸 ${fmtM(n)} → ${target.username} gönderildi! (Komisyon: ${fmtM(fee)})`, 'success');
+    } catch(e) { showNotif('Hata oluştu', 'error'); }
   };
 
   const collectInterest = () => {
@@ -3596,11 +3622,11 @@ function BankPage({ profile, setProfile, showNotif }) {
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.5rem',marginBottom:'0.75rem'}}>
         <Card style={{textAlign:'center',padding:'1rem'}}>
           <div style={{color:'#10B981',fontWeight:900,fontSize:'1.05rem'}}>{fmtM(profile?.money)}</div>
-          <div style={{fontSize:'0.6rem',color:'#3B4E63',marginTop:'0.2rem',textTransform:'uppercase',fontWeight:700}}>💵 Nakit</div>
+          <div style={{fontSize:'0.6rem',color:'#5A7089',marginTop:'0.2rem',textTransform:'uppercase',fontWeight:700}}>💵 Nakit</div>
         </Card>
         <Card style={{textAlign:'center',padding:'1rem'}}>
           <div style={{color:'#3B82F6',fontWeight:900,fontSize:'1.05rem'}}>{fmtM(profile?.bank)}</div>
-          <div style={{fontSize:'0.6rem',color:'#3B4E63',marginTop:'0.2rem',textTransform:'uppercase',fontWeight:700}}>🏦 Banka</div>
+          <div style={{fontSize:'0.6rem',color:'#5A7089',marginTop:'0.2rem',textTransform:'uppercase',fontWeight:700}}>🏦 Banka</div>
         </Card>
       </div>
 
@@ -3613,7 +3639,7 @@ function BankPage({ profile, setProfile, showNotif }) {
 
       {/* Tab */}
       <div style={{display:'flex',gap:'4px',marginBottom:'0.75rem'}}>
-        {[['account','🏦 Hesap'],['loans','💳 Krediler']].map(([v,l])=>(
+        {[['account','🏦 Hesap'],['loans','💳 Krediler'],['send','💸 Gönder']].map(([v,l])=>(
           <button key={v} onClick={()=>setTab(v)} style={{flex:1,padding:'0.45rem',borderRadius:'8px',border:`1px solid ${tab===v?'rgba(59,130,246,0.4)':'rgba(255,255,255,0.07)'}`,background:tab===v?'rgba(59,130,246,0.12)':'rgba(255,255,255,0.03)',color:tab===v?'#60A5FA':'#5A7089',fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:'0.8rem',cursor:'pointer'}}>
             {l}
           </button>
@@ -3639,7 +3665,7 @@ function BankPage({ profile, setProfile, showNotif }) {
             ))}
           </div>
           <Btn variant='primary' size='full' onClick={doTransfer}>{action==='deposit'?'💳 Yatır':'🏧 Çek'}</Btn>
-          <div style={{fontSize:'0.68rem',color:'#3B4E63',marginTop:'0.65rem',textAlign:'center'}}>
+          <div style={{fontSize:'0.68rem',color:'#5A7089',marginTop:'0.65rem',textAlign:'center'}}>
             💡 {profile?.premium?'Premium: %2':'%0.5'} günlük faiz • Her 24 saatte toplanır
           </div>
         </Card>
@@ -3656,7 +3682,7 @@ function BankPage({ profile, setProfile, showNotif }) {
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'0.4rem',marginBottom:'0.65rem'}}>
                 {[['Alınan',fmtM(loan.amount)],['Geri Ödeme',fmtM(loan.repayAmount)],['Kalan Gün',isOverdue?'❌ Gecikti':`${daysLeft}g`]].map(([k,v])=>(
                   <div key={k} style={{background:'rgba(255,255,255,0.04)',borderRadius:'8px',padding:'0.4rem',textAlign:'center'}}>
-                    <div style={{fontSize:'0.58rem',color:'#3B4E63',textTransform:'uppercase'}}>{k}</div>
+                    <div style={{fontSize:'0.58rem',color:'#5A7089',textTransform:'uppercase'}}>{k}</div>
                     <div style={{fontWeight:700,color:'#E8EDF2',fontSize:'0.8rem'}}>{v}</div>
                   </div>
                 ))}
@@ -3690,12 +3716,83 @@ function BankPage({ profile, setProfile, showNotif }) {
                   </Card>
                 );
               })}
-              <div style={{fontSize:'0.68rem',color:'#3B4E63',textAlign:'center',padding:'0.5rem'}}>
+              <div style={{fontSize:'0.68rem',color:'#5A7089',textAlign:'center',padding:'0.5rem'}}>
                 💡 Kredi geri ödemesi XP kazandırır. Zamanında öde, faiz düşer.
               </div>
             </div>
           )}
         </div>
+      )}
+
+      {tab==='send' && (
+        <Card>
+          <div style={{fontWeight:800,color:'#60A5FA',fontSize:'0.88rem',marginBottom:'0.5rem'}}>💸 Oyuncuya Para Gönder</div>
+          <div style={{fontSize:'0.68rem',color:'#5A7089',marginBottom:'0.75rem'}}>%1 banka komisyonu alınır. Para direkt alıcının cüzdanına geçer.</div>
+          {/* Oyuncu arama */}
+          {(() => {
+            const allU = (() => { try { return JSON.parse(localStorage.getItem('rep_users')||'[]'); } catch{ return []; } })();
+            const filtered = sendSearch.trim() ? allU.filter(u => u.username?.toLowerCase().includes(sendSearch.trim().toLowerCase()) && u.id !== profile?.id) : [];
+            return (
+              <div style={{marginBottom:'0.75rem'}}>
+                <input value={sendSearch} onChange={e=>setSendSearch(e.target.value)}
+                  placeholder="🔍 Kullanıcı adı ara..."
+                  style={{...inp,marginBottom:'0.4rem',fontSize:'0.88rem'}} />
+                {filtered.length>0 && (
+                  <div style={{background:'rgba(255,255,255,0.04)',borderRadius:'10px',overflow:'hidden',border:'1px solid rgba(255,255,255,0.08)'}}>
+                    {filtered.slice(0,6).map(u=>(
+                      <div key={u.id} onClick={()=>{ setSendTo(u.username); setSendSearch(''); }}
+                        style={{display:'flex',alignItems:'center',gap:'0.5rem',padding:'0.5rem 0.75rem',cursor:'pointer',borderBottom:'1px solid rgba(255,255,255,0.05)',background:sendTo===u.username?'rgba(59,130,246,0.1)':'transparent'}}>
+                        <span style={{fontSize:'1rem'}}>{u.gender==='kadin'?'👩':'👨'}</span>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:'0.82rem',fontWeight:700,color:'#E8EDF2'}}>{u.username}</div>
+                          <div style={{fontSize:'0.62rem',color:'#5A7089'}}>{u.city||'?'} • Lv.{u.level||1}</div>
+                        </div>
+                        <span style={{fontSize:'0.62rem',color:'#10B981',fontWeight:700}}>{fmtM(u.money||0)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+          <div style={{marginBottom:'0.5rem'}}>
+            <div style={{fontSize:'0.65rem',color:'#7A8FA6',marginBottom:'0.25rem'}}>Alıcı kullanıcı adı</div>
+            <input value={sendTo} onChange={e=>setSendTo(e.target.value)} placeholder="Kullanıcı adı..."
+              style={{...inp,borderColor:sendTo?'rgba(59,130,246,0.4)':'rgba(255,255,255,0.1)'}} />
+          </div>
+          <div style={{marginBottom:'0.75rem'}}>
+            <div style={{fontSize:'0.65rem',color:'#7A8FA6',marginBottom:'0.25rem'}}>Tutar</div>
+            <input type="number" value={sendAmt} onChange={e=>setSendAmt(e.target.value)} placeholder="Tutar girin..."
+              style={inp} />
+            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'0.4rem',marginTop:'0.4rem'}}>
+              {[1000,5000,10000,50000].map(n=>(
+                <button key={n} onClick={()=>setSendAmt(String(n))} style={{padding:'0.35rem',borderRadius:'8px',border:'1px solid rgba(255,255,255,0.08)',background:'rgba(255,255,255,0.04)',color:'#8BA0B5',fontSize:'0.68rem',cursor:'pointer',fontWeight:700}}>
+                  {fmtM(n)}
+                </button>
+              ))}
+            </div>
+          </div>
+          {sendTo && sendAmt && parseInt(sendAmt)>0 && (
+            <div style={{background:'rgba(59,130,246,0.06)',border:'1px solid rgba(59,130,246,0.15)',borderRadius:'10px',padding:'0.6rem',marginBottom:'0.65rem',fontSize:'0.72rem'}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:'2px'}}>
+                <span style={{color:'#5A7089'}}>Gönderilecek</span>
+                <span style={{color:'#E8EDF2',fontWeight:700}}>{fmtM(parseInt(sendAmt)||0)}</span>
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:'2px'}}>
+                <span style={{color:'#5A7089'}}>Komisyon (%1)</span>
+                <span style={{color:'#F59E0B',fontWeight:700}}>-{fmtM(Math.max(100,Math.floor((parseInt(sendAmt)||0)*0.01)))}</span>
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between',borderTop:'1px solid rgba(255,255,255,0.05)',paddingTop:'4px',marginTop:'2px'}}>
+                <span style={{color:'#5A7089'}}>Toplam maliyet</span>
+                <span style={{color:'#EF4444',fontWeight:800}}>{fmtM((parseInt(sendAmt)||0)+Math.max(100,Math.floor((parseInt(sendAmt)||0)*0.01)))}</span>
+              </div>
+            </div>
+          )}
+          <Btn variant='primary' size='full' onClick={doSendMoney}>💸 Gönder</Btn>
+          <div style={{fontSize:'0.65rem',color:'#5A7089',marginTop:'0.5rem',textAlign:'center'}}>
+            💡 Nakit bakiyenizden gönderilir. Banka mevduatından değil.
+          </div>
+        </Card>
       )}
     </div>
   );
@@ -3732,7 +3829,7 @@ function MarketPage({ profile, setProfile, showNotif }) {
         <div style={{fontWeight:800,fontSize:'1rem',color:'#E8EDF2'}}>🏪 Açık Pazar</div>
         <Btn variant='primary' size='sm' onClick={()=>setCreateModal(true)}>+ İlan</Btn>
       </div>
-      {listings.length === 0 && <div style={{textAlign:'center',color:'#3B4E63',padding:'2rem',fontSize:'0.85rem'}}>Henüz ilan yok</div>}
+      {listings.length === 0 && <div style={{textAlign:'center',color:'#5A7089',padding:'2rem',fontSize:'0.85rem'}}>Henüz ilan yok</div>}
       {listings.map(l => (
         <Card key={l.id} style={{marginBottom:'0.5rem',padding:'0.85rem'}}>
           <div style={{display:'flex',alignItems:'center',gap:'0.75rem'}}>
@@ -3800,6 +3897,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
   const [transferModal, setTransferModal] = useState(false);
   const [transferTarget, setTransferTarget] = useState('');
   const [disbandConfirm, setDisbandConfirm] = useState(false);
+  const [meclisAtama, setMeclisAtama] = useLs('meclisAtama', {});
 
   const myParty = parties.find(p => p.leaderId===profile?.uid || (p.members||[]).includes(profile?.uid));
   const isLeader = myParty?.leaderId === profile?.uid;
@@ -4020,7 +4118,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
   const userVoted = !!(elections.votes||{})[profile?.uid];
   const myVote = (elections.votes||{})[profile?.uid];
   const inputSt = {width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'10px',padding:'0.65rem 0.9rem',color:'#E8EDF2',fontFamily:"'DM Sans',sans-serif",fontSize:'16px',outline:'none',boxSizing:'border-box'};
-  const subs = [{id:'parties',label:'🏛️ Partiler'},{id:'harita',label:'🗺️ Harita'},{id:'management',label:'⚙️ Yönetim'},{id:'govpanel',label:'🏛️ Makam'},{id:'laws',label:'⚖️ Yasalar'},{id:'election',label:'🗳️ Seçim'}];
+  const subs = [{id:'parties',label:'🏛️ Partiler'},{id:'harita',label:'🗺️ Harita'},{id:'management',label:'⚙️ Yönetim'},{id:'govpanel',label:'🏛️ Makam'},{id:'meclis',label:'🏛️ Meclis'},{id:'laws',label:'⚖️ Yasalar'},{id:'election',label:'🗳️ Seçim'}];
 
   const ALL_POSITIONS = [
     { id:'devlet_baskani', title:'Devlet Başkanı', icon:'👑', desc:'En yüksek yönetim makamı', req:'Parti üyesi olmak zorunlu', openTo:'parti', electionKey:'presElection' },
@@ -4067,14 +4165,14 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
                   })}
                 </div>
               ) : (
-                <div style={{textAlign:'center',color:'#3B4E63',padding:'0.75rem',fontSize:'0.78rem',marginTop:'0.4rem'}}>Haritada renk görmek için parti kur ve üye topla</div>
+                <div style={{textAlign:'center',color:'#5A7089',padding:'0.75rem',fontSize:'0.78rem',marginTop:'0.4rem'}}>Haritada renk görmek için parti kur ve üye topla</div>
               )}
             </div>
 
             <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:'14px',padding:'1rem'}}>
               <div style={{fontWeight:800,color:'#E8EDF2',fontSize:'0.85rem',marginBottom:'0.6rem'}}>🏛️ Güncel Kabine</div>
               {Object.entries(cabinet).length === 0 ? (
-                <div style={{textAlign:'center',color:'#3B4E63',padding:'1rem',fontSize:'0.8rem'}}>Henüz kabine oluşturulmamış</div>
+                <div style={{textAlign:'center',color:'#5A7089',padding:'1rem',fontSize:'0.8rem'}}>Henüz kabine oluşturulmamış</div>
               ) : (
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.4rem'}}>
                   {CABINET_ROLES.map(role => (
@@ -4130,14 +4228,14 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
                   </div>
                   <div style={{textAlign:'right',flexShrink:0}}>
                     <div style={{color:'#10B981',fontWeight:800,fontSize:'0.8rem'}}>{fmtWord(party.treasury||0)}</div>
-                    <div style={{fontSize:'0.55rem',color:'#3B4E63',marginBottom:'0.3rem'}}>Kasa</div>
+                    <div style={{fontSize:'0.55rem',color:'#5A7089',marginBottom:'0.3rem'}}>Kasa</div>
                     {!myParty && <Btn variant='ghost' size='sm' onClick={()=>joinParty(party)}>Katıl</Btn>}
                     {party.id===myParty?.id && <Tag color='violet'>Üyesin</Tag>}
                   </div>
                 </div>
               </Card>
             ))}
-            {parties.length===0 && <div style={{textAlign:'center',color:'#3B4E63',padding:'2rem',fontSize:'0.85rem'}}>Henüz parti yok. İlk sen kur! 🏛️</div>}
+            {parties.length===0 && <div style={{textAlign:'center',color:'#5A7089',padding:'2rem',fontSize:'0.85rem'}}>Henüz parti yok. İlk sen kur! 🏛️</div>}
           </div>
         )}
 
@@ -4162,7 +4260,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
                       <div key={lb} style={{background:'rgba(255,255,255,0.04)',borderRadius:'8px',padding:'0.5rem',textAlign:'center'}}>
                         <div style={{fontSize:'0.9rem',marginBottom:'0.1rem'}}>{ic}</div>
                         <div style={{fontWeight:700,color:'#E8EDF2',fontSize:'0.75rem',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{v}</div>
-                        <div style={{fontSize:'0.55rem',color:'#3B4E63',textTransform:'uppercase'}}>{lb}</div>
+                        <div style={{fontSize:'0.55rem',color:'#5A7089',textTransform:'uppercase'}}>{lb}</div>
                       </div>
                     ))}
                   </div>
@@ -4189,7 +4287,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
                         return (
                           <button key={a.id} onClick={a.onClick} disabled={rem>0}
                             style={{padding:'0.55rem 0.4rem',background:rem>0?'rgba(255,255,255,0.03)':'rgba(245,158,11,0.08)',border:`1px solid ${rem>0?'rgba(255,255,255,0.07)':'rgba(245,158,11,0.25)'}`,borderRadius:'10px',color:rem>0?'#3B4E63':'#F59E0B',cursor:rem>0?'not-allowed':'pointer',fontWeight:700,fontSize:'0.72rem',fontFamily:"'DM Sans',sans-serif",textAlign:'center',lineHeight:1.3}}>
-                            {a.label}{rem>0&&<div style={{fontSize:'0.6rem',marginTop:'2px',color:'#3B4E63'}}>⏳{Math.ceil(rem/3600000)}s</div>}
+                            {a.label}{rem>0&&<div style={{fontSize:'0.6rem',marginTop:'2px',color:'#5A7089'}}>⏳{Math.ceil(rem/3600000)}s</div>}
                           </button>
                         );
                       })}
@@ -4223,7 +4321,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
                             style={{padding:'0.55rem 0.4rem',background:rem>0?'rgba(255,255,255,0.03)':'rgba(167,139,250,0.1)',border:`1px solid ${rem>0?'rgba(255,255,255,0.07)':'rgba(167,139,250,0.3)'}`,borderRadius:'10px',color:rem>0?'#3B4E63':'#C4B5FD',cursor:rem>0?'not-allowed':'pointer',fontWeight:700,fontSize:'0.7rem',fontFamily:"'DM Sans',sans-serif",textAlign:'center',lineHeight:1.3}}>
                             {a.label}
                             <div style={{fontSize:'0.6rem',marginTop:'2px',color:rem>0?'#3B4E63':'#A78BFA'}}>+{a.inf} Etki • +{a.xp} XP</div>
-                            {rem>0&&<div style={{fontSize:'0.58rem',marginTop:'1px',color:'#3B4E63'}}>⏳{Math.ceil(rem/3600000)}s</div>}
+                            {rem>0&&<div style={{fontSize:'0.58rem',marginTop:'1px',color:'#5A7089'}}>⏳{Math.ceil(rem/3600000)}s</div>}
                           </button>
                         );
                       })}
@@ -4254,7 +4352,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
                       )}
                     </div>
                   ))}
-                  {(myParty.members||[]).length===0&&<div style={{color:'#3B4E63',fontSize:'0.82rem',textAlign:'center',padding:'1rem'}}>Henüz üye yok</div>}
+                  {(myParty.members||[]).length===0&&<div style={{color:'#5A7089',fontSize:'0.82rem',textAlign:'center',padding:'1rem'}}>Henüz üye yok</div>}
                 </Card>
               </div>
             )}
@@ -4270,18 +4368,18 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
 
             {/* Meclis Koltuk Dağılımı */}
             {(() => {
-              const TOTAL_SEATS = 81;
+              const TOTAL_SEATS = 600;
+              const THRESH_PCT = 0.10;
               const allParties = JSON.parse(localStorage.getItem('rep_parties')||'[]');
-              const totalSupport = allParties.reduce((s,p)=>(s+(p.support||0)),0) || 1;
-              const seatsData = allParties.map(p => ({
-                name: p.name,
-                color: p.color || '#8B5CF6',
-                support: p.support || 0,
-                seats: Math.max(0, Math.floor((p.support||0)/totalSupport*TOTAL_SEATS)),
-              }));
-              const assignedSeats = seatsData.reduce((s,p)=>s+p.seats,0);
-              const remainder = TOTAL_SEATS - assignedSeats;
-              if (seatsData.length > 0) seatsData[0].seats += remainder;
+              const totalInf = allParties.reduce((s,p)=>s+(p.influencePoints||0),0)||1;
+              const eligibleP = allParties.filter(p=>(p.influencePoints||0)/totalInf>=THRESH_PCT);
+              // D'Hondt algorithm
+              const seatsData = eligibleP.map(p=>({name:p.name,color:p.color||'#8B5CF6',influencePoints:p.influencePoints||0,seats:0}));
+              for(let i=0;i<TOTAL_SEATS;i++){
+                let bi=0,bs=-1;
+                seatsData.forEach((p,idx)=>{const sc=p.influencePoints/(p.seats+1);if(sc>bs){bs=sc;bi=idx;}});
+                if(seatsData.length>0) seatsData[bi].seats++;
+              }
               const totalAssigned = seatsData.reduce((s,p)=>s+p.seats,0);
               return (
                 <div style={{background:'rgba(139,92,246,0.06)',border:'1px solid rgba(139,92,246,0.2)',borderRadius:'14px',padding:'1rem',marginBottom:'0.75rem'}}>
@@ -4309,11 +4407,11 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
                       <div style={{display:'flex',alignItems:'center',gap:'0.6rem'}}>
                         <span style={{fontSize:'0.65rem',color:'#5A7089'}}>%{Math.round(p.seats/TOTAL_SEATS*100)}</span>
                         <span style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:900,color:p.color,fontSize:'0.88rem'}}>{p.seats}</span>
-                        <span style={{fontSize:'0.6rem',color:'#3B4E63'}}>koltuk</span>
+                        <span style={{fontSize:'0.6rem',color:'#5A7089'}}>koltuk</span>
                       </div>
                     </div>
                   )) : (
-                    <div style={{fontSize:'0.78rem',color:'#3B4E63',textAlign:'center',padding:'0.5rem'}}>Henüz parti kurulmamış — koltuklar atıl</div>
+                    <div style={{fontSize:'0.78rem',color:'#5A7089',textAlign:'center',padding:'0.5rem'}}>Henüz parti kurulmamış — koltuklar atıl</div>
                   )}
                   {seatsData.length > 0 && (
                     <div style={{marginTop:'0.5rem',paddingTop:'0.4rem',borderTop:'1px solid rgba(255,255,255,0.05)',display:'flex',justifyContent:'space-between',fontSize:'0.65rem',color:'#5A7089'}}>
@@ -4357,7 +4455,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
                               {def.icon} {def.label}
                             </Btn>
                           ) : (
-                            <div style={{fontSize:'0.72rem',color:'#3B4E63'}}>⏳ {Math.ceil(rem/3600000)} saat sonra tekrar kullanılabilir</div>
+                            <div style={{fontSize:'0.72rem',color:'#5A7089'}}>⏳ {Math.ceil(rem/3600000)} saat sonra tekrar kullanılabilir</div>
                           )}
                         </div>
                       </div>
@@ -4382,7 +4480,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
                         <div style={{fontWeight:700,color:isMyRole?'#F59E0B':'#E8EDF2',fontSize:'0.82rem'}}>{role}</div>
                         {assigned
                           ? <div style={{fontSize:'0.68rem',color:isMyRole?'#10B981':'#5A7089',marginTop:'1px'}}>👤 {assigned}{isMyRole?' (Sen)':''}</div>
-                          : <div style={{fontSize:'0.68rem',color:'#3B4E63',fontStyle:'italic',marginTop:'1px'}}>Boş — Atanmamış</div>}
+                          : <div style={{fontSize:'0.68rem',color:'#5A7089',fontStyle:'italic',marginTop:'1px'}}>Boş — Atanmamış</div>}
                       </div>
                     </div>
                     <div style={{display:'flex',gap:'0.3rem',alignItems:'center',flexShrink:0}}>
@@ -4398,6 +4496,121 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
             })}
           </div>
         )}
+
+        {sub==='meclis' && (()=>{
+          const TOTAL_SEATS_M = 600;
+          const THRESHOLD_PCT = 0.10;
+          const allP = JSON.parse(localStorage.getItem('rep_parties')||'[]');
+          const totalVotes = allP.reduce((s,p)=>s+(p.influencePoints||0),0)||1;
+          const eligible = allP.filter(p=>(p.influencePoints||0)/totalVotes>=THRESHOLD_PCT);
+          // D'Hondt algorithm
+          const seats = eligible.map(p=>({...p, seats:0}));
+          for(let i=0;i<TOTAL_SEATS_M;i++){
+            let bestIdx=0, bestScore=-1;
+            seats.forEach((p,idx)=>{
+              const score=(p.influencePoints||0)/(p.seats+1);
+              if(score>bestScore){bestScore=score;bestIdx=idx;}
+            });
+            seats[bestIdx].seats++;
+          }
+          seats.sort((a,b)=>b.seats-a.seats);
+          const eliminated = allP.filter(p=>(p.influencePoints||0)/totalVotes<THRESHOLD_PCT);
+          const meclisAssign = meclisAtama;
+          const myPartyInMeclis = seats.find(p=>p.id===profile?.party);
+          const isLeaderInMeclis = myPartyInMeclis && (myPartyInMeclis.leaderId===(profile?.uid||profile?.id));
+          return (
+            <div>
+              {/* D'Hondt info */}
+              <div style={{background:'rgba(139,92,246,0.07)',border:'1px solid rgba(139,92,246,0.2)',borderRadius:'14px',padding:'0.85rem',marginBottom:'0.75rem'}}>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,color:'#A78BFA',fontSize:'0.85rem',marginBottom:'0.35rem'}}>🏛️ MECLİS — D'Hondt Sistemi</div>
+                <div style={{fontSize:'0.68rem',color:'#5A7089',marginBottom:'0.5rem'}}>
+                  {TOTAL_SEATS_M} milletvekili koltuğu • %{Math.round(THRESHOLD_PCT*100)} seçim barajı • Etki puanına göre D'Hondt dağılımı
+                </div>
+                {/* Koltuk çubuğu */}
+                <div style={{display:'flex',height:'14px',borderRadius:'100px',overflow:'hidden',gap:'1px',marginBottom:'0.5rem'}}>
+                  {seats.length>0 ? seats.map((p,i)=>(
+                    <div key={p.id} style={{flex:p.seats,background:p.color||'#8B5CF6',minWidth:p.seats>0?'3px':'0'}} title={`${p.name}: ${p.seats} koltuk`}/>
+                  )) : <div style={{flex:1,background:'rgba(255,255,255,0.06)'}}/>}
+                </div>
+                {/* Parti listesi */}
+                {seats.length===0 ? (
+                  <div style={{fontSize:'0.75rem',color:'#5A7089',textAlign:'center',padding:'0.5rem'}}>Henüz parti yok veya hiçbiri barajı geçemedi.</div>
+                ) : seats.map((p,i)=>{
+                  const majority = p.seats > Math.floor(TOTAL_SEATS_M/2);
+                  return (
+                    <div key={p.id} style={{display:'flex',alignItems:'center',gap:'0.5rem',padding:'0.4rem 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+                      <div style={{width:'10px',height:'10px',borderRadius:'3px',background:p.color||'#8B5CF6',flexShrink:0}}/>
+                      <div style={{flex:1,fontSize:'0.8rem',fontWeight:700,color:'#E8EDF2',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</div>
+                      <div style={{fontSize:'0.65rem',color:'#5A7089'}}>%{Math.round((p.influencePoints||0)/totalVotes*100)}</div>
+                      <div style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:900,color:p.color||'#A78BFA',fontSize:'0.9rem',minWidth:'32px',textAlign:'right'}}>{p.seats}</div>
+                      <div style={{fontSize:'0.6rem',color:'#5A7089'}}>koltuk</div>
+                      {majority && <span style={{fontSize:'0.58rem',background:'rgba(16,185,129,0.15)',color:'#10B981',border:'1px solid rgba(16,185,129,0.3)',borderRadius:'5px',padding:'1px 5px',fontWeight:800}}>ÇOĞUNLUK</span>}
+                    </div>
+                  );
+                })}
+                {seats.length>0&&(
+                  <div style={{marginTop:'0.4rem',paddingTop:'0.4rem',borderTop:'1px solid rgba(255,255,255,0.05)',display:'flex',justifyContent:'space-between',fontSize:'0.65rem',color:'#5A7089'}}>
+                    <span>Çoğunluk eşiği: {Math.floor(TOTAL_SEATS_M/2)+1} koltuk</span>
+                    <span style={{color:seats.some(p=>p.seats>Math.floor(TOTAL_SEATS_M/2))?'#10B981':'#F59E0B'}}>
+                      {seats.some(p=>p.seats>Math.floor(TOTAL_SEATS_M/2))?'✅ Tek parti çoğunluğu':'⚠️ Koalisyon gerekli'}
+                    </span>
+                  </div>
+                )}
+              </div>
+              {/* Barajı geçemeyen partiler */}
+              {eliminated.length>0&&(
+                <div style={{background:'rgba(239,68,68,0.05)',border:'1px solid rgba(239,68,68,0.15)',borderRadius:'10px',padding:'0.65rem',marginBottom:'0.75rem',fontSize:'0.72rem',color:'#FCA5A5'}}>
+                  ❌ Barajı geçemeyen partiler (%{Math.round(THRESHOLD_PCT*100)} altı): {eliminated.map(p=>p.name).join(', ')}
+                </div>
+              )}
+              {/* Milletvekili Ataması */}
+              {myPartyInMeclis && (
+                <div style={{background:'rgba(245,158,11,0.06)',border:'1px solid rgba(245,158,11,0.2)',borderRadius:'14px',padding:'0.85rem',marginBottom:'0.75rem'}}>
+                  <div style={{fontWeight:800,color:'#F59E0B',fontSize:'0.82rem',marginBottom:'0.4rem'}}>
+                    📋 {myPartyInMeclis.name} — {myPartyInMeclis.seats} Milletvekili Koltuğu
+                  </div>
+                  <div style={{fontSize:'0.68rem',color:'#5A7089',marginBottom:'0.6rem'}}>
+                    {isLeaderInMeclis ? 'Parti lideriyseniz milletvekili ataması yapabilirsiniz.' : 'Atama yapmak için parti lideriniz gerekli.'}
+                  </div>
+                  {Array.from({length:Math.min(myPartyInMeclis.seats,20)}).map((_,i)=>{
+                    const key = `${myPartyInMeclis.id}_${i}`;
+                    const assigned = meclisAssign[key]||'';
+                    return (
+                      <div key={i} style={{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.4rem'}}>
+                        <div style={{fontSize:'0.72rem',color:'#5A7089',minWidth:'22px',fontWeight:700}}>#{i+1}</div>
+                        <input
+                          value={assigned} readOnly={!isLeaderInMeclis}
+                          onChange={e=>{if(!isLeaderInMeclis)return; setMeclisAtama({...meclisAssign,[key]:e.target.value});}}
+                          placeholder={isLeaderInMeclis?'Kullanıcı adı girin...':'—'}
+                          style={{flex:1,background:'rgba(255,255,255,0.04)',border:`1px solid ${assigned?'rgba(245,158,11,0.3)':'rgba(255,255,255,0.08)'}`,borderRadius:'8px',padding:'0.35rem 0.6rem',color:assigned?'#FCD34D':'#5A7089',fontFamily:"'DM Sans',sans-serif",fontSize:'0.78rem',outline:'none'}}
+                        />
+                        {assigned&&<span style={{fontSize:'0.72rem',color:'#10B981'}}>✅</span>}
+                      </div>
+                    );
+                  })}
+                  {myPartyInMeclis.seats>20&&<div style={{fontSize:'0.65rem',color:'#5A7089',textAlign:'center',marginTop:'0.3rem'}}>... ve {myPartyInMeclis.seats-20} milletvekili daha</div>}
+                </div>
+              )}
+              {/* Tüm atamalar özeti */}
+              {Object.keys(meclisAssign).length>0&&(
+                <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:'12px',padding:'0.75rem'}}>
+                  <div style={{fontWeight:800,color:'#E8EDF2',fontSize:'0.8rem',marginBottom:'0.5rem'}}>📜 Meclis Üyeleri</div>
+                  {Object.entries(meclisAssign).filter(([,v])=>v.trim()).map(([k,v])=>{
+                    const [partyId,idx]=k.split('_');
+                    const party=allP.find(p=>p.id===partyId);
+                    return (
+                      <div key={k} style={{display:'flex',alignItems:'center',gap:'0.4rem',fontSize:'0.75rem',padding:'0.25rem 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+                        <div style={{width:'8px',height:'8px',borderRadius:'50%',background:party?.color||'#8B5CF6',flexShrink:0}}/>
+                        <span style={{color:'#E8EDF2',fontWeight:600,flex:1}}>{v}</span>
+                        <span style={{color:'#5A7089',fontSize:'0.62rem'}}>{party?.name||'?'} #{parseInt(idx)+1}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {sub==='laws' && (
           <div>
@@ -4447,7 +4660,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
                     </div>
                   )}
                   {myVoteLaw && <div style={{fontSize:'0.72rem',color:'#5A7089',textAlign:'center',padding:'0.25rem'}}>Oyunuz: <span style={{color:myVoteLaw==='yes'?'#10B981':'#EF4444',fontWeight:700}}>{myVoteLaw==='yes'?'✅ Evet':'❌ Hayır'}</span></div>}
-                  {!expired&&law.status!=='passed'&&<div style={{fontSize:'0.62rem',color:'#3B4E63',marginTop:'0.3rem',textAlign:'right'}}>⏳ {timeLeft}s kaldı</div>}
+                  {!expired&&law.status!=='passed'&&<div style={{fontSize:'0.62rem',color:'#5A7089',marginTop:'0.3rem',textAlign:'right'}}>⏳ {timeLeft}s kaldı</div>}
                 </Card>
               );
             })}
@@ -4478,7 +4691,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
                   <span style={{fontSize:'0.62rem',color:'#5A7089',fontWeight:400}}>— İlk 5 parti seçime aday çıkarabilir</span>
                 </div>
                 {sortedByInfEl.length === 0 ? (
-                  <div style={{fontSize:'0.75rem',color:'#3B4E63',textAlign:'center',padding:'0.5rem'}}>Henüz parti yok</div>
+                  <div style={{fontSize:'0.75rem',color:'#5A7089',textAlign:'center',padding:'0.5rem'}}>Henüz parti yok</div>
                 ) : sortedByInfEl.map((p,i) => {
                   const canRun = top5IdsEl.includes(p.id);
                   const isMyP = p.id === myPartyId;
@@ -4569,7 +4782,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
                       <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:'3px'}}>
                         {isActive && <span style={{fontSize:'0.6rem',fontWeight:800,color:'#10B981',background:'rgba(16,185,129,0.12)',border:'1px solid rgba(16,185,129,0.3)',borderRadius:'6px',padding:'1px 7px'}}>● AKTİF</span>}
                         {hasEnded && <span style={{fontSize:'0.6rem',fontWeight:800,color:'#F59E0B',background:'rgba(245,158,11,0.1)',border:'1px solid rgba(245,158,11,0.25)',borderRadius:'6px',padding:'1px 7px'}}>✅ BİTTİ</span>}
-                        {!isActive && !hasEnded && <span style={{fontSize:'0.6rem',color:'#3B4E63',background:'rgba(255,255,255,0.04)',borderRadius:'6px',padding:'1px 7px'}}>beklemede</span>}
+                        {!isActive && !hasEnded && <span style={{fontSize:'0.6rem',color:'#5A7089',background:'rgba(255,255,255,0.04)',borderRadius:'6px',padding:'1px 7px'}}>beklemede</span>}
                         {cabinet[pos.title] && <span style={{fontSize:'0.62rem',color:'#A78BFA',fontWeight:700}}>👤 {cabinet[pos.title]}</span>}
                       </div>
                     </div>
@@ -4625,7 +4838,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
                             })}
                           </div>
                         ) : (
-                          isActive && <div style={{fontSize:'0.7rem',color:'#3B4E63',textAlign:'center',padding:'0.5rem'}}>Henüz aday yok — ilk aday sen ol!</div>
+                          isActive && <div style={{fontSize:'0.7rem',color:'#5A7089',textAlign:'center',padding:'0.5rem'}}>Henüz aday yok — ilk aday sen ol!</div>
                         )}
                       </>
                     )}
@@ -4801,6 +5014,9 @@ const PROVINCE_MAP_DATA = [
 ];
 const GANG_PALETTE = ['#EF4444','#F97316','#EAB308','#22C55E','#06B6D4','#3B82F6','#8B5CF6','#EC4899','#14B8A6','#84CC16','#F43F5E','#D946EF'];
 
+// Simplified Turkey country outline path (based on border province coordinates)
+const TURKEY_OUTLINE_PATH = "M 27,122 L 27,92 L 34,39 L 62,35 L 74,76 L 100,68 L 140,55 L 140,75 L 178,92 L 197,88 L 229,84 L 257,51 L 280,41 L 292,65 L 341,55 L 400,19 L 429,60 L 450,60 L 516,77 L 537,81 L 594,76 L 628,75 L 684,66 L 721,70 L 738,98 L 778,135 L 778,160 L 765,264 L 749,260 L 711,266 L 688,244 L 654,246 L 638,278 L 554,287 L 494,292 L 483,311 L 447,291 L 443,330 L 420,318 L 378,306 L 355,312 L 210,301 L 193,280 L 111,283 L 89,249 L 59,217 L 27,180 Z";
+
 function TurkeyMap({ territories={}, gangs=[], parties=[], partyMode=false, onCityClick=null, selectedCity=null }) {
   const [hovered, setHovered] = React.useState(null);
 
@@ -4835,6 +5051,13 @@ function TurkeyMap({ territories={}, gangs=[], parties=[], partyMode=false, onCi
     return result;
   }, [partyMode, parties.map(p=>(p.members||[]).join('')).join('|')]);
 
+  const gangDominance = React.useMemo(() => {
+    if (partyMode) return {};
+    const result = {};
+    Object.entries(territories).forEach(([city, t]) => { if (t?.gangId) result[city] = t.gangId; });
+    return result;
+  }, [JSON.stringify(territories)]);
+
   const getColor = (n) => {
     if (partyMode) {
       const pid = cityDominance[n];
@@ -4852,39 +5075,61 @@ function TurkeyMap({ territories={}, gangs=[], parties=[], partyMode=false, onCi
     return territories[n]?.gangName || null;
   };
 
+  // Legend for parties or gangs
+  const legendItems = partyMode
+    ? parties.filter(p => Object.values(cityDominance).includes(p.id)).slice(0,8)
+    : gangs.filter(g => Object.values(gangDominance).includes(g.id)).slice(0,8);
+
   return (
     <div style={{position:'relative',width:'100%',borderRadius:'12px',overflow:'hidden',background:'rgba(4,9,20,0.97)',border:'1px solid rgba(255,255,255,0.08)'}}>
       <svg viewBox="0 0 820 360" style={{width:'100%',height:'auto',display:'block'}} xmlns="http://www.w3.org/2000/svg">
         <defs>
           <filter id="tmglow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feGaussianBlur stdDeviation="4" result="blur"/>
             <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
           </filter>
+          <filter id="tmshadow" x="-10%" y="-10%" width="120%" height="120%">
+            <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="rgba(0,0,0,0.5)"/>
+          </filter>
         </defs>
-        {[60,120,180,240,300].map(y => <line key={y} x1="0" y1={y} x2="820" y2={y} stroke="rgba(255,255,255,0.025)" strokeWidth="1"/>)}
-        {[150,300,450,600,750].map(x => <line key={x} x1={x} y1="0" x2={x} y2="360" stroke="rgba(255,255,255,0.025)" strokeWidth="1"/>)}
+        {/* Turkey country outline — background fill */}
+        <path d={TURKEY_OUTLINE_PATH} fill="rgba(15,25,50,0.9)" stroke="rgba(100,150,255,0.25)" strokeWidth="1.5" strokeLinejoin="round"/>
+        {/* Grid lines */}
+        {[60,120,180,240,300].map(y => <line key={y} x1="0" y1={y} x2="820" y2={y} stroke="rgba(255,255,255,0.018)" strokeWidth="0.5"/>)}
+        {[150,300,450,600,750].map(x => <line key={x} x1={x} y1="0" x2={x} y2="360" stroke="rgba(255,255,255,0.018)" strokeWidth="0.5"/>)}
+        {/* Province circles */}
         {PROVINCE_MAP_DATA.map(({ n, x, y }) => {
           const color = getColor(n);
           const isControlled = !!color;
           const isSelected = selectedCity === n;
           const isHov = hovered === n;
-          const r = isHov || isSelected ? 11 : 7;
-          const fill = color || 'rgba(255,255,255,0.07)';
+          const r = isHov || isSelected ? 16 : isControlled ? 13 : 8;
+          const fill = color || 'rgba(50,80,130,0.4)';
+          const strokeColor = isSelected ? '#ffffff' : isControlled ? color : 'rgba(100,150,220,0.3)';
           return (
             <g key={n} style={{cursor: onCityClick ? 'pointer' : 'default'}}
                onClick={() => onCityClick && onCityClick(n)}
                onMouseEnter={() => setHovered(n)}
                onMouseLeave={() => setHovered(null)}>
+              {/* Outer glow ring for controlled provinces */}
               {isControlled && (
-                <circle cx={x} cy={y} r={r + 6} fill="none" stroke={fill} strokeWidth="0.6" opacity="0.22"/>
+                <circle cx={x} cy={y} r={r + 8} fill={fill} opacity="0.08"/>
               )}
+              {/* Province circle */}
               <circle cx={x} cy={y} r={r}
-                fill={fill}
-                stroke={isSelected ? '#fff' : isControlled ? fill : 'rgba(255,255,255,0.15)'}
-                strokeWidth={isSelected ? 2.5 : 0.8}
-                opacity={isHov || isSelected ? 1 : isControlled ? 0.88 : 0.42}
+                fill={isControlled ? fill : 'rgba(20,35,65,0.85)'}
+                stroke={strokeColor}
+                strokeWidth={isSelected ? 2.5 : isControlled ? 1.5 : 0.7}
+                opacity={isHov || isSelected ? 1 : isControlled ? 0.92 : 0.65}
                 filter={isControlled ? 'url(#tmglow)' : 'none'}
               />
+              {/* Province abbreviation label for controlled cities */}
+              {(isControlled || isHov) && (
+                <text x={x} y={y+4} textAnchor="middle" fontSize={isHov?8:isControlled?6:0}
+                  fill="rgba(255,255,255,0.85)" fontWeight="700" style={{pointerEvents:'none',fontFamily:'sans-serif'}}>
+                  {n.slice(0,3)}
+                </text>
+              )}
             </g>
           );
         })}
@@ -4905,6 +5150,17 @@ function TurkeyMap({ territories={}, gangs=[], parties=[], partyMode=false, onCi
           );
         })()}
       </svg>
+      {/* Legend */}
+      {legendItems.length > 0 && (
+        <div style={{display:'flex',flexWrap:'wrap',gap:'0.35rem',padding:'0.5rem 0.75rem',borderTop:'1px solid rgba(255,255,255,0.06)'}}>
+          {legendItems.map((item,i) => (
+            <div key={item.id||i} style={{display:'flex',alignItems:'center',gap:'0.3rem',background:'rgba(255,255,255,0.03)',borderRadius:'6px',padding:'0.2rem 0.45rem',border:'1px solid rgba(255,255,255,0.06)'}}>
+              <div style={{width:'8px',height:'8px',borderRadius:'2px',background:partyMode?(item.color||'#8B5CF6'):(GANG_PALETTE[i%GANG_PALETTE.length]),flexShrink:0}}/>
+              <span style={{fontSize:'0.6rem',color:'#7A8FA6',fontWeight:600,whiteSpace:'nowrap'}}>{item.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -4999,7 +5255,7 @@ function TerritorySystem({ profile, setProfile, showNotif, myGang, gangs, setGan
             <div key={lb} style={{background:'rgba(255,255,255,0.04)',borderRadius:'8px',padding:'0.4rem',textAlign:'center'}}>
               <div style={{fontSize:'0.85rem'}}>{ic}</div>
               <div style={{fontWeight:800,color:'#E8EDF2',fontSize:'0.78rem'}}>{v}</div>
-              <div style={{fontSize:'0.55rem',color:'#3B4E63',textTransform:'uppercase'}}>{lb}</div>
+              <div style={{fontSize:'0.55rem',color:'#5A7089',textTransform:'uppercase'}}>{lb}</div>
             </div>
           ))}
         </div>
@@ -5031,7 +5287,7 @@ function TerritorySystem({ profile, setProfile, showNotif, myGang, gangs, setGan
                 <div key={g.id} style={{display:'flex',alignItems:'center',gap:'4px',background:'rgba(255,255,255,0.04)',borderRadius:'5px',padding:'2px 8px',border:'1px solid rgba(255,255,255,0.06)'}}>
                   <div style={{width:'7px',height:'7px',borderRadius:'50%',background:GANG_PALETTE[i%GANG_PALETTE.length],flexShrink:0}}/>
                   <span style={{fontSize:'0.62rem',color:'#8BA0B5',fontWeight:700}}>{g.name}</span>
-                  <span style={{fontSize:'0.58rem',color:'#3B4E63'}}>({count} il)</span>
+                  <span style={{fontSize:'0.58rem',color:'#5A7089'}}>({count} il)</span>
                 </div>
               );
             })}
@@ -5132,7 +5388,7 @@ function WeaponSystem({ profile, setProfile, showNotif, myGang, gangs, setGangs,
             <div key={lb} style={{background:'rgba(255,255,255,0.04)',borderRadius:'8px',padding:'0.4rem',textAlign:'center'}}>
               <div style={{fontSize:'0.85rem'}}>{ic}</div>
               <div style={{fontWeight:800,color:'#E8EDF2',fontSize:'0.78rem'}}>{v}</div>
-              <div style={{fontSize:'0.55rem',color:'#3B4E63',textTransform:'uppercase'}}>{lb}</div>
+              <div style={{fontSize:'0.55rem',color:'#5A7089',textTransform:'uppercase'}}>{lb}</div>
             </div>
           ))}
         </div>
@@ -5468,7 +5724,7 @@ function YetkilerimPage({ profile, setProfile, showNotif }) {
                   ? canAfford
                     ? React.createElement('button',{onClick:()=>yetkiAction(act.key,act.cd,()=>{setProfile(p=>{const np={...p,money:(p.money||0)-act.cost,meritPoints:(p.meritPoints||0)+act.merit};localStorage.setItem('rep_userProfile',JSON.stringify(np));try{const _tk=localStorage.getItem('rep_token');if(_tk)fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_tk},body:JSON.stringify({money:np.money,xp:np.xp||0,level:np.level||1,meritPoints:np.meritPoints||0})}).catch(()=>{});}catch(e){}return np;});showNotif(`${act.label} başarılı! +${act.merit} Etki Puanı`,'success');}),style:{background:'rgba(139,92,246,0.15)',border:'1px solid rgba(139,92,246,0.3)',borderRadius:'8px',padding:'5px 12px',color:'#A78BFA',cursor:'pointer',fontSize:'0.7rem',fontWeight:700,flexShrink:0}},'Kazan')
                     : React.createElement('span',{style:{color:'#EF4444',fontSize:'0.65rem',flexShrink:0,fontWeight:700}},'Yetersiz ₺')
-                  : React.createElement('span',{style:{color:'#3B4E63',fontSize:'0.65rem',flexShrink:0}},`⏳ ${Math.ceil(rem/3600000)}s`)
+                  : React.createElement('span',{style:{color:'#5A7089',fontSize:'0.65rem',flexShrink:0}},`⏳ ${Math.ceil(rem/3600000)}s`)
               )
             );
           })}
@@ -5517,7 +5773,7 @@ function YetkilerimPage({ profile, setProfile, showNotif }) {
                 ? canAfford
                   ? React.createElement('button',{onClick:()=>yetkiAction(act.key,act.cd,()=>{setProfile(p=>{const np={...p,money:(p.money||0)-act.cost,meritPoints:(p.meritPoints||0)+act.merit};localStorage.setItem('rep_userProfile',JSON.stringify(np));try{const _tk=localStorage.getItem('rep_token');if(_tk)fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_tk},body:JSON.stringify({money:np.money,xp:np.xp||0,level:np.level||1,meritPoints:np.meritPoints||0})}).catch(()=>{});}catch(e){}return np;});showNotif(`${act.label} başarılı! +${act.merit} Etki Puanı`,'success');}),style:{background:'rgba(139,92,246,0.15)',border:'1px solid rgba(139,92,246,0.3)',borderRadius:'8px',padding:'5px 12px',color:'#A78BFA',cursor:'pointer',fontSize:'0.7rem',fontWeight:700,flexShrink:0}},'Kazan')
                   : React.createElement('span',{style:{color:'#EF4444',fontSize:'0.65rem',flexShrink:0,fontWeight:700}},'Yetersiz ₺')
-                : React.createElement('span',{style:{color:'#3B4E63',fontSize:'0.65rem',flexShrink:0}},`⏳ ${Math.ceil(rem/3600000)}s`)
+                : React.createElement('span',{style:{color:'#5A7089',fontSize:'0.65rem',flexShrink:0}},`⏳ ${Math.ceil(rem/3600000)}s`)
             )
           );
         })}
@@ -5564,7 +5820,7 @@ function YetkilerimPage({ profile, setProfile, showNotif }) {
                   <div style={{height:'8px',background:'rgba(255,255,255,0.06)',borderRadius:'100px',overflow:'hidden',marginBottom:'0.3rem'}}>
                     <div style={{height:'100%',width:`${currentTension}%`,background:`linear-gradient(90deg,#10B981 0%,${currentTension>=50?'#F59E0B':'#10B981'} 50%,${currentTension>=75?'#EF4444':'transparent'} 100%)`,borderRadius:'100px',transition:'width 0.6s'}} />
                   </div>
-                  <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap',fontSize:'0.6rem',color:'#3B4E63'}}>
+                  <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap',fontSize:'0.6rem',color:'#5A7089'}}>
                     <span>Çete sayısı etkisi</span>
                     <span>•</span>
                     <span>Bölge kontrolü etkisi</span>
@@ -5671,7 +5927,7 @@ function YetkilerimPage({ profile, setProfile, showNotif }) {
                     <div key={s.label} style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:'10px',padding:'0.6rem 0.5rem',textAlign:'center'}}>
                       <div style={{fontSize:'1rem',marginBottom:'2px'}}>{s.icon}</div>
                       <div style={{fontWeight:800,color:s.color,fontSize:'0.82rem'}}>{s.value}</div>
-                      <div style={{fontSize:'0.55rem',color:'#3B4E63',marginTop:'1px'}}>{s.label}</div>
+                      <div style={{fontSize:'0.55rem',color:'#5A7089',marginTop:'1px'}}>{s.label}</div>
                     </div>
                   ))}
                 </div>
@@ -5691,7 +5947,7 @@ function YetkilerimPage({ profile, setProfile, showNotif }) {
                 {(()=>{
                   const reqs = JSON.parse(localStorage.getItem('rep_treasuryRequests')||'[]');
                   const pending = reqs.filter(r=>r.status==='bekliyor');
-                  if(!pending.length) return <div style={{fontSize:'0.63rem',color:'#3B4E63',marginBottom:'0.5rem',padding:'0.4rem 0.6rem',background:'rgba(255,255,255,0.02)',borderRadius:'8px'}}>✅ Bekleyen belediye hazine talebi yok.</div>;
+                  if(!pending.length) return <div style={{fontSize:'0.63rem',color:'#5A7089',marginBottom:'0.5rem',padding:'0.4rem 0.6rem',background:'rgba(255,255,255,0.02)',borderRadius:'8px'}}>✅ Bekleyen belediye hazine talebi yok.</div>;
                   return (
                     <div style={{marginBottom:'0.5rem'}}>
                       <div style={{fontWeight:700,color:'#10B981',fontSize:'0.72rem',marginBottom:'0.4rem'}}>🏙️ Belediye Hazine Talepleri ({pending.length})</div>
@@ -5794,7 +6050,7 @@ function YetkilerimPage({ profile, setProfile, showNotif }) {
                     style={{padding:'0.6rem 0.5rem',background:rem>0?'rgba(255,255,255,0.03)':`rgba(${def.color==='#F59E0B'?'245,158,11':def.color==='#EF4444'?'239,68,68':def.color==='#10B981'?'16,185,129':def.color==='#8B5CF6'?'139,92,246':def.color==='#3B82F6'?'59,130,246':def.color==='#06B6D4'?'6,182,212':'245,200,66'},0.1)`,border:`1px solid ${rem>0?'rgba(255,255,255,0.07)':`${def.color}30`}`,borderRadius:'10px',color:rem>0?'#3B4E63':def.color,cursor:rem>0?'not-allowed':'pointer',fontWeight:700,fontSize:'0.72rem',fontFamily:"'DM Sans',sans-serif",textAlign:'center',lineHeight:1.3}}>
                     {pw.label}
                     <div style={{fontSize:'0.6rem',color:'#5A7089',marginTop:'2px'}}>{pw.desc}</div>
-                    {rem>0&&<div style={{fontSize:'0.58rem',marginTop:'2px',color:'#3B4E63'}}>⏳{Math.ceil(rem/3600000)}s</div>}
+                    {rem>0&&<div style={{fontSize:'0.58rem',marginTop:'2px',color:'#5A7089'}}>⏳{Math.ceil(rem/3600000)}s</div>}
                   </button>
                 );
               })}
@@ -5858,7 +6114,7 @@ function EventsPage({ profile, setProfile, showNotif }) {
       </div>
 
       {sortedEvents.length === 0 && (
-        <div style={{textAlign:'center',padding:'3rem',color:'#3B4E63'}}>
+        <div style={{textAlign:'center',padding:'3rem',color:'#5A7089'}}>
           <div style={{fontSize:'2rem',marginBottom:'0.75rem'}}>📰</div>
           <div style={{fontSize:'0.85rem'}}>Henüz olay yok. Oyuncuların eylemleri olayları tetikleyecek!</div>
           <div style={{fontSize:'0.72rem',marginTop:'0.5rem',color:'#5A7089',lineHeight:1.6}}>
@@ -5881,7 +6137,7 @@ function EventsPage({ profile, setProfile, showNotif }) {
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontWeight:800,color,fontSize:'0.9rem',marginBottom:'0.2rem'}}>{evt.title}</div>
                 <div style={{fontSize:'0.75rem',color:'#8BA0B5',lineHeight:1.5}}>{evt.desc}</div>
-                <div style={{fontSize:'0.62rem',color:'#3B4E63',marginTop:'0.3rem'}}>{timeAgoStr}</div>
+                <div style={{fontSize:'0.62rem',color:'#5A7089',marginTop:'0.3rem'}}>{timeAgoStr}</div>
               </div>
             </div>
             {!myResp ? (
@@ -6036,7 +6292,7 @@ function TeamWarPage({ profile, setProfile, showNotif }) {
         <div style={{height:'8px',background:'rgba(255,255,255,0.06)',borderRadius:'100px',overflow:'hidden',marginBottom:'0.35rem'}}>
           <div style={{height:'100%',width:`${tension}%`,background:`linear-gradient(90deg,#10B981,${tension>=50?'#F59E0B':'#10B981'},${tension>=75?'#EF4444':'transparent'})`,borderRadius:'100px',transition:'width 0.6s'}} />
         </div>
-        <div style={{fontSize:'0.62rem',color:'#3B4E63'}}>
+        <div style={{fontSize:'0.62rem',color:'#5A7089'}}>
           Çete bölge kontrolü, enflasyon ve aktif savaşlar gerginliği artırır
         </div>
       </div>
@@ -6159,7 +6415,7 @@ function TeamWarPage({ profile, setProfile, showNotif }) {
             <div key={war.id} style={{background:'rgba(255,255,255,0.02)',border:`1px solid ${border}`,borderRadius:'10px',padding:'0.7rem',marginBottom:'0.4rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
               <div>
                 <div style={{fontSize:'0.75rem',fontWeight:700,color:'#E8EDF2'}}>📍 {war.city}</div>
-                <div style={{fontSize:'0.62rem',color:'#3B4E63',marginTop:'1px'}}>{war.attackerName} — {timeAgo(war.resolvedAt||war.createdAt)}</div>
+                <div style={{fontSize:'0.62rem',color:'#5A7089',marginTop:'1px'}}>{war.attackerName} — {timeAgo(war.resolvedAt||war.createdAt)}</div>
               </div>
               <span style={{fontSize:'0.68rem',fontWeight:700,color:'#F59E0B',background:'rgba(245,158,11,0.1)',borderRadius:'6px',padding:'2px 8px'}}>
                 {war.winner==='defender'?'🛡️ Devlet Kazandı':'⚔️ Saldırgan Kazandı'}
@@ -6170,10 +6426,10 @@ function TeamWarPage({ profile, setProfile, showNotif }) {
       )}
 
       {wars.length === 0 && (
-        <div style={{textAlign:'center',padding:'2rem',color:'#3B4E63'}}>
+        <div style={{textAlign:'center',padding:'2rem',color:'#5A7089'}}>
           <div style={{fontSize:'2.5rem',marginBottom:'0.5rem'}}>🕊️</div>
           <div style={{fontSize:'0.85rem',color:'#5A7089'}}>Henüz savaş kaydı yok</div>
-          <div style={{fontSize:'0.72rem',color:'#3B4E63',marginTop:'0.3rem'}}>Çeteler bölge ele geçirince savaşlar burada görünür</div>
+          <div style={{fontSize:'0.72rem',color:'#5A7089',marginTop:'0.3rem'}}>Çeteler bölge ele geçirince savaşlar burada görünür</div>
         </div>
       )}
 
@@ -6355,7 +6611,7 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
                     <div key={lb} style={{background:'rgba(255,255,255,0.04)',borderRadius:'8px',padding:'0.4rem',textAlign:'center'}}>
                       <div style={{fontSize:'0.9rem'}}>{ic}</div>
                       <div style={{fontWeight:700,color:'#E8EDF2',fontSize:'0.78rem'}}>{v}</div>
-                      <div style={{fontSize:'0.55rem',color:'#3B4E63',textTransform:'uppercase'}}>{lb}</div>
+                      <div style={{fontSize:'0.55rem',color:'#5A7089',textTransform:'uppercase'}}>{lb}</div>
                     </div>
                   ))}
                 </div>
@@ -6386,7 +6642,7 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
                 </div>
               </Card>
             ))}
-            {filteredGangs.length===0 && <div style={{textAlign:'center',color:'#3B4E63',padding:'2rem',fontSize:'0.85rem'}}>{isFamily?'Henüz aile yok. İlk sen kur! 👨‍👩‍👧‍👦':'Henüz çete yok. İlk sen kur! ⚔️'}</div>}
+            {filteredGangs.length===0 && <div style={{textAlign:'center',color:'#5A7089',padding:'2rem',fontSize:'0.85rem'}}>{isFamily?'Henüz aile yok. İlk sen kur! 👨‍👩‍👧‍👦':'Henüz çete yok. İlk sen kur! ⚔️'}</div>}
           </div>
         )}
 
@@ -6407,7 +6663,7 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
                       <div key={lb} style={{background:'rgba(255,255,255,0.04)',borderRadius:'8px',padding:'0.4rem',textAlign:'center'}}>
                         <div style={{fontSize:'0.8rem'}}>{ic}</div>
                         <div style={{fontWeight:700,color:'#E8EDF2',fontSize:'0.7rem',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{v}</div>
-                        <div style={{fontSize:'0.52rem',color:'#3B4E63',textTransform:'uppercase'}}>{lb}</div>
+                        <div style={{fontSize:'0.52rem',color:'#5A7089',textTransform:'uppercase'}}>{lb}</div>
                       </div>
                     ))}
                   </div>
@@ -6432,7 +6688,7 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
                         return (
                           <button key={a.id} onClick={()=>gangAction(a.id,a.cd,a.fn)} disabled={rem>0}
                             style={{padding:'0.55rem 0.4rem',background:rem>0?'rgba(255,255,255,0.03)':'rgba(239,68,68,0.08)',border:`1px solid ${rem>0?'rgba(255,255,255,0.07)':'rgba(239,68,68,0.2)'}`,borderRadius:'10px',color:rem>0?'#3B4E63':'#FCA5A5',cursor:rem>0?'not-allowed':'pointer',fontWeight:700,fontSize:'0.72rem',fontFamily:"'DM Sans',sans-serif",textAlign:'center',lineHeight:1.3}}>
-                            {a.label}{rem>0&&<div style={{fontSize:'0.6rem',marginTop:'2px',color:'#3B4E63'}}>⏳{Math.ceil(rem/3600000)}s</div>}
+                            {a.label}{rem>0&&<div style={{fontSize:'0.6rem',marginTop:'2px',color:'#5A7089'}}>⏳{Math.ceil(rem/3600000)}s</div>}
                           </button>
                         );
                       })}
@@ -6696,13 +6952,13 @@ function AlliancePage({ profile, setProfile, showNotif }) {
             )}
             <div style={{display:'flex',gap:'0.5rem',marginBottom:'0.75rem'}}>
               <div style={{flex:1,display:'flex',alignItems:'center',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'10px',padding:'0 0.75rem'}}>
-                <span style={{color:'#3B4E63',marginRight:'0.4rem'}}>🔍</span>
+                <span style={{color:'#5A7089',marginRight:'0.4rem'}}>🔍</span>
                 <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="İttifak ara..."
                   style={{flex:1,background:'none',border:'none',outline:'none',color:'#E8EDF2',fontFamily:"'DM Sans',sans-serif",fontSize:'16px',padding:'0.55rem 0'}} />
               </div>
               {!myAlliance && <Btn variant='primary' size='sm' onClick={()=>setCreateModal(true)}>+ Kur</Btn>}
             </div>
-            <div style={{fontSize:'0.68rem',color:'#3B4E63',fontWeight:700,textTransform:'uppercase',marginBottom:'0.5rem',letterSpacing:'0.08em'}}>Tüm İttifaklar ({filtered.length})</div>
+            <div style={{fontSize:'0.68rem',color:'#5A7089',fontWeight:700,textTransform:'uppercase',marginBottom:'0.5rem',letterSpacing:'0.08em'}}>Tüm İttifaklar ({filtered.length})</div>
             {filtered.map(a => (
               <Card key={a.id} style={{marginBottom:'0.5rem',padding:'0.85rem',border:`1px solid ${a.id===myAlliance?.id?'rgba(16,185,129,0.3)':'rgba(255,255,255,0.06)'}`}}>
                 <div style={{display:'flex',alignItems:'center',gap:'0.75rem'}}>
@@ -6716,7 +6972,7 @@ function AlliancePage({ profile, setProfile, showNotif }) {
                 </div>
               </Card>
             ))}
-            {filtered.length===0 && <div style={{textAlign:'center',color:'#3B4E63',padding:'2rem',fontSize:'0.85rem'}}>İttifak bulunamadı. İlk sen kur! 🤝</div>}
+            {filtered.length===0 && <div style={{textAlign:'center',color:'#5A7089',padding:'2rem',fontSize:'0.85rem'}}>İttifak bulunamadı. İlk sen kur! 🤝</div>}
           </div>
         )}
 
@@ -6737,7 +6993,7 @@ function AlliancePage({ profile, setProfile, showNotif }) {
                       <div key={lb} style={{background:'rgba(255,255,255,0.04)',borderRadius:'8px',padding:'0.4rem',textAlign:'center'}}>
                         <div style={{fontSize:'0.8rem'}}>{ic}</div>
                         <div style={{fontWeight:700,color:'#E8EDF2',fontSize:'0.7rem'}}>{v}</div>
-                        <div style={{fontSize:'0.52rem',color:'#3B4E63',textTransform:'uppercase'}}>{lb}</div>
+                        <div style={{fontSize:'0.52rem',color:'#5A7089',textTransform:'uppercase'}}>{lb}</div>
                       </div>
                     ))}
                   </div>
@@ -6762,7 +7018,7 @@ function AlliancePage({ profile, setProfile, showNotif }) {
                         return (
                           <button key={a.id} onClick={()=>allianceAction(a.id,a.cd,a.fn)} disabled={rem>0}
                             style={{padding:'0.55rem 0.4rem',background:rem>0?'rgba(255,255,255,0.03)':'rgba(16,185,129,0.08)',border:`1px solid ${rem>0?'rgba(255,255,255,0.07)':'rgba(16,185,129,0.2)'}`,borderRadius:'10px',color:rem>0?'#3B4E63':'#6EE7B7',cursor:rem>0?'not-allowed':'pointer',fontWeight:700,fontSize:'0.72rem',fontFamily:"'DM Sans',sans-serif",textAlign:'center',lineHeight:1.3}}>
-                            {a.label}{rem>0&&<div style={{fontSize:'0.6rem',marginTop:'2px',color:'#3B4E63'}}>⏳{Math.ceil(rem/3600000)}s</div>}
+                            {a.label}{rem>0&&<div style={{fontSize:'0.6rem',marginTop:'2px',color:'#5A7089'}}>⏳{Math.ceil(rem/3600000)}s</div>}
                           </button>
                         );
                       })}
@@ -6912,7 +7168,7 @@ function PlayersPage({ profile, onNavigate, onlinePlayers = [] }) {
     <div style={{padding:'0.7rem'}}>
       {/* Arama */}
       <div style={{display:'flex',alignItems:'center',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'12px',padding:'0 0.85rem',marginBottom:'0.75rem'}}>
-        <span style={{color:'#3B4E63',marginRight:'0.5rem'}}>🔍</span>
+        <span style={{color:'#5A7089',marginRight:'0.5rem'}}>🔍</span>
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Oyuncu / şehir ara..."
           style={{flex:1,background:'none',border:'none',outline:'none',color:'#E8EDF2',fontFamily:"'DM Sans',sans-serif",fontSize:'16px',padding:'0.6rem 0'}} />
       </div>
@@ -6959,7 +7215,7 @@ function PlayersPage({ profile, onNavigate, onlinePlayers = [] }) {
         const filtered = cityFilterActive && profile?.city
           ? onlinePlayers.filter(op => (op.city||'') === profile.city)
           : onlinePlayers;
-        if (filtered.length === 0) return React.createElement('div',{style:{textAlign:'center',color:'#3B4E63',padding:'2rem',fontSize:'0.85rem'}},
+        if (filtered.length === 0) return React.createElement('div',{style:{textAlign:'center',color:'#5A7089',padding:'2rem',fontSize:'0.85rem'}},
           React.createElement('div',{style:{fontSize:'2rem',marginBottom:'0.5rem'}},'👤'),
           cityFilterActive ? `${profile?.city||''} şehrinde başka çevrimiçi oyuncu yok` : 'Şu an başka çevrimiçi oyuncu yok');
         return null;
@@ -6983,7 +7239,7 @@ function PlayersPage({ profile, onNavigate, onlinePlayers = [] }) {
             </div>
             <div style={{textAlign:'right',flexShrink:0}}>
               <div style={{fontSize:'0.72rem',color:'#10B981',fontWeight:700}}>{fmtM(op.money||0)}</div>
-              <span style={{color:'#3B4E63',fontSize:'0.85rem'}}>›</span>
+              <span style={{color:'#5A7089',fontSize:'0.85rem'}}>›</span>
             </div>
           </button>
         );
@@ -7039,13 +7295,13 @@ function PlayersPage({ profile, onNavigate, onlinePlayers = [] }) {
             ) : (
               <div style={{fontSize:'0.72rem',color:'#10B981',fontWeight:700}}>{fmtM(p.money||0)}</div>
             )}
-            <span style={{color:'#3B4E63',fontSize:'0.85rem'}}>›</span>
+            <span style={{color:'#5A7089',fontSize:'0.85rem'}}>›</span>
           </div>
         </button>
         );
       })}
       {tab!=='online' && (tab==='top'?leaderboardData:filtered).length===0 && (
-        <div style={{textAlign:'center',color:'#3B4E63',padding:'2rem',fontSize:'0.85rem'}}>
+        <div style={{textAlign:'center',color:'#5A7089',padding:'2rem',fontSize:'0.85rem'}}>
           {search ? 'Oyuncu bulunamadı' : 'Henüz kayıtlı oyuncu yok'}
         </div>
       )}
@@ -7091,7 +7347,7 @@ function PlayersPage({ profile, onNavigate, onlinePlayers = [] }) {
                 ['🏙️','Şehir',sp.city||'?','#94A3B8'],
               ].map(([ic,lb,v,clr])=>(
                 <div key={lb} style={{background:'rgba(255,255,255,0.04)',borderRadius:'10px',padding:'0.6rem',textAlign:'center'}}>
-                  <div style={{fontSize:'0.58rem',color:'#3B4E63',textTransform:'uppercase',marginBottom:'0.2rem'}}>{ic} {lb}</div>
+                  <div style={{fontSize:'0.58rem',color:'#5A7089',textTransform:'uppercase',marginBottom:'0.2rem'}}>{ic} {lb}</div>
                   <div style={{fontWeight:700,color:clr,fontSize:'0.88rem'}}>{v}</div>
                 </div>
               ))}
@@ -7110,7 +7366,7 @@ function PlayersPage({ profile, onNavigate, onlinePlayers = [] }) {
 
             {/* Cinsiyet & Kayıt */}
             {sp.registeredAt && (
-              <div style={{textAlign:'center',fontSize:'0.63rem',color:'#3B4E63',marginBottom:'0.6rem'}}>
+              <div style={{textAlign:'center',fontSize:'0.63rem',color:'#5A7089',marginBottom:'0.6rem'}}>
                 Üye: {new Date(sp.registeredAt).toLocaleDateString('tr-TR')}
               </div>
             )}
@@ -7222,7 +7478,7 @@ function ProfilePage({ profile, setProfile, onLogout, showNotif }) {
           </div>
           <div style={{fontSize:'0.75rem',color:'#5A7089',marginBottom:'0.65rem'}}>{lvl.title} • {profile?.city} • Üye: {profile?.registeredAt ? new Date(profile.registeredAt).toLocaleDateString('tr-TR') : '-'}</div>
           <div style={{marginBottom:'0.4rem'}}>
-            <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.65rem',color:'#3B4E63',marginBottom:'0.25rem'}}>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.65rem',color:'#5A7089',marginBottom:'0.25rem'}}>
               <span>Lv.{lvl.lvl}</span><span>{fmt(profile?.xp||0)} / {fmt(lvl.next.xp)} XP</span><span>Lv.{lvl.next.lvl}</span>
             </div>
             <ProgressBar pct={lvl.pct} color='#3B82F6' h={8} />
@@ -7259,7 +7515,7 @@ function ProfilePage({ profile, setProfile, onLogout, showNotif }) {
               ['📊','Seviye',`Lv.${profile?.level||1}`,'#3B82F6'],
             ].map(([ic,lb,v,c])=>(
               <Card key={lb} style={{padding:'0.75rem'}}>
-                <div style={{fontSize:'0.6rem',color:'#3B4E63',textTransform:'uppercase',marginBottom:'0.2rem'}}>{ic} {lb}</div>
+                <div style={{fontSize:'0.6rem',color:'#5A7089',textTransform:'uppercase',marginBottom:'0.2rem'}}>{ic} {lb}</div>
                 <div style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:700,color:c,fontSize:'0.95rem'}}>{v}</div>
               </Card>
             ))}
@@ -7300,7 +7556,7 @@ function ProfilePage({ profile, setProfile, onLogout, showNotif }) {
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'0.38rem 0.4rem',borderRadius:'6px',background:'rgba(96,165,250,0.05)',marginBottom:'0.25rem'}}>
                   <div>
                     <span style={{color:'#8BA0B5',fontSize:'0.8rem'}}>📊 Ticaret Sıralaması</span>
-                    <span style={{color:'#3B4E63',fontSize:'0.68rem',marginLeft:'0.3rem'}}>#{tradeRank>0?tradeRank:'?'}</span>
+                    <span style={{color:'#5A7089',fontSize:'0.68rem',marginLeft:'0.3rem'}}>#{tradeRank>0?tradeRank:'?'}</span>
                   </div>
                   <div style={{textAlign:'right'}}>
                     <span style={{color:tradeColor,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",fontSize:'0.78rem'}}>{tradeLabel}</span>
@@ -7311,7 +7567,7 @@ function ProfilePage({ profile, setProfile, onLogout, showNotif }) {
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'0.38rem 0.4rem',borderRadius:'6px',background:'rgba(167,139,250,0.05)',marginBottom:'0.25rem'}}>
                   <div>
                     <span style={{color:'#8BA0B5',fontSize:'0.8rem'}}>🎓 Eğitim Sıralaması</span>
-                    <span style={{color:'#3B4E63',fontSize:'0.68rem',marginLeft:'0.3rem'}}>#{eduRank>0?eduRank:'?'}</span>
+                    <span style={{color:'#5A7089',fontSize:'0.68rem',marginLeft:'0.3rem'}}>#{eduRank>0?eduRank:'?'}</span>
                   </div>
                   <div style={{textAlign:'right'}}>
                     <span style={{color:eduColor,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",fontSize:'0.78rem'}}>{eduLabel}</span>
@@ -7322,7 +7578,7 @@ function ProfilePage({ profile, setProfile, onLogout, showNotif }) {
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'0.38rem 0.4rem',borderRadius:'6px',background:'rgba(245,158,11,0.05)',marginBottom:'0.3rem'}}>
                   <div>
                     <span style={{color:'#8BA0B5',fontSize:'0.8rem'}}>🪙 UnderCoin Katsayısı</span>
-                    <span style={{color:'#3B4E63',fontSize:'0.68rem',marginLeft:'0.3rem'}}>Ekonomi→UC</span>
+                    <span style={{color:'#5A7089',fontSize:'0.68rem',marginLeft:'0.3rem'}}>Ekonomi→UC</span>
                   </div>
                   <span style={{color:ucBonus>0?'#F59E0B':'#3B4E63',fontWeight:900,fontFamily:"'JetBrains Mono',monospace",fontSize:'0.82rem'}}>{ucBonus>0?`+${ucBonus}`:'—'}</span>
                 </div>
@@ -7332,7 +7588,7 @@ function ProfilePage({ profile, setProfile, onLogout, showNotif }) {
                   <span style={{color:totalColor,fontWeight:900,fontFamily:"'JetBrains Mono',monospace",fontSize:'1rem'}}>{total}x</span>
                 </div>
                 {/* Açıklama */}
-                <div style={{fontSize:'0.59rem',color:'#3B4E63',marginTop:'0.4rem',lineHeight:1.5}}>
+                <div style={{fontSize:'0.59rem',color:'#5A7089',marginTop:'0.4rem',lineHeight:1.5}}>
                   <div>📊 Ticaret: 1.→6x · 2.→4x · 3-5.→3x · 6-50.→2x · 51+→1x</div>
                   <div>🎓 Eğitim: 1.→+3 · 2-3.→+2 · 4-10.→+1</div>
                   <div>🪙 UC: Her 500 UC → +1 katsayı (Ekonomi → Dönüşüm)</div>
@@ -7349,7 +7605,7 @@ function ProfilePage({ profile, setProfile, onLogout, showNotif }) {
             <Card key={a.id} style={{padding:'0.85rem',textAlign:'center',opacity:a.done?1:0.4,border:`1px solid ${a.done?'rgba(245,158,11,0.25)':'rgba(255,255,255,0.05)'}`}}>
               <div style={{fontSize:'1.75rem',marginBottom:'0.35rem'}}>{a.icon}</div>
               <div style={{fontWeight:800,color:a.done?'#F59E0B':'#5A7089',fontSize:'0.8rem',marginBottom:'0.2rem'}}>{a.name}</div>
-              <div style={{fontSize:'0.63rem',color:'#3B4E63'}}>{a.desc}</div>
+              <div style={{fontSize:'0.63rem',color:'#5A7089'}}>{a.desc}</div>
               {a.done && <div style={{fontSize:'0.6rem',color:'#10B981',marginTop:'0.3rem'}}>✅ Tamamlandı</div>}
             </Card>
           ))}
@@ -7995,7 +8251,7 @@ function PartiEtkiPage({ profile, setProfile, parties, setParties, showNotif }) 
               </div>
               <div style={{flexShrink:0}}>
                 {onCd ? (
-                  <div style={{fontSize:'0.68rem',color:'#3B4E63',textAlign:'center',minWidth:'40px'}}>⏳<div style={{fontWeight:700}}>{fmtCd(rem)}</div></div>
+                  <div style={{fontSize:'0.68rem',color:'#5A7089',textAlign:'center',minWidth:'40px'}}>⏳<div style={{fontWeight:700}}>{fmtCd(rem)}</div></div>
                 ) : !hasParty ? (
                   <span style={{fontSize:'0.62rem',color:'#5A7089'}}>Parti yok</span>
                 ) : !canAfford ? (
@@ -8013,7 +8269,7 @@ function PartiEtkiPage({ profile, setProfile, parties, setParties, showNotif }) 
       <div style={{fontWeight:700,color:'#E8EDF2',fontSize:'0.82rem',marginBottom:'0.4rem'}}>🏆 Parti Etki Puanı Sıralaması</div>
       <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:'12px',overflow:'hidden',marginBottom:'1.5rem'}}>
         {allParties.length===0 ? (
-          <div style={{padding:'1.5rem',textAlign:'center',color:'#3B4E63',fontSize:'0.8rem'}}>Henüz parti yok</div>
+          <div style={{padding:'1.5rem',textAlign:'center',color:'#5A7089',fontSize:'0.8rem'}}>Henüz parti yok</div>
         ) : allParties.map((p,i) => {
           const isMe = p.id===myPartyId;
           const medals=['🥇','🥈','🥉'];
@@ -8041,7 +8297,7 @@ function PartiEtkiPage({ profile, setProfile, parties, setParties, showNotif }) 
             <div style={{fontWeight:800,color:'#FCD34D',fontSize:'0.95rem',marginBottom:'0.5rem'}}>🤝 Lobi Davet Gönder</div>
             <div style={{fontSize:'0.72rem',color:'#5A7089',marginBottom:'0.75rem'}}>Bir aile seç ve lobi daveti gönder. Aile lideri kabul ederse lobi kurulur.</div>
             {allFamilies.length===0 ? (
-              <div style={{textAlign:'center',color:'#3B4E63',fontSize:'0.82rem',padding:'1rem'}}>Henüz kurulmuş aile yok</div>
+              <div style={{textAlign:'center',color:'#5A7089',fontSize:'0.82rem',padding:'1rem'}}>Henüz kurulmuş aile yok</div>
             ) : allFamilies.map(f=>{
               const existing = lobiler.find(l=>l.partyId===myPartyId&&l.familyId===f.id&&l.status!=='rejected');
               return (
@@ -8144,6 +8400,7 @@ function EducationPage({ profile, setProfile, showNotif }) {
         diplomaLevel: isComplete && !isProfessor ? lvl.id : (isComplete && isProfessor ? 'ilkokul' : p.diplomaLevel),
         money: (p.money||0) - lvl.costPerClick,
         xp: (p.xp||0) + (isComplete ? 500 : 5),
+        educationProgress: (p.educationProgress||0) + (isComplete ? 0 : (lvl.costPerClick + newClicks)),
         meritPoints: isComplete ? (p.meritPoints||0) + 50 : (p.meritPoints||0),
       };
       localStorage.setItem('rep_userProfile', JSON.stringify(np));
@@ -8271,7 +8528,7 @@ function EducationPage({ profile, setProfile, showNotif }) {
                 </button>
               )}
               {!isDone && !isNext && !isActive && (
-                <span style={{fontSize:'0.65rem',color:'#3B4E63',flexShrink:0}}>🔒</span>
+                <span style={{fontSize:'0.65rem',color:'#5A7089',flexShrink:0}}>🔒</span>
               )}
             </div>
           </div>
@@ -8410,7 +8667,7 @@ function CityGovPage({ profile, setProfile, showNotif }) {
               </div>
               {hasPos
                 ? <span style={{background:'rgba(16,185,129,0.15)',border:'1px solid rgba(16,185,129,0.35)',borderRadius:'8px',padding:'0.2rem 0.6rem',fontSize:'0.65rem',color:'#10B981',fontWeight:700}}>✅ Makam Sahibi</span>
-                : <span style={{fontSize:'0.68rem',color:'#3B4E63',fontWeight:700,textAlign:'right',maxWidth:'90px',lineHeight:1.2}}>🗳️ Seçimle Gelir</span>
+                : <span style={{fontSize:'0.68rem',color:'#5A7089',fontWeight:700,textAlign:'right',maxWidth:'90px',lineHeight:1.2}}>🗳️ Seçimle Gelir</span>
               }
             </div>
 
@@ -8573,7 +8830,7 @@ function SecretFundingCard({ holding, holdings, setHoldings, parties, profile, s
       </div>
       {fundLog.length > 0 && (
         <div style={{borderTop:'1px solid rgba(255,255,255,0.05)',paddingTop:'0.45rem'}}>
-          <div style={{fontSize:'0.62rem',color:'#3B4E63',fontWeight:700,marginBottom:'0.25rem',textTransform:'uppercase',letterSpacing:'0.06em'}}>Son Transferler</div>
+          <div style={{fontSize:'0.62rem',color:'#5A7089',fontWeight:700,marginBottom:'0.25rem',textTransform:'uppercase',letterSpacing:'0.06em'}}>Son Transferler</div>
           {fundLog.slice(0,3).map(f=>(
             <div key={f.id} style={{fontSize:'0.65rem',color:'#5A7089',padding:'0.15rem 0'}}>
               🕵️ {fmtWord(f.amount)} → {f.partyName} • {timeAgo(f.ts)}
@@ -8746,7 +9003,7 @@ function CrimePage({ profile, setProfile, showNotif }) {
       <div style={{textAlign:'center',marginBottom:'1.2rem'}}>
         <div style={{fontSize:'2rem',marginBottom:'0.2rem'}}>⚖️</div>
         <div style={{fontWeight:900,fontSize:'1.1rem',color:'#E8EDF2',letterSpacing:'0.04em'}}>MAHKEME & SUÇ SİSTEMİ</div>
-        <div style={{fontSize:'0.72rem',color:'#3B4E63',marginTop:'0.2rem'}}>Yasal sınırı zorlayan oyuncular burada yargılanır</div>
+        <div style={{fontSize:'0.72rem',color:'#5A7089',marginTop:'0.2rem'}}>Yasal sınırı zorlayan oyuncular burada yargılanır</div>
       </div>
 
       {isFrozen && (
@@ -8764,7 +9021,7 @@ function CrimePage({ profile, setProfile, showNotif }) {
       {tab==='mahkeme' && (
         <div>
           {activeCases.length === 0 ? (
-            <div style={{textAlign:'center',padding:'2.5rem 1rem',color:'#3B4E63',fontSize:'0.85rem'}}>
+            <div style={{textAlign:'center',padding:'2.5rem 1rem',color:'#5A7089',fontSize:'0.85rem'}}>
               <div style={{fontSize:'2.5rem',marginBottom:'0.5rem'}}>🕊️</div>
               Aktif davanız bulunmuyor. Temiz sicil!
             </div>
@@ -8857,7 +9114,7 @@ function CrimePage({ profile, setProfile, showNotif }) {
       {tab==='gecmis' && (
         <div>
           {closedCases.length === 0 ? (
-            <div style={{textAlign:'center',padding:'2.5rem 1rem',color:'#3B4E63',fontSize:'0.85rem'}}>
+            <div style={{textAlign:'center',padding:'2.5rem 1rem',color:'#5A7089',fontSize:'0.85rem'}}>
               <div style={{fontSize:'2.5rem',marginBottom:'0.5rem'}}>📂</div>
               Kapalı dava kaydı yok.
             </div>
@@ -8875,7 +9132,7 @@ function CrimePage({ profile, setProfile, showNotif }) {
                   </div>
                   <div style={{textAlign:'right'}}>
                     <div style={{fontSize:'0.7rem',color:vi.color,fontWeight:800}}>{vi.icon} {vi.label}</div>
-                    <div style={{fontSize:'0.6rem',color:'#3B4E63'}}>{timeAgo(c.closedTs||c.ts)}</div>
+                    <div style={{fontSize:'0.6rem',color:'#5A7089'}}>{timeAgo(c.closedTs||c.ts)}</div>
                   </div>
                 </div>
               </div>
@@ -9124,7 +9381,7 @@ function HoldingsPage({ profile, setProfile, showNotif }) {
                 <Card key={lb} style={{padding:'0.7rem',textAlign:'center'}}>
                   <div style={{fontSize:'1.1rem',marginBottom:'0.15rem'}}>{ic}</div>
                   <div style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:700,color:c,fontSize:'0.8rem'}}>{v}</div>
-                  <div style={{fontSize:'0.55rem',color:'#3B4E63',textTransform:'uppercase',fontWeight:700}}>{lb}</div>
+                  <div style={{fontSize:'0.55rem',color:'#5A7089',textTransform:'uppercase',fontWeight:700}}>{lb}</div>
                 </Card>
               ))}
             </div>
@@ -9181,7 +9438,7 @@ function HoldingsPage({ profile, setProfile, showNotif }) {
                       </div>
                       {/* XP bar */}
                       <div style={{marginBottom:'0.5rem'}}>
-                        <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.58rem',color:'#3B4E63',marginBottom:'2px'}}>
+                        <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.58rem',color:'#5A7089',marginBottom:'2px'}}>
                           <span>Deneyim</span><span>{h.experience||0}/1000</span>
                         </div>
                         <ProgressBar pct={((h.experience||0)/1000)*100} color='#8B5CF6' h={4} />
@@ -9217,12 +9474,12 @@ function HoldingsPage({ profile, setProfile, showNotif }) {
               <Card style={{padding:'0.7rem',textAlign:'center'}}>
                 <div style={{fontSize:'1.1rem',marginBottom:'0.15rem'}}>📈</div>
                 <div style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:700,color:'#10B981',fontSize:'0.8rem'}}>{listedHoldings.length}</div>
-                <div style={{fontSize:'0.55rem',color:'#3B4E63',textTransform:'uppercase',fontWeight:700}}>Borsada Şirket</div>
+                <div style={{fontSize:'0.55rem',color:'#5A7089',textTransform:'uppercase',fontWeight:700}}>Borsada Şirket</div>
               </Card>
               <Card style={{padding:'0.7rem',textAlign:'center'}}>
                 <div style={{fontSize:'1.1rem',marginBottom:'0.15rem'}}>💼</div>
                 <div style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:700,color:'#60A5FA',fontSize:'0.8rem'}}>{myShareHoldings.length}</div>
-                <div style={{fontSize:'0.55rem',color:'#3B4E63',textTransform:'uppercase',fontWeight:700}}>Hissem Olan</div>
+                <div style={{fontSize:'0.55rem',color:'#5A7089',textTransform:'uppercase',fontWeight:700}}>Hissem Olan</div>
               </Card>
             </div>
 
@@ -9278,7 +9535,7 @@ function HoldingsPage({ profile, setProfile, showNotif }) {
                         </div>
                         <div style={{textAlign:'right',flexShrink:0,borderLeft:'1px solid rgba(255,255,255,0.06)',paddingLeft:'0.5rem'}}>
                           <div style={{fontWeight:700,color:'#60A5FA',fontSize:'0.78rem'}}>{fmtWord(h.value)}</div>
-                          <div style={{fontSize:'0.6rem',color:'#3B4E63'}}>değer</div>
+                          <div style={{fontSize:'0.6rem',color:'#5A7089'}}>değer</div>
                         </div>
                       </div>
                     );
@@ -9292,7 +9549,7 @@ function HoldingsPage({ profile, setProfile, showNotif }) {
               <Card style={{textAlign:'center',padding:'2rem'}}>
                 <div style={{fontSize:'2rem',marginBottom:'0.5rem'}}>📈</div>
                 <div style={{color:'#5A7089',fontSize:'0.85rem'}}>Henüz borsa'ya açılmış şirket yok</div>
-                <div style={{color:'#3B4E63',fontSize:'0.72rem',marginTop:'0.4rem'}}>Şirketlerinden birini Yönet menüsünden piyasaya açabilirsin</div>
+                <div style={{color:'#5A7089',fontSize:'0.72rem',marginTop:'0.4rem'}}>Şirketlerinden birini Yönet menüsünden piyasaya açabilirsin</div>
               </Card>
             )}
             {listedHoldings.map(h => {
@@ -9527,7 +9784,7 @@ function HoldingsPage({ profile, setProfile, showNotif }) {
           <Btn variant='green' size='full' onClick={()=>buyShares(buyShareModal)} disabled={!buyQty||parseInt(buyQty)<=0}>
             ✅ Satın Al — {buyQty && parseInt(buyQty)>0 ? fmtWord(parseInt(buyQty)*buyShareModal.sharePrice) : '₺0'}
           </Btn>
-          <div style={{marginTop:'0.5rem',fontSize:'0.65rem',color:'#3B4E63',textAlign:'center'}}>
+          <div style={{marginTop:'0.5rem',fontSize:'0.65rem',color:'#5A7089',textAlign:'center'}}>
             Hisse alımı şirket değerini ve hisse fiyatını yükseltir
           </div>
         </Modal>
@@ -9543,7 +9800,7 @@ function NotifPanel({ notifications, onClose, onClear }) {
   return (
     <Modal title="🔔 Bildirimler" onClose={onClose}>
       {notifications.length === 0 ? (
-        <div style={{textAlign:'center',color:'#3B4E63',padding:'2rem',fontSize:'0.85rem'}}>Bildirim yok</div>
+        <div style={{textAlign:'center',color:'#5A7089',padding:'2rem',fontSize:'0.85rem'}}>Bildirim yok</div>
       ) : (
         <>
           <div style={{display:'flex',justifyContent:'flex-end',marginBottom:'0.5rem'}}>
@@ -9554,7 +9811,7 @@ function NotifPanel({ notifications, onClose, onClear }) {
               <span style={{fontSize:'1.1rem',flexShrink:0}}>{n.icon||'🔔'}</span>
               <div>
                 <div style={{fontSize:'0.85rem',color:'#D0E0F0',fontWeight:600}}>{n.msg}</div>
-                <div style={{fontSize:'0.62rem',color:'#3B4E63',marginTop:'2px'}}>{timeAgo(n.ts)}</div>
+                <div style={{fontSize:'0.62rem',color:'#5A7089',marginTop:'2px'}}>{timeAgo(n.ts)}</div>
               </div>
             </div>
           ))}
@@ -10268,7 +10525,7 @@ function ArmyPage({ profile, setProfile, showNotif }) {
               <div key={lb} style={{background:'rgba(255,255,255,0.04)',borderRadius:'8px',padding:'0.5rem',textAlign:'center'}}>
                 <div style={{fontSize:'0.85rem'}}>{ic}</div>
                 <div style={{fontWeight:800,color:'#E8EDF2',fontSize:'0.9rem'}}>{v}</div>
-                <div style={{fontSize:'0.58rem',color:'#3B4E63',textTransform:'uppercase'}}>{lb}</div>
+                <div style={{fontSize:'0.58rem',color:'#5A7089',textTransform:'uppercase'}}>{lb}</div>
               </div>
             ))}
           </div>
@@ -10482,7 +10739,7 @@ function NewspaperPage({ profile, setProfile, showNotif }) {
               <span>{p.date}</span>
             </div>
             <div style={{fontSize:'0.78rem',color:'#8899AA',lineHeight:1.55,marginBottom:'0.4rem'}}>{p.content}</div>
-            <div style={{fontSize:'0.65rem',color:'#3B4E63'}}>👁 {p.views||0} okuma · 🤖 Yapay Zeka Üretimi</div>
+            <div style={{fontSize:'0.65rem',color:'#5A7089'}}>👁 {p.views||0} okuma · 🤖 Yapay Zeka Üretimi</div>
           </div>
         ))}
       </div>}
@@ -10502,7 +10759,7 @@ function NewspaperPage({ profile, setProfile, showNotif }) {
                 <div style={{fontSize:'0.8rem',color:'#E8EDF2',fontWeight:700}}>📡 Etki Puanım</div>
                 <div style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:800,color:'#F59E0B',fontSize:'1.1rem'}}>{myInf}</div>
               </div>
-              {sorted.length === 0 && <div style={{textAlign:'center',color:'#3B4E63',padding:'1.5rem',fontSize:'0.82rem'}}>Henüz kimse beğeni almadı.</div>}
+              {sorted.length === 0 && <div style={{textAlign:'center',color:'#5A7089',padding:'1.5rem',fontSize:'0.82rem'}}>Henüz kimse beğeni almadı.</div>}
               {sorted.map(([author, pts], i) => (
                 <div key={author} style={{display:'flex',alignItems:'center',gap:'0.65rem',padding:'0.55rem 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
                   <div style={{minWidth:'22px',textAlign:'center',fontWeight:800,color:i===0?'#FFD700':i===1?'#C0C0C0':i===2?'#CD7F32':'#5A7089',fontSize:'0.82rem'}}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`}</div>
@@ -10790,7 +11047,7 @@ function KlanChatPage({ profile }) {
                     {m.text}
                   </div>
                 )}
-                <div style={{fontSize:'0.58rem',color:'#3B4E63',marginTop:'2px',textAlign:isMe?'right':'left',paddingLeft:isMe?0:'4px'}}>{timeAgo(m.ts)}</div>
+                <div style={{fontSize:'0.58rem',color:'#5A7089',marginTop:'2px',textAlign:isMe?'right':'left',paddingLeft:isMe?0:'4px'}}>{timeAgo(m.ts)}</div>
               </div>
             </div>
           );
@@ -10814,7 +11071,7 @@ function KlanChatPage({ profile }) {
                 onError={e=>e.target.style.display='none'} />
             ))}
           </div>
-          <div style={{fontSize:'0.56rem',color:'#3B4E63',textAlign:'right',marginTop:'0.25rem'}}>Powered by GIPHY</div>
+          <div style={{fontSize:'0.56rem',color:'#5A7089',textAlign:'right',marginTop:'0.25rem'}}>Powered by GIPHY</div>
         </div>
       )}
 
@@ -11371,7 +11628,7 @@ function CrisisPage({ profile, setProfile, showNotif }) {
               <div style={{height:'8px',background:'rgba(255,255,255,0.06)',borderRadius:'100px',overflow:'hidden',marginBottom:'4px'}}>
                 <div style={{height:'100%',width:`${pct}%`,background:`linear-gradient(90deg,#10B981,${c.color||'#EF4444'})`,borderRadius:'100px',transition:'width 0.5s'}} />
               </div>
-              <div style={{fontSize:'0.62rem',color:'#3B4E63'}}>{pct}% tamamlandı • {fmtWord(remaining)} daha gerekli</div>
+              <div style={{fontSize:'0.62rem',color:'#5A7089'}}>{pct}% tamamlandı • {fmtWord(remaining)} daha gerekli</div>
               {myContrib>0&&<div style={{fontSize:'0.65rem',color:'#10B981',marginTop:'2px'}}>✅ Senin katkın: {fmtWord(myContrib)}</div>}
             </div>
             <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'0.35rem',marginBottom:'0.35rem'}}>
@@ -11385,7 +11642,7 @@ function CrisisPage({ profile, setProfile, showNotif }) {
                 );
               })}
             </div>
-            <div style={{fontSize:'0.62rem',color:'#3B4E63'}}>Katkı yap → XP + Puan kazan • Kriz çözülünce katkıcılar ödüllenir</div>
+            <div style={{fontSize:'0.62rem',color:'#5A7089'}}>Katkı yap → XP + Puan kazan • Kriz çözülünce katkıcılar ödüllenir</div>
           </div>
         );
       })}
@@ -11397,7 +11654,7 @@ function CrisisPage({ profile, setProfile, showNotif }) {
             <div key={i} style={{display:'flex',gap:'0.5rem',padding:'0.3rem 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
               <span style={{fontSize:'1rem',flexShrink:0}}>{c.icon}</span>
               <div style={{flex:1,fontSize:'0.75rem',color:'#8BA0B5'}}>{c.text}</div>
-              <div style={{fontSize:'0.62rem',color:'#3B4E63',flexShrink:0}}>{c.time}</div>
+              <div style={{fontSize:'0.62rem',color:'#5A7089',flexShrink:0}}>{c.time}</div>
             </div>
           ))}
         </div>
@@ -11796,13 +12053,13 @@ function GameEventTicker({ events, onNavigate }) {
       </div>
       {/* Time + dot indicators */}
       <div style={{display:'flex',alignItems:'center',gap:'0.35rem',padding:'0 0.5rem',flexShrink:0}}>
-        <span style={{fontSize:'0.58rem',color:'#3B4E63',fontFamily:"'JetBrains Mono',monospace"}}>{timeStr}</span>
+        <span style={{fontSize:'0.58rem',color:'#5A7089',fontFamily:"'JetBrains Mono',monospace"}}>{timeStr}</span>
         <div style={{display:'flex',gap:'2px'}}>
           {recent.slice(0,Math.min(recent.length,5)).map((_,i)=>(
             <div key={i} onClick={()=>setIdx(i)} style={{width:4,height:4,borderRadius:'50%',background:i===idx%recent.length?color:'rgba(255,255,255,0.15)',cursor:'pointer',transition:'background 0.3s'}}/>
           ))}
         </div>
-        <button onClick={()=>setDismissed(true)} style={{background:'none',border:'none',color:'#3B4E63',cursor:'pointer',padding:'2px',fontSize:'0.65rem',lineHeight:1}}>✕</button>
+        <button onClick={()=>setDismissed(true)} style={{background:'none',border:'none',color:'#5A7089',cursor:'pointer',padding:'2px',fontSize:'0.65rem',lineHeight:1}}>✕</button>
       </div>
       <style>{`@keyframes ticker-slide-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </div>
@@ -13153,13 +13410,13 @@ function WikiPage({ profile }) {
                       <div style={{fontWeight:700,color:'#E8EDF2',fontSize:'0.88rem'}}>{a.title}</div>
                       <div style={{fontSize:'0.67rem',color:'#5A7089',marginTop:'1px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.content.split('\n')[0]}</div>
                     </div>
-                    <span style={{color:'#3B4E63',flexShrink:0}}>›</span>
+                    <span style={{color:'#5A7089',flexShrink:0}}>›</span>
                   </button>
                 ))}
               </div>
             );
           })}
-          {filtered.length === 0 && <div style={{textAlign:'center',color:'#3B4E63',padding:'2rem'}}>Arama sonucu bulunamadı.</div>}
+          {filtered.length === 0 && <div style={{textAlign:'center',color:'#5A7089',padding:'2rem'}}>Arama sonucu bulunamadı.</div>}
         </div>
       )}
     </div>
@@ -13277,7 +13534,7 @@ function LivestockSection({ profile, setProfile, showNotif }) {
       </div>
       {/* Ahır */}
       <div style={{fontSize:'0.68rem',fontWeight:700,color:'#5A7089',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:'0.4rem'}}>Ahırım ({animals.length} hayvan)</div>
-      {animals.length === 0 && <div style={{textAlign:'center',color:'#3B4E63',padding:'1.5rem',fontSize:'0.85rem'}}>Henüz hayvanın yok. Yukarıdan satın al!</div>}
+      {animals.length === 0 && <div style={{textAlign:'center',color:'#5A7089',padding:'1.5rem',fontSize:'0.85rem'}}>Henüz hayvanın yok. Yukarıdan satın al!</div>}
       {animals.map(animal => {
         const type = LIVESTOCK_TYPES.find(t=>t.id===animal.typeId);
         if (!type) return null;
@@ -13430,7 +13687,7 @@ function DirectMessagesPage({ profile, setProfile, showNotif }) {
             </div>
           </div>
           <div style={{minHeight:'240px',maxHeight:'42vh',overflowY:'auto',display:'flex',flexDirection:'column',gap:'0.4rem',marginBottom:'0.5rem',padding:'0.1rem 0'}}>
-            {convMsgs.length===0 && <div style={{textAlign:'center',color:'#3B4E63',padding:'2rem',fontSize:'0.82rem'}}>İlk mesajı sen gönder! 💬</div>}
+            {convMsgs.length===0 && <div style={{textAlign:'center',color:'#5A7089',padding:'2rem',fontSize:'0.82rem'}}>İlk mesajı sen gönder! 💬</div>}
             {convMsgs.map(m=>{
               const mine = m.from===cu.id;
               const gifMatch = m.text?.match(gifRx);
@@ -13439,12 +13696,12 @@ function DirectMessagesPage({ profile, setProfile, showNotif }) {
                   {gifMatch ? (
                     <div style={{maxWidth:'78%',borderRadius:mine?'14px 14px 4px 14px':'14px 14px 14px 4px',overflow:'hidden',border:`1px solid ${mine?'rgba(59,130,246,0.3)':'rgba(255,255,255,0.08)'}`}}>
                       <img src={gifMatch[0]} alt="gif" style={{maxWidth:'220px',maxHeight:'200px',display:'block'}} onError={e=>e.target.parentElement.innerHTML='<div style="padding:0.5rem;color:#EF4444;font-size:0.75rem">⚠️ GIF yüklenemedi</div>'}/>
-                      <div style={{fontSize:'0.55rem',color:'#3B4E63',padding:'2px 6px',textAlign:mine?'right':'left'}}>{new Date(m.ts).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'})}</div>
+                      <div style={{fontSize:'0.55rem',color:'#5A7089',padding:'2px 6px',textAlign:mine?'right':'left'}}>{new Date(m.ts).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'})}</div>
                     </div>
                   ) : (
                     <div style={{maxWidth:'78%',padding:'0.55rem 0.85rem',borderRadius:mine?'14px 14px 4px 14px':'14px 14px 14px 4px',background:mine?'rgba(59,130,246,0.22)':'rgba(255,255,255,0.06)',border:`1px solid ${mine?'rgba(59,130,246,0.35)':'rgba(255,255,255,0.08)'}`,color:'#E8EDF2',fontSize:'0.85rem',lineHeight:1.45}}>
                       {m.text}
-                      <div style={{fontSize:'0.58rem',color:'#3B4E63',marginTop:'0.2rem',textAlign:mine?'right':'left'}}>{new Date(m.ts).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'})}</div>
+                      <div style={{fontSize:'0.58rem',color:'#5A7089',marginTop:'0.2rem',textAlign:mine?'right':'left'}}>{new Date(m.ts).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'})}</div>
                     </div>
                   )}
                 </div>
@@ -13469,7 +13726,7 @@ function DirectMessagesPage({ profile, setProfile, showNotif }) {
                     onError={e=>e.target.style.display='none'} />
                 ))}
               </div>
-              <div style={{fontSize:'0.54rem',color:'#3B4E63',textAlign:'right',marginTop:'0.2rem'}}>Powered by GIPHY</div>
+              <div style={{fontSize:'0.54rem',color:'#5A7089',textAlign:'right',marginTop:'0.2rem'}}>Powered by GIPHY</div>
             </div>
           )}
 
@@ -13492,12 +13749,12 @@ function DirectMessagesPage({ profile, setProfile, showNotif }) {
           </div>
           {/* Kişi Arama */}
           <div style={{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.6rem',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'12px',padding:'0 0.85rem'}}>
-            <span style={{color:'#3B4E63'}}>🔍</span>
+            <span style={{color:'#5A7089'}}>🔍</span>
             <input value={dmSearch} onChange={e=>setDmSearch(e.target.value)} placeholder="Oyuncu ara..."
               style={{flex:1,background:'none',border:'none',outline:'none',color:'#E8EDF2',fontFamily:"'DM Sans',sans-serif",fontSize:'15px',padding:'0.6rem 0'}} />
             {dmSearch && <button onClick={()=>setDmSearch('')} style={{background:'none',border:'none',color:'#5A7089',cursor:'pointer',fontSize:'1rem',padding:'2px'}}>✕</button>}
           </div>
-          {contacts.filter(u=>!dmSearch||u.username?.toLowerCase().includes(dmSearch.toLowerCase())||u.city?.toLowerCase().includes(dmSearch.toLowerCase())).length===0&&<div style={{textAlign:'center',color:'#3B4E63',padding:'2rem',fontSize:'0.85rem'}}>Oyuncu bulunamadı.</div>}
+          {contacts.filter(u=>!dmSearch||u.username?.toLowerCase().includes(dmSearch.toLowerCase())||u.city?.toLowerCase().includes(dmSearch.toLowerCase())).length===0&&<div style={{textAlign:'center',color:'#5A7089',padding:'2rem',fontSize:'0.85rem'}}>Oyuncu bulunamadı.</div>}
           {contacts.filter(u=>!dmSearch||u.username?.toLowerCase().includes(dmSearch.toLowerCase())||u.city?.toLowerCase().includes(dmSearch.toLowerCase())).map(user=>{
             const lastMsg = getConvMsgs(user.id).slice(-1)[0];
             const u = unread(user.id);
@@ -13510,7 +13767,7 @@ function DirectMessagesPage({ profile, setProfile, showNotif }) {
                   <div style={{fontSize:'0.68rem',color:'#5A7089',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{lastMsg?lastMsg.text:'Mesajlaşmaya başla...'}</div>
                 </div>
                 {u>0 && <div style={{background:'#3B82F6',borderRadius:'50%',minWidth:'22px',height:'22px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.65rem',fontWeight:800,color:'#fff',flexShrink:0,padding:'0 4px'}}>{u}</div>}
-                <span style={{color:'#3B4E63',flexShrink:0}}>›</span>
+                <span style={{color:'#5A7089',flexShrink:0}}>›</span>
               </button>
             );
           })}
@@ -13592,7 +13849,7 @@ function TaxMunicipalityPage({ profile, setProfile, showNotif }) {
               {canCollect ? '💰 Vergi Topla' : `⏳ ${remH}s ${remM}dk`}
             </button>
           ) : (
-            <div style={{fontSize:'0.65rem',color:'#3B4E63'}}>🔒 Belediye Başkanı yetkisi gerekli</div>
+            <div style={{fontSize:'0.65rem',color:'#5A7089'}}>🔒 Belediye Başkanı yetkisi gerekli</div>
           )}
         </div>
       </div>
@@ -13603,7 +13860,7 @@ function TaxMunicipalityPage({ profile, setProfile, showNotif }) {
           <div style={{fontSize:'0.62rem',color:'#5A7089',fontWeight:700,textTransform:'uppercase',marginBottom:'0.5rem'}}>📊 VERGİ ORANI: %{taxRate}</div>
           <input type="range" min={5} max={50} value={taxRate} onChange={e=>setTaxRate(Number(e.target.value))}
             style={{width:'100%',marginBottom:'0.25rem',accentColor:'#F59E0B'}} />
-          <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.62rem',color:'#3B4E63'}}>
+          <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.62rem',color:'#5A7089'}}>
             <span>%5 Düşük</span><span>%50 Yüksek</span>
           </div>
         </div>

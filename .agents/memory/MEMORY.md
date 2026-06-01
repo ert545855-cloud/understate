@@ -3,3 +3,5 @@
 - [Multiplayer Architecture](multiplayer-arch.md) — full real-time multiplayer + DB persistence layer design decisions for gangs/parties/alliances/elections/laws/announcements.
 - [Socket Emit Patterns](socket-emit-patterns.md) — where gang/party/alliance/election/law mutations emit to server in app.js; setGangs/setParties/etc. all have inline socket.emit calls.
 - [Turkey Map Component](turkey-map.md) — TurkeyMap SVG component with PROVINCE_MAP_DATA (81 provinces, geographic circle positions) and GANG_PALETTE; placed before TerritorySystem in app.js; used in both gang Bölge tab and politics Harita tab.
+- [Dark Mode Text Colors](dark-mode-colors.md) — #3B4E63 was invisible on dark bg (125 instances); replaced all with #5A7089. Never use #2A3A4A or #3B4E63 for text.
+- [PoliticsPage Meclis](politics-meclis.md) — meclisAtama state in PoliticsPage via useLs('meclisAtama',{}); meclis sub-tab uses D'Hondt (600 seats, 10% baraj) with influencePoints. govpanel also updated to D'Hondt.
