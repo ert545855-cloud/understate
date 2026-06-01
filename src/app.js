@@ -3898,6 +3898,9 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
   const [transferTarget, setTransferTarget] = useState('');
   const [disbandConfirm, setDisbandConfirm] = useState(false);
   const [meclisAtama, setMeclisAtama] = useLs('meclisAtama', {});
+  const [coalition, setCoalition] = useLs('rep_coalition', null);
+  const [coalitionModal, setCoalitionModal] = useState(false);
+  const [coalitionForm, setCoalitionForm] = useState({ name:'', program:'', partners:[] });
 
   const myParty = parties.find(p => p.leaderId===profile?.uid || (p.members||[]).includes(profile?.uid));
   const isLeader = myParty?.leaderId === profile?.uid;
@@ -4563,6 +4566,263 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
                   ❌ Barajı geçemeyen partiler (%{Math.round(THRESHOLD_PCT*100)} altı): {eliminated.map(p=>p.name).join(', ')}
                 </div>
               )}
+              {/* ═══ KOALİSYON SİSTEMİ ═══ */}
+              {(() => {
+                const hasMajority = seats.some(p => p.seats > Math.floor(TOTAL_SEATS_M / 2));
+                const uid = profile?.uid || profile?.id;
+                const myPid = profile?.party;
+                const myMeclisParty = seats.find(p => p.id === myPid);
+                const amPartyLeader = myMeclisParty && (myMeclisParty.leaderId === uid);
+
+                // Is current user's party part of the active coalition?
+                const inCoalition = coalition && (coalition.parties || []).includes(myPid);
+                const isProposer = coalition?.proposedBy === myPid;
+                const myAccepted = coalition && (coalition.accepted || {})[myPid];
+                const pendingMyResponse = coalition && coalition.status === 'proposed' && inCoalition && !myAccepted && !isProposer;
+
+                // Combined coalition seats
+                const coalitionSeats = coalition && coalition.status === 'active'
+                  ? seats.filter(p => (coalition.parties || []).includes(p.id)).reduce((s, p) => s + p.seats, 0)
+                  : 0;
+                const allAccepted = coalition && coalition.status === 'proposed' &&
+                  (coalition.parties || []).every(pid => (coalition.accepted || {})[pid]);
+
+                // Auto-activate if all accepted
+                if (allAccepted && coalition.status === 'proposed') {
+                  setCoalition({ ...coalition, status: 'active' });
+                }
+
+                const proposeCoalition = () => {
+                  if (!coalitionForm.name.trim()) { showNotif('Koalisyon adı girin!', 'error'); return; }
+                  if (coalitionForm.partners.length === 0) { showNotif('En az 1 ortak parti seçin!', 'error'); return; }
+                  const allParties = [myPid, ...coalitionForm.partners];
+                  const accepted = {};
+                  accepted[myPid] = true;
+                  setCoalition({
+                    id: Date.now().toString(),
+                    name: coalitionForm.name,
+                    program: coalitionForm.program,
+                    parties: allParties,
+                    proposedBy: myPid,
+                    proposedAt: Date.now(),
+                    status: 'proposed',
+                    accepted,
+                  });
+                  setCoalitionForm({ name: '', program: '', partners: [] });
+                  setCoalitionModal(false);
+                  showNotif(`"${coalitionForm.name}" koalisyonu kuruldu! Ortaklar onay bekliyor.`, 'success');
+                };
+
+                const acceptCoalition = () => {
+                  const newAccepted = { ...(coalition.accepted || {}), [myPid]: true };
+                  const allDone = (coalition.parties || []).every(pid => newAccepted[pid]);
+                  setCoalition({ ...coalition, accepted: newAccepted, status: allDone ? 'active' : 'proposed' });
+                  showNotif('Koalisyon teklifini kabul ettiniz!', 'success');
+                };
+
+                const rejectCoalition = () => {
+                  setCoalition({ ...coalition, status: 'dissolved', dissolvedBy: myPid, dissolvedAt: Date.now() });
+                  showNotif('Koalisyon teklifi reddedildi.', 'error');
+                };
+
+                const dissolveCoalition = () => {
+                  setCoalition(null);
+                  showNotif('Koalisyon dağıtıldı.', 'error');
+                };
+
+                return (
+                  <div style={{ marginBottom: '0.75rem' }}>
+
+                    {/* ── Aktif koalisyon kartı ── */}
+                    {coalition && coalition.status === 'active' && (
+                      <div style={{ background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '14px', padding: '0.9rem', marginBottom: '0.75rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                          <div>
+                            <div style={{ fontWeight: 900, color: '#10B981', fontSize: '0.88rem', fontFamily: "'Syne',sans-serif" }}>🤝 {coalition.name}</div>
+                            <div style={{ fontSize: '0.62rem', color: '#5A7089', marginTop: '2px' }}>Aktif Hükümet Koalisyonu</div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 900, fontSize: '1.1rem', color: '#10B981' }}>{coalitionSeats}</div>
+                            <div style={{ fontSize: '0.58rem', color: '#5A7089' }}>toplam koltuk</div>
+                          </div>
+                        </div>
+                        {/* Koalisyon koltuk çubuğu */}
+                        <div style={{ display: 'flex', height: '10px', borderRadius: '100px', overflow: 'hidden', gap: '2px', marginBottom: '0.5rem' }}>
+                          {seats.filter(p => (coalition.parties || []).includes(p.id)).map((p, i) => (
+                            <div key={p.id} style={{ flex: p.seats, background: p.color || '#10B981', minWidth: '4px' }} title={`${p.name}: ${p.seats}`} />
+                          ))}
+                          {/* Non-coalition seats */}
+                          {(() => { const nonSeats = TOTAL_SEATS_M - coalitionSeats; return nonSeats > 0 ? <div style={{ flex: nonSeats, background: 'rgba(255,255,255,0.08)' }} /> : null; })()}
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.5rem' }}>
+                          {seats.filter(p => (coalition.parties || []).includes(p.id)).map(p => (
+                            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'rgba(255,255,255,0.04)', borderRadius: '6px', padding: '0.2rem 0.5rem', border: `1px solid ${p.color || '#10B981'}33` }}>
+                              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: p.color || '#10B981' }} />
+                              <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#E8EDF2' }}>{p.name}</span>
+                              <span style={{ fontSize: '0.6rem', color: '#5A7089' }}>{p.seats}k</span>
+                              {p.id === coalition.proposedBy && <span style={{ fontSize: '0.56rem', color: '#F59E0B', fontWeight: 800 }}>KURUCU</span>}
+                            </div>
+                          ))}
+                        </div>
+                        {coalition.program && (
+                          <div style={{ fontSize: '0.7rem', color: '#7A8FA6', fontStyle: 'italic', marginBottom: '0.5rem', padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', borderLeft: '2px solid rgba(16,185,129,0.4)' }}>
+                            "{coalition.program}"
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                          <div style={{ flex: 1, fontSize: '0.65rem', color: coalitionSeats > Math.floor(TOTAL_SEATS_M / 2) ? '#10B981' : '#F59E0B', fontWeight: 700 }}>
+                            {coalitionSeats > Math.floor(TOTAL_SEATS_M / 2) ? '✅ Meclis çoğunluğu var' : `⚠️ ${Math.floor(TOTAL_SEATS_M / 2) + 1 - coalitionSeats} koltuk eksik`}
+                          </div>
+                          {inCoalition && amPartyLeader && (
+                            <button onClick={dissolveCoalition} style={{ fontSize: '0.65rem', padding: '0.3rem 0.6rem', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.08)', color: '#FCA5A5', cursor: 'pointer', fontWeight: 700 }}>
+                              💔 Dağıt
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── Bekleyen teklif ── */}
+                    {coalition && coalition.status === 'proposed' && (
+                      <div style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '14px', padding: '0.9rem', marginBottom: '0.75rem' }}>
+                        <div style={{ fontWeight: 800, color: '#F59E0B', fontSize: '0.85rem', marginBottom: '0.35rem' }}>⏳ Koalisyon Teklifi Bekliyor</div>
+                        <div style={{ fontWeight: 700, color: '#E8EDF2', fontSize: '0.8rem', marginBottom: '0.25rem' }}>"{coalition.name}"</div>
+                        {coalition.program && <div style={{ fontSize: '0.68rem', color: '#7A8FA6', fontStyle: 'italic', marginBottom: '0.4rem' }}>"{coalition.program}"</div>}
+                        <div style={{ fontSize: '0.68rem', color: '#5A7089', marginBottom: '0.5rem' }}>
+                          Öneren: <span style={{ color: '#E8EDF2', fontWeight: 700 }}>{seats.find(p => p.id === coalition.proposedBy)?.name || '?'}</span>
+                        </div>
+                        {/* Onay durumu */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginBottom: '0.5rem' }}>
+                          {(coalition.parties || []).map(pid => {
+                            const p = seats.find(x => x.id === pid);
+                            const accepted = (coalition.accepted || {})[pid];
+                            return (
+                              <div key={pid} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem' }}>
+                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: p?.color || '#8B5CF6' }} />
+                                <span style={{ flex: 1, color: '#E8EDF2', fontWeight: 600 }}>{p?.name || pid}</span>
+                                <span style={{ color: accepted ? '#10B981' : '#F59E0B', fontWeight: 800 }}>{accepted ? '✅ Kabul' : '⏳ Bekliyor'}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {/* My party's action */}
+                        {pendingMyResponse && (
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button onClick={acceptCoalition} style={{ flex: 1, padding: '0.5rem', borderRadius: '10px', border: '1px solid rgba(16,185,129,0.4)', background: 'rgba(16,185,129,0.1)', color: '#10B981', fontWeight: 800, cursor: 'pointer', fontSize: '0.78rem' }}>
+                              ✅ Kabul Et
+                            </button>
+                            <button onClick={rejectCoalition} style={{ flex: 1, padding: '0.5rem', borderRadius: '10px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.08)', color: '#FCA5A5', fontWeight: 800, cursor: 'pointer', fontSize: '0.78rem' }}>
+                              ❌ Reddet
+                            </button>
+                          </div>
+                        )}
+                        {isProposer && (
+                          <button onClick={dissolveCoalition} style={{ width: '100%', padding: '0.4rem', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.07)', color: '#FCA5A5', fontWeight: 700, cursor: 'pointer', fontSize: '0.72rem', marginTop: '0.3rem' }}>
+                            Teklifi Geri Çek
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ── Koalisyon kur butonu (çoğunluk yok, aktif koalisyon yok, parti lideriyim) ── */}
+                    {!hasMajority && !coalition && amPartyLeader && myMeclisParty && (
+                      <div style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '14px', padding: '0.85rem', marginBottom: '0.75rem' }}>
+                        <div style={{ fontWeight: 800, color: '#60A5FA', fontSize: '0.82rem', marginBottom: '0.25rem' }}>🤝 Koalisyon Kurma Zamanı</div>
+                        <div style={{ fontSize: '0.68rem', color: '#5A7089', marginBottom: '0.65rem' }}>
+                          Hiçbir parti tek başına çoğunluğa ulaşamıyor. Hükümet kurabilmek için koalisyon şart.
+                        </div>
+                        <button onClick={() => setCoalitionModal(true)}
+                          style={{ width: '100%', padding: '0.55rem', borderRadius: '10px', border: '1px solid rgba(59,130,246,0.4)', background: 'rgba(59,130,246,0.12)', color: '#60A5FA', fontWeight: 800, cursor: 'pointer', fontSize: '0.8rem', fontFamily: "'DM Sans',sans-serif" }}>
+                          🤝 Koalisyon Teklif Et
+                        </button>
+                      </div>
+                    )}
+
+                    {!hasMajority && !coalition && !amPartyLeader && (
+                      <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '0.65rem', marginBottom: '0.75rem', fontSize: '0.72rem', color: '#5A7089', textAlign: 'center' }}>
+                        ⚠️ Koalisyon gerekli — parti liderlerinden biri teklif etmesini bekleyin.
+                      </div>
+                    )}
+
+                    {/* ── Koalisyon modal ── */}
+                    {coalitionModal && (
+                      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 9000 }} onClick={() => setCoalitionModal(false)}>
+                        <div style={{ background: '#0F1B2D', borderRadius: '20px 20px 0 0', padding: '1.5rem 1rem 2rem', width: '100%', maxWidth: '480px', maxHeight: '85vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+                          <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 900, color: '#60A5FA', fontSize: '1rem', marginBottom: '1rem', textAlign: 'center' }}>🤝 Koalisyon Teklifi</div>
+
+                          {/* Koalisyon adı */}
+                          <div style={{ marginBottom: '0.65rem' }}>
+                            <div style={{ fontSize: '0.65rem', color: '#7A8FA6', marginBottom: '0.25rem', fontWeight: 700 }}>KOALİSYON ADI *</div>
+                            <input value={coalitionForm.name} onChange={e => setCoalitionForm(f => ({ ...f, name: e.target.value }))}
+                              placeholder="Örn: Millî Birlik Koalisyonu..."
+                              style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '0.65rem 0.9rem', color: '#E8EDF2', fontFamily: "'DM Sans',sans-serif", fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} />
+                          </div>
+
+                          {/* Hükümet programı */}
+                          <div style={{ marginBottom: '0.65rem' }}>
+                            <div style={{ fontSize: '0.65rem', color: '#7A8FA6', marginBottom: '0.25rem', fontWeight: 700 }}>HÜKÜMET PROGRAMI (opsiyonel)</div>
+                            <textarea value={coalitionForm.program} onChange={e => setCoalitionForm(f => ({ ...f, program: e.target.value }))}
+                              placeholder="Koalisyonun temel vaatleri ve politika hedefleri..."
+                              rows={3}
+                              style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '0.65rem 0.9rem', color: '#E8EDF2', fontFamily: "'DM Sans',sans-serif", fontSize: '0.82rem', outline: 'none', resize: 'none', boxSizing: 'border-box' }} />
+                          </div>
+
+                          {/* Ortak parti seçimi */}
+                          <div style={{ marginBottom: '0.9rem' }}>
+                            <div style={{ fontSize: '0.65rem', color: '#7A8FA6', marginBottom: '0.4rem', fontWeight: 700 }}>ORTAK PARTİLER * (en az 1)</div>
+                            {seats.filter(p => p.id !== myPid).length === 0 ? (
+                              <div style={{ fontSize: '0.72rem', color: '#5A7089', textAlign: 'center', padding: '0.5rem' }}>Meclis'te başka parti yok.</div>
+                            ) : seats.filter(p => p.id !== myPid).map(p => {
+                              const selected = coalitionForm.partners.includes(p.id);
+                              const combinedIfSelected = myMeclisParty.seats + p.seats + seats.filter(x => coalitionForm.partners.includes(x.id) && x.id !== p.id).reduce((s, x) => s + x.seats, 0);
+                              return (
+                                <div key={p.id} onClick={() => setCoalitionForm(f => ({ ...f, partners: selected ? f.partners.filter(x => x !== p.id) : [...f.partners, p.id] }))}
+                                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.55rem 0.65rem', borderRadius: '10px', marginBottom: '0.35rem', cursor: 'pointer', border: `1px solid ${selected ? p.color || '#60A5FA' : 'rgba(255,255,255,0.07)'}`, background: selected ? `${p.color || '#3B82F6'}15` : 'rgba(255,255,255,0.02)', transition: 'all 0.15s' }}>
+                                  <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: p.color || '#8B5CF6', flexShrink: 0 }} />
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#E8EDF2' }}>{p.name}</div>
+                                    <div style={{ fontSize: '0.6rem', color: '#5A7089' }}>{p.seats} koltuk • %{Math.round(p.seats / TOTAL_SEATS_M * 100)}</div>
+                                  </div>
+                                  {selected && (
+                                    <div style={{ fontSize: '0.6rem', color: '#10B981', fontWeight: 800, textAlign: 'right' }}>
+                                      ✅<br /><span style={{ color: '#5A7089' }}>+{p.seats}k</span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Toplam koltuk önizleme */}
+                          {coalitionForm.partners.length > 0 && (() => {
+                            const total = myMeclisParty.seats + seats.filter(p => coalitionForm.partners.includes(p.id)).reduce((s, p) => s + p.seats, 0);
+                            const hasMaj = total > Math.floor(TOTAL_SEATS_M / 2);
+                            return (
+                              <div style={{ background: hasMaj ? 'rgba(16,185,129,0.08)' : 'rgba(245,158,11,0.08)', border: `1px solid ${hasMaj ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'}`, borderRadius: '10px', padding: '0.6rem 0.75rem', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.72rem', color: '#7A8FA6' }}>Toplam koltuk</span>
+                                <div style={{ textAlign: 'right' }}>
+                                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 900, fontSize: '1rem', color: hasMaj ? '#10B981' : '#F59E0B' }}>{total}</span>
+                                  <span style={{ fontSize: '0.6rem', color: hasMaj ? '#10B981' : '#F59E0B', marginLeft: '0.3rem' }}>{hasMaj ? '✅ Çoğunluk' : '⚠️ Eksik'}</span>
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          <button onClick={proposeCoalition}
+                            style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg,#3B82F6,#6366F1)', color: '#fff', fontWeight: 900, fontSize: '0.9rem', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>
+                            🤝 Koalisyon Teklifini Gönder
+                          </button>
+                          <button onClick={() => setCoalitionModal(false)}
+                            style={{ width: '100%', padding: '0.5rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#5A7089', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', marginTop: '0.4rem', fontFamily: "'DM Sans',sans-serif" }}>
+                            İptal
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* Milletvekili Ataması */}
               {myPartyInMeclis && (
                 <div style={{background:'rgba(245,158,11,0.06)',border:'1px solid rgba(245,158,11,0.2)',borderRadius:'14px',padding:'0.85rem',marginBottom:'0.75rem'}}>
