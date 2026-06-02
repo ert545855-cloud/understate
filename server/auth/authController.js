@@ -103,27 +103,24 @@ async function register(req, res) {
     if (existU) return res.status(409).json({ success: false, message: 'Kullanıcı adı zaten kullanımda' });
     if (existE) return res.status(409).json({ success: false, message: 'Email zaten kullanımda' });
 
-    const passwordHash      = await bcrypt.hash(password, BCRYPT_ROUNDS);
-    const smtpAvailable     = Boolean(process.env.SMTP_HOST);
+    const passwordHash   = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    const mailAvailable  = Boolean(process.env.BREVO_API_KEY);
 
     // Generate unique referral code
     const referralCode = cleanUsername.slice(0, 4).toUpperCase() + crypto.randomBytes(3).toString('hex').toUpperCase();
 
-    const userFields = {
-      username:      cleanUsername,
-      email:         cleanEmail,
-      password_hash: passwordHash,
-      referral_code: referralCode,
-    };
+    const rawVerifyToken    = crypto.randomBytes(32).toString('hex');
+    const hashedVerifyToken = crypto.createHash('sha256').update(rawVerifyToken).digest('hex');
 
-    if (smtpAvailable) {
-      const rawVerifyToken    = crypto.randomBytes(32).toString('hex');
-      const hashedVerifyToken = crypto.createHash('sha256').update(rawVerifyToken).digest('hex');
-      userFields.email_verify_token  = hashedVerifyToken;
-      userFields.email_verify_expiry = new Date(Date.now() + EMAIL_VERIFY_EXPIRY_MS).toISOString();
-    } else {
-      userFields.email_verified = true;
-    }
+    const userFields = {
+      username:            cleanUsername,
+      email:               cleanEmail,
+      password_hash:       passwordHash,
+      referral_code:       referralCode,
+      email_verified:      false,
+      email_verify_token:  hashedVerifyToken,
+      email_verify_expiry: new Date(Date.now() + EMAIL_VERIFY_EXPIRY_MS).toISOString(),
+    };
 
     const { ok, user, error } = await sb.createUser(userFields);
     if (!ok) return res.status(500).json({ success: false, message: error || 'Kayıt başarısız' });
@@ -132,12 +129,12 @@ async function register(req, res) {
     const refreshToken = signRefreshToken({ id: user.id });
     await sb.updateUser(user.id, { refresh_token: refreshToken });
 
-    if (smtpAvailable) {
-      const verifyUrl = `${_baseUrl(req)}/api/auth/verify-email?token=${userFields.email_verify_token}&userId=${user.id}`;
+    if (mailAvailable) {
+      const verifyUrl = `${_baseUrl(req)}/api/auth/verify-email?token=${rawVerifyToken}&userId=${user.id}`;
       mailService.sendWelcome(cleanEmail, cleanUsername).catch(() => {});
       mailService.sendEmailVerification(cleanEmail, cleanUsername, verifyUrl).catch(() => {});
     } else {
-      logger.warn('[Auth] SMTP ayarları eksik — doğrulama maili gönderilemiyor, email_verified=true olarak kaydedildi');
+      logger.warn('[Auth] BREVO_API_KEY eksik — doğrulama maili gönderilemiyor. Kullanıcı manuel olarak doğrulanmalı.');
     }
 
     logger.success(`Yeni kullanıcı: ${cleanUsername}`);

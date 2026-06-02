@@ -176,6 +176,25 @@ async function saveGameEventToDB(event) {
   } catch (_) {}
 }
 
+async function saveStockMarketToDB() {
+  try {
+    if (!db.isReady()) return;
+    for (const s of Object.values(state.market)) {
+      await db.query(
+        `INSERT INTO stock_market (company_id, name, share_price, change, change_pct, volume, high, low, price_history, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+         ON CONFLICT (company_id) DO UPDATE SET
+           name=EXCLUDED.name, share_price=EXCLUDED.share_price, change=EXCLUDED.change,
+           change_pct=EXCLUDED.change_pct, volume=EXCLUDED.volume, high=EXCLUDED.high,
+           low=EXCLUDED.low, price_history=EXCLUDED.price_history, updated_at=NOW()`,
+        [s.companyId, s.name, Math.round(s.price), s.change, s.changePercent,
+         s.volume, Math.round(s.high), Math.round(s.low),
+         JSON.stringify((s.history || []).slice(-100))]
+      ).catch(() => {});
+    }
+  } catch (_) {}
+}
+
 async function pushLeaderboard() {
   try {
     if (!_io || !db.isReady()) return;
@@ -232,6 +251,11 @@ async function startGameEngine(io) {
     // Her 5 dakikada oyun entity'lerini DB'den yenile (başka sunucu yokken bile)
     if (state.tick % 10 === 0) {
       await loadAllGameState();
+    }
+
+    // Her 5 dakikada borsa verilerini stock_market tablosuna kaydet
+    if (state.tick % 10 === 0) {
+      saveStockMarketToDB();
     }
   }, 30 * 1000);
 

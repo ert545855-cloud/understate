@@ -57,11 +57,33 @@ const LOBI_DONATION_TIERS = [
 
 function useLobiStore() {
   const [lobiler, setLobiRaw] = useState(() => { try { return JSON.parse(localStorage.getItem('rep_lobiAnlasmalari')||'[]'); } catch{ return []; } });
+
+  // Sunucudan gelen lobiUpdate olaylarını dinle (diğer oyuncuların güncellemeleri)
+  useEffect(() => {
+    const onLobiUpdate = (data) => {
+      if (!Array.isArray(data?.lobiAnlasmalari)) return;
+      setLobiRaw(data.lobiAnlasmalari);
+      localStorage.setItem('rep_lobiAnlasmalari', JSON.stringify(data.lobiAnlasmalari));
+    };
+    const onGameStateInit = (data) => {
+      if (!Array.isArray(data?.lobiAnlasmalari)) return;
+      setLobiRaw(data.lobiAnlasmalari);
+      localStorage.setItem('rep_lobiAnlasmalari', JSON.stringify(data.lobiAnlasmalari));
+    };
+    window._socket?.on('lobiUpdate', onLobiUpdate);
+    window._socket?.on('gameStateInit', onGameStateInit);
+    return () => {
+      window._socket?.off('lobiUpdate', onLobiUpdate);
+      window._socket?.off('gameStateInit', onGameStateInit);
+    };
+  }, []);
+
   const setLobiler = (fn) => {
     setLobiRaw(prev => {
       const next = typeof fn === 'function' ? fn(prev) : fn;
       localStorage.setItem('rep_lobiAnlasmalari', JSON.stringify(next));
-      try { window._socket?.emit('lobi:sync',{lobiler:next}); } catch(e){}
+      // Sunucuya bildir — server persist + broadcast yapar
+      try { window._socket?.emit('lobi:sync', { lobiler: next }); } catch(e){}
       return next;
     });
   };
@@ -108,11 +130,16 @@ function PartiEtkiPage({ profile, setProfile, parties, setParties, showNotif }) 
     const mult = act.eduBonus ? eduMult : (act.tpBonus ? tpMult : 1.0);
     const finalInf = Math.round(act.inf * mult);
     const finalXp  = Math.round(act.xp * mult);
-    setParties(prev => {
-      const next = prev.map(p => p.id===myPartyId ? { ...p, influencePoints:(p.influencePoints||0)+finalInf } : p);
-      try { window._socket?.emit('party:sync',{parties:next}); } catch(e){}
-      return next;
-    });
+    // Optimistic local update
+    setParties(prev => prev.map(p => p.id===myPartyId ? { ...p, influencePoints:(p.influencePoints||0)+finalInf } : p));
+    // Atomic server-side update (CD enforced server-side, no race condition)
+    try { window._socket?.emit('party:updateInfluence', { partyId: myPartyId, delta: finalInf }); } catch(e){}
+    // CD violation callback
+    try {
+      window._socket?.once('party:influenceError', (err) => {
+        if (err?.error === 'CD') showNotif(`⏳ Sunucu CD: ${err.remainingSecs}sn bekle`, 'error');
+      });
+    } catch(e){}
     setProfile(p => {
       const np = {...p, money:(p.money||0)-act.cost, xp:(p.xp||0)+finalXp};
       localStorage.setItem('rep_userProfile', JSON.stringify(np));
@@ -153,11 +180,10 @@ function PartiEtkiPage({ profile, setProfile, parties, setParties, showNotif }) 
   const donatToParty = (lobi, tier) => {
     if ((profile?.money||0) < tier.amount) { showNotif(`Yeterli para yok! ₺${tier.amount.toLocaleString('tr-TR')} gerekli`, 'error'); return; }
     setLobiler(prev=>prev.map(l=>l.id===lobi.id ? {...l, totalDonated:(l.totalDonated||0)+tier.amount, totalInf:(l.totalInf||0)+tier.inf} : l));
-    setParties(prev=>{
-      const next=prev.map(p=>p.id===lobi.partyId?{...p,influencePoints:(p.influencePoints||0)+tier.inf}:p);
-      try{window._socket?.emit('party:sync',{parties:next});}catch(e){}
-      return next;
-    });
+    // Optimistic local update
+    setParties(prev=>prev.map(p=>p.id===lobi.partyId?{...p,influencePoints:(p.influencePoints||0)+tier.inf}:p));
+    // Atomic server-side update
+    try{window._socket?.emit('party:updateInfluence',{partyId:lobi.partyId,delta:tier.inf});}catch(e){}
     setProfile(p=>{
       const np={...p,money:(p.money||0)-tier.amount};
       localStorage.setItem('rep_userProfile',JSON.stringify(np));

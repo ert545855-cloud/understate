@@ -66,23 +66,31 @@ function sanitizeStateUpdate(data) {
   return safe;
 }
 
+// ── Server-side party influence cooldown (userId → lastTs) ───────────────────
+const _partyCdMap = new Map(); // key: `${userId}_${partyId}` → timestamp
+const PARTY_INFLUENCE_CD_MS = 60 * 1000; // 60 saniye
+
 // ── Initial state push (on connect) ──────────────────────────────────────────
 async function pushInitialState(socket) {
   try {
     const state = await db.getFullGameState();
     const onlineList = Array.from(onlinePlayers.values());
+    const lobiler = db.isReady()
+      ? (await db.getGameState('lobiler').catch(() => null)) || []
+      : [];
     const payload = {
-      gangs:           state.gangs           || [],
-      parties:         state.parties         || [],
-      alliances:       state.alliances       || [],
-      elections:       state.elections       || { phase:'idle', candidates:[], votes:{} },
-      elections_multi: state.elections_multi || {},
-      laws:            state.laws            || [],
-      announcements:   state.announcements   || [],
-      cabinet:         state.cabinet         || {},
-      gangTerritories: state.gangTerritories || {},
-      onlinePlayers:   onlineList,
-      onlineCount:     onlineList.length,
+      gangs:            state.gangs           || [],
+      parties:          state.parties         || [],
+      alliances:        state.alliances       || [],
+      elections:        state.elections       || { phase:'idle', candidates:[], votes:{} },
+      elections_multi:  state.elections_multi || {},
+      laws:             state.laws            || [],
+      announcements:    state.announcements   || [],
+      cabinet:          state.cabinet         || {},
+      gangTerritories:  state.gangTerritories || {},
+      lobiAnlasmalari:  lobiler,
+      onlinePlayers:    onlineList,
+      onlineCount:      onlineList.length,
     };
     socket.emit('gameStateInit', payload);
   } catch (err) {
@@ -437,6 +445,42 @@ function registerGameHandlers(io, socket) {
     logger.debug(`[Party] sync by ${socket.username} — ${parties.length} parti`);
   });
 
+  // ── PARTY influence — atomic single-party update (CD enforced server-side) ──
+  socket.on('party:updateInfluence', async (data) => {
+    if (!data || !checkEventRate(socket.id)) return;
+    if (!socket.userId || !data.partyId || typeof data.delta !== 'number') return;
+    // Clamp delta to reasonable range
+    const delta = Math.max(-10000, Math.min(10000, Math.round(data.delta)));
+    if (delta === 0) return;
+
+    // Server-side cooldown check
+    const cdKey = `${socket.userId}_${data.partyId}`;
+    const lastTs = _partyCdMap.get(cdKey) || 0;
+    const now = Date.now();
+    if (now - lastTs < PARTY_INFLUENCE_CD_MS) {
+      const remaining = Math.ceil((PARTY_INFLUENCE_CD_MS - (now - lastTs)) / 1000);
+      socket.emit('party:influenceError', { error: 'CD', remainingSecs: remaining });
+      return;
+    }
+    _partyCdMap.set(cdKey, now);
+
+    // Atomic DB update on the single party row
+    if (db.isReady()) {
+      try {
+        await db.query(
+          `UPDATE parties SET influence_points = GREATEST(0, influence_points + $1), updated_at = NOW() WHERE id = $2`,
+          [delta, data.partyId]
+        );
+        // Re-fetch the single updated party and broadcast
+        const all = await db.getParties().catch(() => []);
+        io.emit('partyUpdate', { parties: all, action: 'influenceChange', partyId: data.partyId, delta, updatedBy: socket.username, ts: now });
+        logger.debug(`[Party] influenceUpdate "${data.partyId}" delta=${delta} by ${socket.username}`);
+      } catch (err) {
+        logger.warn('[Party] updateInfluence error:', err.message);
+      }
+    }
+  });
+
   socket.on('party:create', async (data) => {
     if (!data || !checkEventRate(socket.id)) return;
     if (!socket.userId || !data.party?.id) return;
@@ -576,6 +620,30 @@ function registerGameHandlers(io, socket) {
       title: 'Yeni Duyuru',
       msg: data.announcement.title || data.announcement.content?.slice(0, 60) || 'Yeni duyuru yayınlandı',
     });
+  });
+
+  // ── LOBI (lobby deals) sync ───────────────────────────────────────────────
+  socket.on('lobi:sync', async (data) => {
+    if (!data || !checkEventRate(socket.id) || !isPayloadSafe(data)) return;
+    if (!socket.userId) return;
+    const lobiler = Array.isArray(data.lobiler) ? data.lobiler : null;
+    if (!lobiler) return;
+    // Sanitize each entry
+    const safe = lobiler.slice(0, 200).map(l => ({
+      id:              typeof l.id === 'string'              ? l.id.slice(0, 64)   : '',
+      partyId:         typeof l.partyId === 'string'         ? l.partyId.slice(0, 64) : '',
+      partyName:       typeof l.partyName === 'string'       ? l.partyName.slice(0, 80) : '',
+      partyLeaderName: typeof l.partyLeaderName === 'string' ? l.partyLeaderName.slice(0, 40) : '',
+      familyId:        typeof l.familyId === 'string'        ? l.familyId.slice(0, 64) : '',
+      familyName:      typeof l.familyName === 'string'      ? l.familyName.slice(0, 80) : '',
+      status:          ['pending','active','rejected'].includes(l.status) ? l.status : 'pending',
+      totalDonated:    Number(l.totalDonated) || 0,
+      totalInf:        Number(l.totalInf) || 0,
+      ts:              Number(l.ts) || Date.now(),
+    })).filter(l => l.id && l.partyId && l.familyId);
+    if (db.isReady()) await db.setGameState('lobiler', safe).catch(() => {});
+    socket.broadcast.emit('lobiUpdate', { lobiAnlasmalari: safe, updatedBy: socket.username, ts: Date.now() });
+    logger.debug(`[Lobi] sync by ${socket.username} — ${safe.length} anlaşma`);
   });
 
   // ── ALLIANCE sync ─────────────────────────────────────────────────────────

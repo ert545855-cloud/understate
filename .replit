@@ -43,7 +43,7 @@ run = ["node", "server/index.js"]
 
 [userenv.shared]
 NODE_ENV = "production"
-VAPID_PUBLIC_KEY = "BGI0j17s5qpNNBwFhmp-aMADrypqCq-3i_4sUT3auoNKzbzTzNKk5SmfzIxb2py1ibb_drUW-XTOCS1rpgpnEJk"
+VAPID_PUBLIC_KEY = "BPFEBWB9Ey8ZxCIZ4GDqhmuVFtO-WB_3mFMxHz8gEVj7oZZH0GDeps1-1exavD5nm4ipBbAsYy8qK0KAN7dJZG4"
 ADMIN_USERS = "admin"
 BETA_MODE = "false"
 BETA_INVITE_CODES = "BETA2025,UNDERSTATE01,CLOSED01"
