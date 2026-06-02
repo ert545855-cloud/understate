@@ -87,7 +87,7 @@ router.post('/test-email', async (req, res) => {
     } else if (type === 'reset') {
       result = await mailService.sendPasswordReset(email, 'Test Kullanici', 'https://example.com/reset?token=test');
     } else if (type === 'welcome') {
-      result = await mailService.sendWelcomeEmail(email, 'Test Kullanici');
+      result = await mailService.sendWelcome(email, 'Test Kullanici');
     } else {
       return res.status(400).json({ success: false, message: 'Gecersiz email turu (verification|reset|welcome)' });
     }
