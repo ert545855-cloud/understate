@@ -40,6 +40,31 @@ This ensures the emit uses the same next value that React will commit, and fails
 Each `:sync` event saves the full array to DB via `db.setX(data)` and broadcasts to other clients.
 Each `:create`/`:join`/`:leave`/`:disband` event does targeted DB upsert/delete then broadcasts fresh array.
 
+## Atomic / CD-gated events (server-side enforcement)
+| Event | Handler | Notes |
+|-------|---------|-------|
+| `party:updateInfluence` | gameHandler.js | 60s CD per userId+partyId; UPDATE parties SET influence_points |
+| `gang:updateTerritory` | gameHandler.js | capture/release; writes war log; broadcasts full territory map |
+| `lobi:sync` | gameHandler.js | saves to game_state KV key 'lobiler'; broadcast `lobiUpdate` |
+
+## Relay-only events (server forwards to target socket)
+| Event | Notes |
+|-------|-------|
+| `tradeOffer` | to target socketId |
+| `tradeResponse` | to target socketId |
+| `partnershipOffer` | to target userId + notif |
+| `money:transfer` | moneyUpdate to recipient + notif |
+| `dm` | to target userId |
+| `notification:send` | to target userId |
+
+## Legacy events
+| Event | Notes |
+|-------|-------|
+| `gameAction` | emitted on gang:create (type='newGang') and party:create (type='newParty') |
+
 ## Client listeners (app.js socket useEffect ~line 10813)
 `gangUpdate` → `_syncLs('gangs', data.gangs)` → fb-sync → useLs hook updates state
 Same for partyUpdate, allianceUpdate, electionUpdate, lawUpdate, announcementUpdate, cabinetUpdate, territoryUpdate, notification.
+`lobiUpdate` → DevletScreen.js useLobiStore useEffect listener
+`partnershipOffer` → app.js line 1280 setIncomingTrade
+`gameAction` → app.js line 1297 showNotif for newParty/newGang

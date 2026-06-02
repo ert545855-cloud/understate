@@ -94,6 +94,30 @@ app.post('/api/error-log', (req, res) => {
   res.json({ ok: true });
 });
 
+// /api/giphy-trending + /api/giphy-search → Giphy API proxy
+app.get('/api/giphy-trending', async (req, res) => {
+  const key = process.env.GIPHY_API_KEY;
+  if (!key) return res.json({ data: [] });
+  const limit = Math.min(parseInt(req.query.limit) || 24, 50);
+  try {
+    const r = await fetch(`https://api.giphy.com/v1/gifs/trending?api_key=${key}&limit=${limit}&rating=pg-13`);
+    const d = await r.json();
+    res.json(d);
+  } catch (e) { res.json({ data: [] }); }
+});
+app.get('/api/giphy-search', async (req, res) => {
+  const key = process.env.GIPHY_API_KEY;
+  if (!key) return res.json({ data: [] });
+  const q     = String(req.query.q || '').slice(0, 100);
+  const limit = Math.min(parseInt(req.query.limit) || 24, 50);
+  if (!q) return res.json({ data: [] });
+  try {
+    const r = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${key}&q=${encodeURIComponent(q)}&limit=${limit}&rating=pg-13`);
+    const d = await r.json();
+    res.json(d);
+  } catch (e) { res.json({ data: [] }); }
+});
+
 // ── SPA catch-all ─────────────────────────────────────────────────────────────
 app.use(express.static(root, { index: false }));
 app.get('*', (req, res) => {

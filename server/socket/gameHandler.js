@@ -327,6 +327,8 @@ function registerGameHandlers(io, socket) {
     if (db.isReady()) await db.upsertGang(data.gang).catch(() => {});
     const gangs = db.isReady() ? await db.getGangs().catch(() => []) : [];
     io.emit('gangUpdate', { gangs, action: 'create', gang: data.gang, ts: Date.now() });
+    // Legacy gameAction relay (client listens for newGang type)
+    io.emit('gameAction', { type: 'newGang', username: socket.username, payload: data.gang.name, ts: Date.now() });
     // Bildirim
     broadcastNotification(io, {
       id: `notif_gang_create_${Date.now()}`,
@@ -487,6 +489,8 @@ function registerGameHandlers(io, socket) {
     if (db.isReady()) await db.upsertParty(data.party).catch(() => {});
     const parties = db.isReady() ? await db.getParties().catch(() => []) : [];
     io.emit('partyUpdate', { parties, action: 'create', party: data.party, ts: Date.now() });
+    // Legacy gameAction relay (client listens for newParty type)
+    io.emit('gameAction', { type: 'newParty', username: socket.username, payload: data.party.name, ts: Date.now() });
     broadcastNotification(io, {
       id: `notif_party_create_${Date.now()}`,
       type: 'party',
@@ -681,6 +685,76 @@ function registerGameHandlers(io, socket) {
     socket.broadcast.emit('territoryUpdate', { territories: data.territories, ts: Date.now() });
   });
 
+  // ── TERRITORY capture — atomik tek bölge güncelleme ──────────────────────
+  socket.on('gang:updateTerritory', async (data) => {
+    if (!data || !checkEventRate(socket.id)) return;
+    if (!socket.userId || !data.provinceId) return;
+
+    const provinceId  = String(data.provinceId).slice(0, 64);
+    const gangId      = data.gangId   ? String(data.gangId).slice(0, 64)   : null;
+    const gangName    = data.gangName ? String(data.gangName).slice(0, 80)  : null;
+    const color       = data.color    ? String(data.color).slice(0, 20)     : null;
+    const action      = ['capture','release'].includes(data.action) ? data.action : 'capture';
+
+    try {
+      if (db.isReady()) {
+        // Mevcut territory haritasını çek, tek satırı güncelle, geri yaz
+        const current = (await db.getGangTerritories().catch(() => ({}))) || {};
+        if (action === 'release') {
+          delete current[provinceId];
+        } else {
+          current[provinceId] = { gangId, gangName, color, capturedAt: Date.now(), capturedBy: socket.username };
+        }
+        await db.setGangTerritories(current).catch(() => {});
+
+        // Tüm clientlara bildir
+        io.emit('territoryUpdate', {
+          territories: current,
+          action,
+          provinceId,
+          gangId,
+          gangName,
+          updatedBy: socket.username,
+          ts: Date.now(),
+        });
+
+        // Savaş logu
+        if (action === 'capture' && gangId) {
+          const prev = current[provinceId];
+          const prevGangId = prev?.gangId || null;
+          if (prevGangId && prevGangId !== gangId) {
+            await db.query(
+              `INSERT INTO gang_war_logs (attacker_id, defender_id, province_id, result, ts)
+               VALUES ($1, $2, $3, 'capture', NOW()) ON CONFLICT DO NOTHING`,
+              [gangId, prevGangId, provinceId]
+            ).catch(() => {});
+            // Yenilen çeteye bildirim
+            sendNotification(io, data.defenderLeaderId || null, {
+              id: `notif_territory_${Date.now()}`,
+              type: 'territory',
+              icon: '⚔️',
+              title: 'Bölge Kaybettiniz!',
+              msg: `${gangName || socket.username} ${provinceId} bölgesini ele geçirdi.`,
+            });
+          }
+          broadcastNotification(io, {
+            id: `notif_territory_cap_${Date.now()}`,
+            type: 'territory',
+            icon: '🏴',
+            title: 'Bölge Ele Geçirildi',
+            msg: `${gangName || socket.username} ${provinceId} bölgesini fethetti!`,
+          });
+        }
+        logger.debug(`[Territory] ${action} "${provinceId}" by ${socket.username} (gang:${gangId})`);
+      } else {
+        // DB yokken sadece broadcast
+        io.emit('territoryUpdate', { territories: {}, action, provinceId, gangId, gangName, ts: Date.now() });
+      }
+    } catch (err) {
+      logger.warn('[Territory] gang:updateTerritory error:', err.message);
+    }
+  });
+
   // ── NOTIFICATION targeted ────────────────────────────────────────────────
   socket.on('notification:send', (data) => {
     if (!data || !data.targetUserId || !checkEventRate(socket.id)) return;
@@ -780,6 +854,53 @@ function registerGameHandlers(io, socket) {
   });
 
   socket.on('mafiaWarUpdate', (data) => { if (!data || !checkEventRate(socket.id)) return; io.emit('mafiaWarUpdate', data); });
+
+  // ── MONEY TRANSFER — gerçek zamanlı bakiye bildirimi ─────────────────────
+  socket.on('money:transfer', (data) => {
+    if (!data || !checkEventRate(socket.id)) return;
+    if (!socket.userId || !data.toId || typeof data.amount !== 'number') return;
+    const amount = Math.max(0, Math.round(data.amount));
+    if (amount === 0) return;
+    sendNotification(io, data.toId, {
+      id: `notif_transfer_${Date.now()}`,
+      type: 'transfer',
+      icon: '💸',
+      title: 'Para Aldınız!',
+      msg: `${socket.username} size ₺${amount.toLocaleString('tr-TR')} gönderdi.`,
+    });
+    const target = Array.from(onlinePlayers.values()).find(p => p.userId === data.toId);
+    if (target) {
+      io.to(target.socketId).emit('moneyUpdate', {
+        delta:     amount,
+        reason:    `${socket.username} transferi`,
+        from:      socket.username,
+        fromId:    socket.userId,
+        timestamp: Date.now(),
+      });
+    }
+    logger.debug(`[Transfer] ${socket.username} → userId:${data.toId} ₺${amount}`);
+  });
+
+  // ── PARTNERSHIP OFFER relay ───────────────────────────────────────────────
+  socket.on('partnershipOffer', (data) => {
+    if (!data || !data.targetUserId || !checkEventRate(socket.id) || !isPayloadSafe(data)) return;
+    const t = Array.from(onlinePlayers.values()).find(p => p.userId === data.targetUserId);
+    if (t) {
+      io.to(t.socketId).emit('partnershipOffer', {
+        ...data,
+        fromSocketId: socket.id,
+        fromUserId:   socket.userId,
+        fromUsername: socket.username,
+      });
+      sendNotification(io, data.targetUserId, {
+        id: `notif_partner_${Date.now()}`,
+        type: 'partnership',
+        icon: '🏢',
+        title: 'Ortaklık Teklifi!',
+        msg: `${socket.username} size şirket ortaklığı teklif etti.`,
+      });
+    }
+  });
 }
 
 // ── Cleanup ───────────────────────────────────────────────────────────────────
