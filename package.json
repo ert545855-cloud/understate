@@ -7,7 +7,7 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "start": "node server/index.js",
+    "start": "node server.js",
     "dev": "nodemon server/index.js",
     "start:legacy": "node server.js",
     "lint": "node --check server/index.js server/routes/*.js server/auth/*.js server/middleware/*.js 2>&1 | head -20",

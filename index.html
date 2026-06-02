@@ -218,35 +218,11 @@ function _hideLoading() {
 }
 _advanceBar(10, 'Başlatılıyor...');
 
-// ── IndexedDB cache (fast reload after first visit) ──────────────────────────
-var IDB_NAME = 'us_cache_v2';
-var IDB_KEY  = 'compiled_v218';
-
-function idbGet(key, cb) {
-  try {
-    var req = indexedDB.open(IDB_NAME, 1);
-    req.onupgradeneeded = function(e) { e.target.result.createObjectStore('kv'); };
-    req.onsuccess = function(e) {
-      var g = e.target.result.transaction('kv', 'readonly').objectStore('kv').get(key);
-      g.onsuccess = function() { cb(g.result || null); };
-      g.onerror   = function() { cb(null); };
-    };
-    req.onerror = function() { cb(null); };
-  } catch(e) { cb(null); }
-}
-
-function idbSet(key, val, cb) {
-  try {
-    var req = indexedDB.open(IDB_NAME, 1);
-    req.onsuccess = function(e) {
-      var tx = e.target.result.transaction('kv', 'readwrite');
-      tx.objectStore('kv').put(val, key);
-      tx.oncomplete = cb || function(){};
-      tx.onerror    = cb || function(){};
-    };
-    req.onerror = cb || function(){};
-  } catch(e) { if (cb) cb(); }
-}
+// Eski IndexedDB önbelleklerini temizle (tüm kullanıcılarda stale kod kalmasın)
+try {
+  indexedDB.deleteDatabase('us_cache_v2');
+  indexedDB.deleteDatabase('us_cache_v1');
+} catch(e) {}
 
 function execCompiledCode(code) {
   try {
@@ -271,8 +247,17 @@ function execCode(code) {
   }
 }
 
-// Fetch src/app.js + new screen components, cache in IDB
+var V = Date.now(); // Her yüklemede taze — önbellek yok
 var SCREEN_FILES = [
+  'src/screens/AuthScreen.js',
+  'src/screens/HomeScreen.js',
+  'src/screens/EconomyScreen.js',
+  'src/screens/PoliticsScreen.js',
+  'src/screens/SocialScreen.js',
+  'src/screens/DevletScreen.js',
+  'src/screens/CrimeScreen.js',
+  'src/screens/GamesScreen.js',
+  'src/screens/JobsScreen.js',
   'src/screens/PowerTriangleScreen.js',
   'src/screens/TenderScreen.js',
   'src/screens/UnionScreen.js',
@@ -289,20 +274,20 @@ function _babelOne(src) {
   try {
     return Babel.transform(src, { presets: ['react'], sourceType: 'script' }).code;
   } catch(te) {
-    console.warn('Babel tek dosya derlemesi başarısız:', te.message);
+    console.warn('Babel derleme başarısız:', te.message);
     return src;
   }
 }
 
 function compileAndRun() {
-  _advanceBar(82, 'Oyun yükleniyor...');
+  _advanceBar(75, 'Dosyalar yükleniyor...');
   var allFetches = SCREEN_FILES.map(function(f) {
-    return fetch(f + '?v=' + IDB_KEY)
+    return fetch(f + '?v=' + V)
       .then(function(r) { return r.ok ? r.text() : ''; })
       .catch(function() { return ''; });
   });
   allFetches.push(
-    fetch('src/app.js?v=' + IDB_KEY)
+    fetch('src/app.js?v=' + V)
       .then(function(r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.text();
@@ -312,37 +297,19 @@ function compileAndRun() {
     .then(function(results) {
       _advanceBar(88, 'JSX derleniyor...');
       var compiledParts = results.map(function(src, i) {
-        _advanceBar(88 + Math.floor(i / results.length * 6), 'Derleniyor ' + (i + 1) + '/' + results.length + '...');
+        _advanceBar(88 + Math.floor(i / results.length * 8), 'Derleniyor ' + (i+1) + '/' + results.length + '...');
         return _babelOne(src);
       });
       var combined = compiledParts.join('\n');
-      _advanceBar(95, 'Önbelleğe kaydediliyor...');
-      idbSet(IDB_KEY, combined, function() {
-        _advanceBar(98, 'Başlatılıyor...');
-        execCompiledCode(combined);
-      });
+      _advanceBar(98, 'Başlatılıyor...');
+      execCompiledCode(combined);
     })
-    .catch(function(err) { _showError('app.js yüklenemedi: ' + err.message); });
+    .catch(function(err) { _showError('Yükleme hatası: ' + err.message); });
 }
 
 function boot() {
-  _advanceBar(70, 'Önbellek kontrol ediliyor...');
-  var bootDone = false;
-  var bootTimeout = setTimeout(function() {
-    if (!bootDone) { bootDone = true; compileAndRun(); }
-  }, 2500);
-  idbGet(IDB_KEY, function(cached) {
-    if (bootDone) return;
-    bootDone = true;
-    clearTimeout(bootTimeout);
-    if (cached) {
-      _advanceBar(95, '⚡ Önbellekten yükleniyor...');
-      setTimeout(function() { execCompiledCode(cached); }, 30);
-    } else {
-      _advanceBar(78, '⏳ İlk açılış yükleniyor...');
-      compileAndRun();
-    }
-  });
+  _advanceBar(70, 'Yükleniyor...');
+  compileAndRun();
 }
 </script>
 
@@ -396,7 +363,9 @@ function boot() {
 
   // Sunucudan ilk state yükle
   function loadInitialStateFromServer() {
-    fetch((window._SOCKET_URL||'')+'/api/state')
+    var base = window._SOCKET_URL || '';
+
+    fetch(base+'/api/game/state')
       .then(function(r) { return r.json(); })
       .then(function(data) {
         Object.entries(data).forEach(function(entry) {
@@ -407,9 +376,10 @@ function boot() {
       .catch(function(e) { console.warn('[Socket Bridge] State yüklenemedi:', e.message); });
 
     // Partileri yükle
-    fetch((window._SOCKET_URL||'')+'/api/parties')
+    fetch(base+'/api/game/parties')
       .then(function(r) { return r.json(); })
-      .then(function(parties) {
+      .then(function(resp) {
+        var parties = resp.data || resp;
         if (!parties || !parties.length) return;
         var map = {};
         parties.forEach(function(p) { map[p.id] = p; });
@@ -417,38 +387,31 @@ function boot() {
       }).catch(function(){});
 
     // Çeteleri yükle
-    fetch((window._SOCKET_URL||'')+'/api/gangs')
+    fetch(base+'/api/game/gangs')
       .then(function(r) { return r.json(); })
-      .then(function(gangs) {
+      .then(function(resp) {
+        var gangs = resp.data || resp;
         if (!gangs || !gangs.length) return;
         var map = {};
         gangs.forEach(function(g) { map[g.id] = g; });
         applyStateUpdate('gangs', map);
       }).catch(function(){});
 
-    // Market anlık
-    fetch((window._SOCKET_URL||'')+'/api/market')
+    // Market listeleri
+    fetch(base+'/api/marketplace')
       .then(function(r) { return r.json(); })
-      .then(function(market) {
+      .then(function(resp) {
+        var market = resp.listings || resp.data || resp;
         if (!market || !market.length) return;
         var map = {};
-        market.forEach(function(c) { map[c.company_id] = c; });
+        market.forEach(function(c) { map[c.id||c.company_id] = c; });
         applyStateUpdate('stockMarket', map);
       }).catch(function(){});
 
-    // Envanter
-    var uid = localStorage.getItem('rep_userId') || localStorage.getItem('userId');
-    if (uid) {
-      fetch((window._SOCKET_URL||'')+'/api/inventory/' + uid)
-        .then(function(r) { return r.json(); })
-        .then(function(inv) { if (inv) applyStateUpdate('inventory_' + uid, inv); })
-        .catch(function(){});
-    }
-
-    // Şehir sahipliği
-    fetch((window._SOCKET_URL||'')+'/api/city-ownership')
+    // Şehir sahipliği (game state'ten)
+    fetch(base+'/api/game/state')
       .then(function(r) { return r.json(); })
-      .then(function(data) { if (data) applyStateUpdate('cityOwnership', data); })
+      .then(function(data) { if (data && data.cityOwnership) applyStateUpdate('cityOwnership', data.cityOwnership); })
       .catch(function(){});
   }
 

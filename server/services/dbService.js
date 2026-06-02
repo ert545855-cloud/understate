@@ -8,34 +8,16 @@ const logger = require('../utils/logger');
 // DATABASE_URL'deki şifreyi ayrı ayrı parse et (özel karakter sorunu için)
 function buildPoolConfig() {
   const url = process.env.DATABASE_URL || '';
-  if (!url) return { ssl: { rejectUnauthorized: false } };
-  
-  try {
-    // postgresql://user:pass@host:port/db formatını manuel parse et
-    const match = url.match(/^postgresql:\/\/([^:]+):(.+)@([^:\/]+):(\d+)\/(.+)$/);
-    if (match) {
-      return {
-        user: match[1],
-        password: decodeURIComponent(match[2]),
-        host: match[3],
-        port: parseInt(match[4]),
-        database: match[5],
-        ssl: { rejectUnauthorized: false },
-        max: 10,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 5000, // 10s -> 5s: Render deploy timeout giderildi
-        family: 4,
-      };
-    }
-  } catch(e) {}
-  
+  if (!url) return {};
+
+  const isLocal = /localhost|127\.0\.0\.1|helium|\.internal/.test(url);
+
   return {
     connectionString: url,
-    ssl: { rejectUnauthorized: false },
+    ssl: isLocal ? false : { rejectUnauthorized: false },
     max: 10,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000, // 10s -> 5s: Render deploy timeout giderildi
-    family: 4,
+    connectionTimeoutMillis: 5000,
   };
 }
 
@@ -244,7 +226,7 @@ async function setGameState(key, value) {
 // Toplu game state okuma (performans optimizasyonu)
 async function getFullGameState(keys) {
   try {
-    const wantedKeys = keys || ['gangs','parties','alliances','elections','elections_multi','laws','announcements','cabinet','gangTerritories'];
+    const wantedKeys = keys || ['elections','elections_multi','laws','announcements','cabinet','gangTerritories'];
     const placeholders = wantedKeys.map((_, i) => `$${i + 1}`).join(', ');
     const { rows } = await query(
       `SELECT key, value FROM game_state WHERE key IN (${placeholders})`,
@@ -256,65 +238,156 @@ async function getFullGameState(keys) {
   } catch (err) { logger.warn('[DB] getFullGameState:', err.message); return {}; }
 }
 
-// ── GANGS ────────────────────────────────────────────────────────────────────
+// ── GANGS ─────────────────────────────────────────────────────────────────────
+// Proper SQL table — visible in Supabase dashboard
 
 async function getGangs() {
-  const data = await getGameState('gangs');
-  return Array.isArray(data) ? data : [];
+  try {
+    const { rows } = await query('SELECT * FROM gangs ORDER BY power DESC, created_at ASC');
+    return rows.map(r => ({
+      id: r.id, name: r.name,
+      leader: r.leader_id, leaderId: r.leader_id, leaderName: r.leader_name,
+      members: r.members || [], color: r.color, icon: r.icon,
+      territory: r.territory || {}, power: r.power || 0,
+      money: Number(r.money) || 0, level: r.level || 1, type: r.type || 'gang',
+      ...(r.data || {}),
+      createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+      updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : Date.now(),
+    }));
+  } catch (err) { logger.warn('[DB] getGangs:', err.message); return []; }
 }
 
 async function setGangs(gangs) {
-  return setGameState('gangs', Array.isArray(gangs) ? gangs : []);
+  if (!Array.isArray(gangs)) return false;
+  try {
+    for (const gang of gangs) await upsertGang(gang);
+    return true;
+  } catch (err) { logger.warn('[DB] setGangs:', err.message); return false; }
 }
 
 async function upsertGang(gang) {
   if (!gang?.id) return false;
-  const gangs = await getGangs();
-  const idx = gangs.findIndex(g => g.id === gang.id);
-  if (idx >= 0) gangs[idx] = { ...gangs[idx], ...gang, updatedAt: Date.now() };
-  else gangs.push({ ...gang, createdAt: Date.now(), updatedAt: Date.now() });
-  return setGangs(gangs);
+  const { id, name, leader, leaderId, leaderName, members, color, icon, territory, power, money, level, type, ...rest } = gang;
+  const extraKeys = ['createdAt','updatedAt'];
+  const data = Object.fromEntries(Object.entries(rest).filter(([k]) => !extraKeys.includes(k)));
+  try {
+    await query(
+      `INSERT INTO gangs (id, name, leader_id, leader_name, members, color, icon, territory, power, money, level, type, data, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW())
+       ON CONFLICT (id) DO UPDATE SET
+         name=EXCLUDED.name, leader_id=EXCLUDED.leader_id, leader_name=EXCLUDED.leader_name,
+         members=EXCLUDED.members, color=EXCLUDED.color, icon=EXCLUDED.icon,
+         territory=EXCLUDED.territory, power=EXCLUDED.power, money=EXCLUDED.money,
+         level=EXCLUDED.level, type=EXCLUDED.type, data=EXCLUDED.data, updated_at=NOW()`,
+      [id, name||'', leaderId||leader||null, leaderName||null,
+       JSON.stringify(members||[]), color||'#8B5CF6', icon||'🔱',
+       JSON.stringify(territory||{}), power||0, money||0, level||1, type||'gang',
+       JSON.stringify(data)]
+    );
+    return true;
+  } catch (err) { logger.warn('[DB] upsertGang:', err.message); return false; }
 }
 
 async function deleteGang(gangId) {
-  const gangs = await getGangs();
-  return setGangs(gangs.filter(g => g.id !== gangId));
+  try {
+    await query('DELETE FROM gangs WHERE id = $1', [gangId]);
+    return true;
+  } catch (err) { logger.warn('[DB] deleteGang:', err.message); return false; }
 }
 
-// ── PARTIES ──────────────────────────────────────────────────────────────────
+// ── PARTIES ───────────────────────────────────────────────────────────────────
+// Proper SQL table — visible in Supabase dashboard
 
 async function getParties() {
-  const data = await getGameState('parties');
-  return Array.isArray(data) ? data : [];
+  try {
+    const { rows } = await query('SELECT * FROM parties ORDER BY influence_points DESC, created_at ASC');
+    return rows.map(r => ({
+      id: r.id, name: r.name, ideology: r.ideology,
+      leader: r.leader_id, leaderId: r.leader_id, leaderName: r.leader_name,
+      members: r.members || [], color: r.color,
+      influencePoints: Number(r.influence_points) || 0,
+      treasury: Number(r.treasury) || 0,
+      ...(r.data || {}),
+      createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+      updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : Date.now(),
+    }));
+  } catch (err) { logger.warn('[DB] getParties:', err.message); return []; }
 }
 
 async function setParties(parties) {
-  return setGameState('parties', Array.isArray(parties) ? parties : []);
+  if (!Array.isArray(parties)) return false;
+  try {
+    for (const party of parties) await upsertParty(party);
+    return true;
+  } catch (err) { logger.warn('[DB] setParties:', err.message); return false; }
 }
 
 async function upsertParty(party) {
   if (!party?.id) return false;
-  const parties = await getParties();
-  const idx = parties.findIndex(p => p.id === party.id);
-  if (idx >= 0) parties[idx] = { ...parties[idx], ...party, updatedAt: Date.now() };
-  else parties.push({ ...party, createdAt: Date.now(), updatedAt: Date.now() });
-  return setParties(parties);
+  const { id, name, ideology, leader, leaderId, leaderName, members, color, influencePoints, treasury, ...rest } = party;
+  const extraKeys = ['createdAt','updatedAt'];
+  const data = Object.fromEntries(Object.entries(rest).filter(([k]) => !extraKeys.includes(k)));
+  try {
+    await query(
+      `INSERT INTO parties (id, name, ideology, leader_id, leader_name, members, color, influence_points, treasury, data, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
+       ON CONFLICT (id) DO UPDATE SET
+         name=EXCLUDED.name, ideology=EXCLUDED.ideology, leader_id=EXCLUDED.leader_id,
+         leader_name=EXCLUDED.leader_name, members=EXCLUDED.members, color=EXCLUDED.color,
+         influence_points=EXCLUDED.influence_points, treasury=EXCLUDED.treasury,
+         data=EXCLUDED.data, updated_at=NOW()`,
+      [id, name||'', ideology||'merkez', leaderId||leader||null, leaderName||null,
+       JSON.stringify(members||[]), color||'#8B5CF6',
+       influencePoints||0, treasury||0, JSON.stringify(data)]
+    );
+    return true;
+  } catch (err) { logger.warn('[DB] upsertParty:', err.message); return false; }
 }
 
 async function deleteParty(partyId) {
-  const parties = await getParties();
-  return setParties(parties.filter(p => p.id !== partyId));
+  try {
+    await query('DELETE FROM parties WHERE id = $1', [partyId]);
+    return true;
+  } catch (err) { logger.warn('[DB] deleteParty:', err.message); return false; }
 }
 
-// ── ALLIANCES ────────────────────────────────────────────────────────────────
+// ── ALLIANCES ─────────────────────────────────────────────────────────────────
+// Proper SQL table — visible in Supabase dashboard
 
 async function getAlliances() {
-  const data = await getGameState('alliances');
-  return Array.isArray(data) ? data : [];
+  try {
+    const { rows } = await query('SELECT * FROM alliances ORDER BY level DESC, created_at ASC');
+    return rows.map(r => ({
+      id: r.id, name: r.name,
+      leader: r.leader_id, leaderId: r.leader_id,
+      members: r.members || [], level: r.level || 1, power: r.power || 10,
+      ...(r.data || {}),
+      createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+      updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : Date.now(),
+    }));
+  } catch (err) { logger.warn('[DB] getAlliances:', err.message); return []; }
 }
 
 async function setAlliances(alliances) {
-  return setGameState('alliances', Array.isArray(alliances) ? alliances : []);
+  if (!Array.isArray(alliances)) return false;
+  try {
+    for (const alliance of alliances) {
+      if (!alliance?.id) continue;
+      const { id, name, leader, leaderId, members, level, power, ...rest } = alliance;
+      const extraKeys = ['createdAt','updatedAt'];
+      const data = Object.fromEntries(Object.entries(rest).filter(([k]) => !extraKeys.includes(k)));
+      await query(
+        `INSERT INTO alliances (id, name, leader_id, members, level, power, data, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())
+         ON CONFLICT (id) DO UPDATE SET
+           name=EXCLUDED.name, leader_id=EXCLUDED.leader_id, members=EXCLUDED.members,
+           level=EXCLUDED.level, power=EXCLUDED.power, data=EXCLUDED.data, updated_at=NOW()`,
+        [id, name||'', leaderId||leader||null,
+         JSON.stringify(members||[]), level||1, power||10, JSON.stringify(data)]
+      );
+    }
+    return true;
+  } catch (err) { logger.warn('[DB] setAlliances:', err.message); return false; }
 }
 
 // ── ELECTIONS ────────────────────────────────────────────────────────────────

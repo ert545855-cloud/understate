@@ -6,10 +6,16 @@ const { generalLimiter } = require('../middleware/rateLimiter');
 const logger = require('../utils/logger');
 
 const ALLOWED_FIELDS = new Set([
-  'money', 'bank', 'level', 'xp', 'city', 'under_coin',
-  'inventory', 'buildings', 'businesses', 'position', 'health',
+  'money', 'bank', 'bank_money', 'level', 'xp', 'city', 'under_coin',
+  'inventory', 'buildings', 'businesses', 'position', 'health', 'hp',
   'stats', 'achievements', 'skills', 'party_id', 'gang_id',
   'game_data', 'settings', 'socket_id', 'is_online',
+  'score', 'credit_score', 'creditScore',
+  'merit_points', 'meritPoints',
+  'loyalty_points', 'loyaltyPoints',
+  'educationLevel', 'education_level',
+  'educationProgress', 'education_progress',
+  'positionTag', 'position_tag',
 ]);
 
 const MAX_PAYLOAD_BYTES = 512 * 1024;

@@ -1,103 +1,54 @@
-// UNDERSTATE Service Worker v2.0
-// Handles: offline cache, background sync, push notifications, app icons
+// UNDERSTATE Service Worker v3.0
+// Önbellek yok — her zaman ağdan yükle (stale kod önlenir)
 
-const CACHE_NAME = 'understate-v4';
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/css/styles.css',
-  '/favicon.ico',
-  '/js/supabase.min.js',
-  '/js/react.min.js',
-  '/js/react-dom.min.js',
-  '/js/babel.min.js',
-  '/js/socket.io.min.js',
-  // App icons (PWA + push notification badges)
-  '/icon-72.png',
-  '/icon-96.png',
-  '/icon-128.png',
-  '/icon-144.png',
-  '/icon-152.png',
-  '/icon-192.png',
-  '/icon-384.png',
-  '/icon-512.png',
-];
+const CACHE_NAME = 'understate-v5';
 
-// ── Install: cache static assets ─────────────────────────────────────────────
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(STATIC_ASSETS.map(url => {
-        return new Request(url, { mode: 'no-cors' });
-      })).catch(err => console.warn('[SW] Cache install partial fail:', err));
-    })
-  );
-  self.skipWaiting();
-});
-
-// ── Activate: clean old caches ───────────────────────────────────────────────
+// Eski önbellekleri sil
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+      Promise.all(keys.map(k => caches.delete(k)))
     )
   );
   self.clients.claim();
 });
 
-// ── Fetch: network-first for API, cache-first for static ─────────────────────
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+// Fetch: JS/CSS/HTML → her zaman ağdan (cache yok)
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Skip non-GET and Socket.IO/API requests
   if (event.request.method !== 'GET') return;
   if (url.pathname.startsWith('/socket.io')) return;
   if (url.pathname.startsWith('/api/')) return;
   if (url.protocol === 'chrome-extension:') return;
-  // Always fetch JS/CSS files from network (prevents MIME-type cache corruption)
+
+  // JS ve CSS dosyaları — her zaman ağdan, cache kullanma
   if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
     event.respondWith(
-      fetch(event.request).then(res => {
-        if (res && res.status === 200) {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
-        }
-        return res;
-      }).catch(() => caches.match(event.request))
+      fetch(event.request).catch(() => new Response('', { status: 503 }))
     );
     return;
   }
 
-  // Network-first for HTML (always fresh)
+  // HTML — her zaman ağdan
   if (event.request.headers.get('Accept')?.includes('text/html')) {
     event.respondWith(
-      fetch(event.request)
-        .then(res => {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
-          return res;
-        })
-        .catch(() => caches.match('/index.html'))
+      fetch(event.request).catch(() => new Response('Çevrimdışı', { status: 503 }))
     );
     return;
   }
 
-  // Cache-first for everything else
+  // Görseller / ikonlar — ağdan, hata durumunda boş
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
-      return fetch(event.request).then(res => {
-        if (!res || res.status !== 200) return res;
-        const clone = res.clone();
-        caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
-        return res;
-      });
-    }).catch(() => caches.match('/index.html'))
+    fetch(event.request).catch(() => new Response('', { status: 503 }))
   );
 });
 
-// ── Push notifications ────────────────────────────────────────────────────────
+// Push notifications
 self.addEventListener('push', (event) => {
   let data = { title: 'UNDERSTATE', body: 'Yeni bildirim var!', icon: '/icon-192.png' };
   try { data = { ...data, ...event.data.json() }; } catch {}
@@ -126,20 +77,8 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// ── SKIP_WAITING message (güncelleme anında aktif et) ─────────────────────────
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
-  }
-});
-
-// ── Background sync ───────────────────────────────────────────────────────────
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-game-data') {
-    event.waitUntil(
-      self.clients.matchAll().then(clients =>
-        clients.forEach(c => c.postMessage({ type: 'SYNC_REQUESTED' }))
-      )
-    );
   }
 });

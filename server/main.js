@@ -64,6 +64,36 @@ app.use('/api/transfer',      require('./routes/transfer'));
 app.get('/health',            (_req, res) => res.json({ status: 'OK', ts: Date.now() }));
 app.get('/api/admob-config',  (_req, res) => res.json(getPublicAdConfig(process.env.NODE_ENV !== 'production')));
 
+// ── Alias route'lar: eksik endpoint'ler için yönlendirme ────────────────────
+const _gameRouter = require('./routes/game');
+app.use('/api/state',               _gameRouter); // /api/state → /api/game/...
+app.use('/api/gangs',               _gameRouter);
+app.use('/api/parties',             _gameRouter);
+app.use('/api/alliances',           _gameRouter);
+app.use('/api/elections',           _gameRouter);
+app.use('/api/laws',                _gameRouter);
+app.use('/api/announcements',       _gameRouter);
+
+// /api/leaderboard/top → /api/leaderboard/all
+const _lbRouter = require('./routes/leaderboard');
+app.use('/api/leaderboard/top',     (req, res, next) => { req.url = '/all'; next(); }, _lbRouter);
+
+// /api/parliament/parties → /api/game/parties
+app.get('/api/parliament/parties',  (req, res, next) => { req.url = '/parties'; next(); }, _gameRouter);
+
+// /api/game/session → JWT kontrol + session bilgisi döner
+const { authMiddleware } = require('./middleware/authMiddleware');
+app.get('/api/game/session', authMiddleware, (req, res) => {
+  res.json({ success: true, user: req.user });
+});
+
+// /api/error-log → hata raporlama (auth gerektirmez)
+app.post('/api/error-log', (req, res) => {
+  const { message, stack, version } = req.body || {};
+  if (message) require('./utils/logger').warn('[ClientError]', message?.slice?.(0,200));
+  res.json({ ok: true });
+});
+
 // ── SPA catch-all ─────────────────────────────────────────────────────────────
 app.use(express.static(root, { index: false }));
 app.get('*', (req, res) => {

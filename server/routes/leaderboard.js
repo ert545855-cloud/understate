@@ -15,6 +15,9 @@ router.get('/', async (req, res) => {
   res.json(result);
 });
 
+// /top alias → /all ile aynı
+router.get('/top', async (req, res, next) => { req.url = '/all'; next(); });
+
 // Tüm kategorileri tek sorguda döner (UI için kullanışlı)
 router.get('/all', async (req, res) => {
   try {
