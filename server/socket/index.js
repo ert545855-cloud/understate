@@ -14,6 +14,14 @@ const sb = require('../services/supabaseService');
 
 function getConnectionStatus() { return sb.isReady(); }
 
+// ── Bakım Modu ────────────────────────────────────────────────────────────────
+let maintenanceMode = false;
+function getMaintenanceMode() { return maintenanceMode; }
+function setMaintenanceMode(val) {
+  maintenanceMode = !!val;
+  return maintenanceMode;
+}
+
 function initSocket(io) {
   io.use(socketAuthMiddleware);
   io.use(createSocketRateLimitMiddleware(['ping', 'disconnect', 'connect', 'chatHistory']));
@@ -23,6 +31,21 @@ function initSocket(io) {
     monitoring.increment('totalConnections');
     logger.socket('connected', socket.id, `user=${socket.username || 'guest'}`);
     io.emit('onlineCount', monitoring.getStats().connectedSockets);
+
+    // Bakım modu durumunu yeni bağlanan kullanıcıya bildir
+    socket.emit('maintenance:status', { active: maintenanceMode });
+
+    // Admin: bakım modu toggle
+    socket.on('admin:maintenance', (data) => {
+      if (socket.role !== 'admin' && socket.username !== 'admin') {
+        socket.emit('error', { code: 'FORBIDDEN', message: 'Yetki yok' });
+        return;
+      }
+      maintenanceMode = !!data?.active;
+      io.emit('maintenance:status', { active: maintenanceMode });
+      logger.info(`[Admin] Bakım modu: ${maintenanceMode ? 'AÇIK' : 'KAPALI'} — ${socket.username}`);
+      socket.emit('admin:maintenance:ack', { active: maintenanceMode });
+    });
 
     if (socket.userId && sb.isReady()) {
       sb.updateUser(socket.userId, { is_online: true, socket_id: socket.id }).catch(() => {});
@@ -147,4 +170,4 @@ function initSocket(io) {
   return io;
 }
 
-module.exports = { initSocket };
+module.exports = { initSocket, getMaintenanceMode, setMaintenanceMode };

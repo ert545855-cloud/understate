@@ -371,7 +371,22 @@ function AuthScreen({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [maintMode, setMaintMode] = useState(false);
   const u = (k,v) => setF(p => ({...p,[k]:v}));
+
+  // Bakım modu socket dinleyicisi
+  React.useEffect(() => {
+    const checkMaint = (s) => {
+      if (!s) return;
+      s.on('maintenance:status', (data) => setMaintMode(!!data?.active));
+    };
+    if (window._socket) { checkMaint(window._socket); }
+    else {
+      const onReady = () => { if (window._socket) checkMaint(window._socket); };
+      window.addEventListener('socket-connected', onReady, { once: true });
+      return () => window.removeEventListener('socket-connected', onReady);
+    }
+  }, []);
 
   const getUsers = () => { try { return JSON.parse(localStorage.getItem('rep_users')||'[]'); } catch{return [];} };
   const saveUsers = (arr) => localStorage.setItem('rep_users', JSON.stringify(arr));
@@ -390,14 +405,20 @@ function AuthScreen({ onLogin }) {
       const _doPlayerJoin = (s, u) => {
         if (!s || !u?.id) return;
         s.emit('playerJoin', {
-          userId:   u.id || u.uid,
-          username: u.username || 'Oyuncu',
-          level:    u.level    || 1,
-          city:     u.city     || '',
-          gender:   u.gender   || 'erkek',
-          money:    u.money    || 0,
-          party:    u.party    || null,
-          gang:     u.gang     || null,
+          userId:           u.id || u.uid,
+          username:         u.username || 'Oyuncu',
+          level:            u.level    || 1,
+          city:             u.city     || '',
+          gender:           u.gender   || 'erkek',
+          money:            u.money    || 0,
+          party:            u.party    || null,
+          gang:             u.gang     || null,
+          xp:               u.xp       || 0,
+          meritPoints:      u.meritPoints  || 0,
+          tradePoints:      u.tradePoints  || 0,
+          militaryPoints:   u.militaryPoints || 0,
+          educationProgress:u.educationProgress || 0,
+          influencePoints:  u.influencePoints || 0,
         });
       };
 
@@ -635,8 +656,26 @@ function AuthScreen({ onLogin }) {
           </div>
         </div>
 
+        {/* ── Bakım modu overlay ── */}
+        {maintMode && (
+          <div style={{width:'100%',maxWidth:'480px',padding:'0 1rem',marginBottom:'1rem'}}>
+            <div style={{background:'rgba(239,68,68,0.1)',border:'2px solid rgba(239,68,68,0.5)',borderRadius:'16px',padding:'1.5rem',textAlign:'center',backdropFilter:'blur(12px)'}}>
+              <div style={{fontSize:'2.5rem',marginBottom:'0.75rem'}}>🔧</div>
+              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:900,color:'#FCA5A5',fontSize:'1.1rem',letterSpacing:'0.05em',marginBottom:'0.4rem'}}>SUNUCU BAKIMDA</div>
+              <div style={{color:'rgba(255,255,255,0.55)',fontSize:'0.78rem',lineHeight:1.6,marginBottom:'0.5rem'}}>
+                UNDERSTATE şu anda bakım ve güncelleme modunda.<br/>
+                En kısa sürede tekrar açılacak.
+              </div>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'0.5rem',fontSize:'0.72rem',color:'rgba(255,255,255,0.35)'}}>
+                <div style={{width:'6px',height:'6px',borderRadius:'50%',background:'#EF4444',animation:'pulse 1.5s ease-in-out infinite'}}/>
+                Bakım devam ediyor — lütfen bekleyin
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Panel — full width on mobile */}
-        <div style={{width:'100%',maxWidth:'480px',padding:'0 1rem'}}>
+        {!maintMode && <div style={{width:'100%',maxWidth:'480px',padding:'0 1rem'}}>
           <form onSubmit={e=>{e.preventDefault();tab==='login'?doLogin():doRegister();}} autoComplete="on">
           <div style={{background:'rgba(5,10,20,0.82)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'24px',padding:'1.75rem 1.5rem',backdropFilter:'blur(24px)',boxShadow:'0 24px 80px rgba(0,0,0,0.7)'}}>
 
@@ -716,7 +755,7 @@ function AuthScreen({ onLogin }) {
             )}
 </div>
           </form>
-        </div>
+        </div>}
 
         {/* Language Selector */}
         <div style={{marginTop:'1rem',display:'flex',alignItems:'center',justifyContent:'center',gap:'0.5rem',position:'relative',zIndex:2}}>
@@ -1969,6 +2008,42 @@ function AdminSupportTab({ setMsg, inp, cs }) {
   );
 }
 
+function AdminMaintenanceToggle() {
+  const [active, setActive] = useState(false);
+  const [loading, setLoading] = useState(false);
+  React.useEffect(() => {
+    const s = window._socket;
+    if (!s) return;
+    const onStatus = (d) => setActive(!!d?.active);
+    s.on('maintenance:status', onStatus);
+    s.on('admin:maintenance:ack', onStatus);
+    return () => { s.off('maintenance:status', onStatus); s.off('admin:maintenance:ack', onStatus); };
+  }, []);
+  const toggle = () => {
+    const s = window._socket;
+    if (!s) return;
+    const next = !active;
+    setLoading(true);
+    s.emit('admin:maintenance', { active: next });
+    setTimeout(() => setLoading(false), 800);
+  };
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:'0.75rem'}}>
+      <div style={{background:active?'rgba(239,68,68,0.1)':'rgba(34,197,94,0.06)',border:`1px solid ${active?'rgba(239,68,68,0.4)':'rgba(34,197,94,0.25)'}`,borderRadius:'12px',padding:'1rem',display:'flex',alignItems:'center',gap:'0.75rem'}}>
+        <div style={{fontSize:'1.5rem'}}>{active?'🔧':'✅'}</div>
+        <div style={{flex:1}}>
+          <div style={{fontWeight:700,color: active?'#FCA5A5':'#86EFAC',fontSize:'0.85rem'}}>{active?'Bakım Modu Açık':'Sunucu Normal'}</div>
+          <div style={{color:'#5A7089',fontSize:'0.72rem',marginTop:'0.15rem'}}>{active?'Kullanıcılar giriş yapamaz':'Tüm kullanıcılar erişebilir'}</div>
+        </div>
+        <button onClick={toggle} disabled={loading} style={{padding:'0.5rem 1rem',borderRadius:'8px',border:'none',background:active?'rgba(239,68,68,0.25)':'rgba(239,68,68,0.15)',color:active?'#FCA5A5':'#EF4444',fontWeight:700,fontSize:'0.8rem',cursor:'pointer',opacity:loading?0.6:1}}>
+          {loading?'...':active?'Kapat':'Aç'}
+        </button>
+      </div>
+      <div style={{fontSize:'0.72rem',color:'#5A7089',padding:'0 0.25rem'}}>⚠️ Bakım modu açıkken tüm oyuncular giriş ekranında "Sunucu Bakımda" uyarısı görür.</div>
+    </div>
+  );
+}
+
 function AdminPage({ profile, showNotif, onNavigate }) {
   const [tab, setTab] = useState('dashboard');
   const [allUsers, setAllUsersRaw] = useState(() => {
@@ -2609,6 +2684,10 @@ function AdminPage({ profile, showNotif, onNavigate }) {
       {/* ── ARAÇLAR ── */}
       {tab==='tools' && (
         <div>
+          <div style={cs}>
+            <div style={{fontWeight:800,color:'#E8EDF2',marginBottom:'0.75rem',fontSize:'0.85rem'}}>🔧 Bakım Modu</div>
+            <AdminMaintenanceToggle />
+          </div>
           <div style={cs}>
             <div style={{fontWeight:800,color:'#E8EDF2',marginBottom:'0.75rem',fontSize:'0.85rem'}}>🛠️ Sistem Araçları</div>
             <div style={{display:'grid',gap:'0.5rem'}}>
@@ -4491,7 +4570,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
                       {assigned&&(isPresident||isLeader)&&!isMyRole&&(
                         <button onClick={()=>removeFromCabinet(role)} style={{background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.2)',borderRadius:'6px',padding:'2px 7px',color:'#FCA5A5',cursor:'pointer',fontSize:'0.65rem',fontWeight:700}}>Al</button>
                       )}
-                      {!assigned&&(isPresident||isLeader)&&<Btn variant='ghost' size='sm' onClick={()=>{setCabinetRole(role);setCabinetModal(true);}}>Ata</Btn>}
+                      {!assigned&&isPresident&&<Btn variant='ghost' size='sm' onClick={()=>{setCabinetRole(role);setCabinetModal(true);}}>Ata</Btn>}
                     </div>
                   </div>
                 </Card>
@@ -8315,7 +8394,7 @@ function PartiEtkiPage({ profile, setProfile, parties, setParties, showNotif }) 
   const myFamily = allFamilies.find(f=>f.leaderId===uid || (f.members||[]).includes(uid));
   const isFamilyLeader = myFamily && myFamily.leaderId===uid;
 
-  const diploma = profile?.education?.diploma || 'ilkokul';
+  const diploma = profile?.education?.diploma || profile?.diplomaLevel || 'ilkokul';
   const eduMult = EDU_INFLUENCE_BONUS[diploma] || 1.0;
   const tradePoints = profile?.tradePoints || 0;
   const tpMult = 1 + Math.floor(tradePoints / 500) * 0.05;
@@ -11512,7 +11591,7 @@ function DuyurularPage({ profile }) {
 // ═══════════════════════════════════════════════════════
 // SIRALAMA (LEADERBOARD) SAYFASI
 // ═══════════════════════════════════════════════════════
-function LeaderboardPage({ profile, onNavigate }) {
+function LeaderboardPage({ profile, onNavigate, onlinePlayers = [] }) {
   const { dark } = useTheme();
   const [allUsers] = useLs('users', []);
   const cu = profile || {};
@@ -11528,6 +11607,7 @@ function LeaderboardPage({ profile, onNavigate }) {
     {id:'edu',       label:'🎓 Eğitim',  key:'educationProgress'},
     {id:'influence', label:'⚡ Etki',    key:'influencePoints'},
     {id:'military',  label:'🪖 Askeri',  key:'militaryPoints'},
+    {id:'online', label:'🟢 Online',  key:'_online'},
   ];
   const [tab, setTab] = useState('money');
   const activeTab = TABS.find(t=>t.id===tab);
@@ -11535,28 +11615,82 @@ function LeaderboardPage({ profile, onNavigate }) {
   const usersWithMe = usersRaw.map(u => u.id===cu.id ? {...u, ...cu} : u);
   const meInList = usersWithMe.find(u => u.id===cu.id);
   const finalUsers = (meInList || !cu.id) ? usersWithMe : [...usersWithMe, cu];
-  const sorted = [...finalUsers].filter(u=>!u.banned).sort((a,b)=>(b[activeTab.key]||0)-(a[activeTab.key]||0)).slice(0,50);
+  const sorted = [...finalUsers].filter(u=>!u.banned).sort((a,b)=>(b[activeTab?.key]||0)-(a[activeTab?.key]||0)).slice(0,50);
   const myRank = sorted.findIndex(u=>u.id===cu.id)+1;
   const medal = i => i===0?{icon:'🥇',color:'#FFD700',glow:'rgba(255,215,0,0.3)'}:i===1?{icon:'🥈',color:'#C0C0C0',glow:'rgba(192,192,192,0.3)'}:i===2?{icon:'🥉',color:'#CD7F32',glow:'rgba(205,127,50,0.3)'}:null;
   const fmtVal = u => {
-    const v=u[activeTab.key]||0;
+    const v=u[activeTab?.key]||0;
     if (tab==='edu') return `${Number(v).toLocaleString('tr-TR')} puan`;
     if (tab==='money') return fmtWord(v);
     return Number(v).toLocaleString('tr-TR');
   };
 
+  // ── Online Oyuncular Sekmesi ──────────────────────────────────────────────
+  if (tab==='online') {
+    const myOnline = onlinePlayers.find(p=>p.userId===cu.id||p.username===cu.username);
+    return (
+      <div style={{padding:'1rem',background:bg,minHeight:'100%',display:'flex',flexDirection:'column',gap:'0.75rem'}}>
+        <div style={{fontFamily:"'Syne',sans-serif",fontSize:'1.1rem',fontWeight:800,color:'#FFD700',letterSpacing:'0.08em'}}>🏆 SIRALAMA</div>
+        <div style={{overflowX:'auto'}}>
+          <div style={{display:'flex',background:'rgba(255,255,255,0.04)',borderRadius:'12px',padding:'3px',gap:'3px',minWidth:'max-content'}}>
+            {TABS.map(t=>(
+              <button key={t.id} onClick={()=>setTab(t.id)}
+                style={{flex:'0 0 auto',padding:'0.45rem 0.6rem',borderRadius:'9px',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:'0.7rem',transition:'all 0.15s',whiteSpace:'nowrap',
+                  background:tab===t.id?'rgba(34,197,94,0.15)':'transparent',
+                  color:tab===t.id?'#22C55E':dark?'#64748B':'#94A3B8'}}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:'0.5rem',background:'rgba(34,197,94,0.08)',border:'1px solid rgba(34,197,94,0.25)',borderRadius:'12px',padding:'0.65rem 1rem'}}>
+          <div style={{width:'8px',height:'8px',borderRadius:'50%',background:'#22C55E',boxShadow:'0 0 6px #22C55E'}}/>
+          <span style={{fontSize:'0.8rem',color:'#22C55E',fontWeight:700}}>{onlinePlayers.length} oyuncu çevrimiçi</span>
+        </div>
+        {onlinePlayers.length===0&&(
+          <div style={{color:'#5A7089',fontSize:'0.85rem',textAlign:'center',marginTop:'2rem'}}>Şu an çevrimiçi oyuncu yok.</div>
+        )}
+        <div style={{display:'flex',flexDirection:'column',gap:'0.4rem'}}>
+          {onlinePlayers.map((op,i)=>{
+            const isMe = op.userId===cu.id||op.username===cu.username;
+            return (
+              <div key={op.userId||op.username||i} style={{display:'flex',alignItems:'center',gap:'0.65rem',background:isMe?'rgba(34,197,94,0.08)':card,border:`1px solid ${isMe?'rgba(34,197,94,0.3)':border}`,borderRadius:'12px',padding:'0.65rem 0.85rem'}}>
+                <div style={{minWidth:'28px',textAlign:'center'}}>
+                  <span style={{fontSize:'0.78rem',fontWeight:800,color:'#5A7089'}}>#{i+1}</span>
+                </div>
+                <div style={{width:'10px',height:'10px',borderRadius:'50%',background:'#22C55E',boxShadow:'0 0 5px #22C55E',flexShrink:0}}/>
+                <div style={{flex:1,overflow:'hidden'}}>
+                  <div style={{fontSize:'0.85rem',fontWeight:700,color:isMe?'#22C55E':dark?'#E8EDF2':'#1E293B',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                    {op.username||'Oyuncu'}{isMe?' (Sen)':''}
+                  </div>
+                  <div style={{fontSize:'0.67rem',color:'#5A7089'}}>{op.city||''} • Lv.{op.level||1} • {op.party||'Bağımsız'}</div>
+                </div>
+                <div style={{textAlign:'right',flexShrink:0}}>
+                  <div style={{fontSize:'0.75rem',fontWeight:800,color:dark?'#E8EDF2':'#334155'}}>{fmtWord(op.money||0)}</div>
+                  <div style={{fontSize:'0.62rem',color:'#5A7089'}}>{(op.xp||0).toLocaleString()} XP</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{padding:'1rem',background:bg,minHeight:'100%',display:'flex',flexDirection:'column',gap:'0.75rem'}}>
       <div style={{fontFamily:"'Syne',sans-serif",fontSize:'1.1rem',fontWeight:800,color:'#FFD700',letterSpacing:'0.08em'}}>🏆 SIRALAMA</div>
-      <div style={{display:'flex',background:'rgba(255,255,255,0.04)',borderRadius:'12px',padding:'3px',gap:'3px'}}>
-        {TABS.map(t=>(
-          <button key={t.id} onClick={()=>setTab(t.id)}
-            style={{flex:1,padding:'0.45rem 0.2rem',borderRadius:'9px',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:'0.7rem',transition:'all 0.15s',whiteSpace:'nowrap',
-              background:tab===t.id?'rgba(255,215,0,0.15)':'transparent',
-              color:tab===t.id?'#FFD700':dark?'#64748B':'#94A3B8'}}>
-            {t.label}
-          </button>
-        ))}
+      <div style={{overflowX:'auto'}}>
+        <div style={{display:'flex',background:'rgba(255,255,255,0.04)',borderRadius:'12px',padding:'3px',gap:'3px',minWidth:'max-content'}}>
+          {TABS.map(t=>(
+            <button key={t.id} onClick={()=>setTab(t.id)}
+              style={{flex:'0 0 auto',padding:'0.45rem 0.6rem',borderRadius:'9px',border:'none',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:'0.7rem',transition:'all 0.15s',whiteSpace:'nowrap',
+                background:tab===t.id?'rgba(255,215,0,0.15)':'transparent',
+                color:tab===t.id?'#FFD700':dark?'#64748B':'#94A3B8'}}>
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
       {myRank>0&&(
         <div style={{background:'rgba(255,215,0,0.08)',border:'1px solid rgba(255,215,0,0.25)',borderRadius:'12px',padding:'0.65rem 1rem',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
@@ -12857,7 +12991,7 @@ function App() {
             {page==='klanchat'     && <KlanChatPage    profile={profile} />}
             {page==='npcplayers'   && <NpcPlayersPage  {...pageProps} />}
             {page==='duyurular'    && <DuyurularPage   profile={profile} />}
-            {page==='leaderboard'  && <LeaderboardPage {...pageProps} />}
+            {page==='leaderboard'  && <LeaderboardPage {...pageProps} onlinePlayers={onlinePlayers} />}
             {page==='education'    && <EducationPage   {...pageProps} />}
             {page==='parti_etki'   && <PartiEtkiPage  profile={profile} setProfile={setProfile} parties={parties} setParties={setParties} showNotif={showNotif} />}
             {page==='citygov'        && <CityGovPage       {...pageProps} />}
