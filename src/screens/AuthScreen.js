@@ -4,6 +4,9 @@ function AuthScreen({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [unverifiedUser, setUnverifiedUser] = useState(null);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMsg, setResendMsg] = useState('');
   const u = (k,v) => setF(p => ({...p,[k]:v}));
 
   const getUsers = () => { try { return JSON.parse(localStorage.getItem('rep_users')||'[]'); } catch{return [];} };
@@ -60,6 +63,7 @@ function AuthScreen({ onLogin }) {
 
   const _mapServerUser = (u, extra={}) => ({
     id:u.id, uid:u.id, username:u.username, email:u.email||'',
+    emailVerified: u.emailVerified === true || u.email_verified === true,
     city:extra.city||u.city||'İstanbul', gender:extra.gender||u.gender||'erkek',
     money:extra.money!==undefined?extra.money:(u.money||10000),
     bankMoney:extra.bankMoney!==undefined?extra.bankMoney:(u.bankMoney||5000),
@@ -128,6 +132,10 @@ function AuthScreen({ onLogin }) {
         if (data.refreshToken) localStorage.setItem('us_refresh', data.refreshToken);
         localStorage.setItem('userId', profile.id);
         localStorage.setItem('rep_userProfile', JSON.stringify(profile));
+        if (!profile.emailVerified) {
+          setUnverifiedUser({ profile, token: data.token });
+          setLoading(false); return;
+        }
         _setupSocket(profile);
         setLoading(false); onLogin(profile); return;
       }
@@ -226,6 +234,21 @@ function AuthScreen({ onLogin }) {
     onLogin(profile);
   };
 
+  const doResendVerify = async (token) => {
+    setResendLoading(true); setResendMsg('');
+    try {
+      const res = await fetch('/api/auth/resend-verify', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}
+      });
+      const data = await res.json();
+      setResendMsg(data.success ? '✅ Doğrulama maili gönderildi! Gelen kutunu kontrol et.' : ('⚠️ ' + (data.message||'Gönderim başarısız')));
+    } catch {
+      setResendMsg('⚠️ Bağlantı hatası, tekrar dene.');
+    }
+    setResendLoading(false);
+  };
+
   const [barProgress, setBarProgress] = React.useState(0);
   useEffect(() => {
     if (!loading) { setBarProgress(0); return; }
@@ -241,6 +264,52 @@ function AuthScreen({ onLogin }) {
     outline:'none', boxSizing:'border-box', backdropFilter:'blur(8px)',
     WebkitAppearance:'none'
   };
+
+  if (unverifiedUser) {
+    const { profile, token } = unverifiedUser;
+    return (
+      <div style={{position:'fixed',inset:0,display:'flex',flexDirection:'column',overflowY:'auto',minHeight:'100dvh'}}>
+        <div style={{position:'fixed',inset:0,backgroundImage:'url(understate-bg.jpg)',backgroundSize:'cover',backgroundPosition:'center top',backgroundRepeat:'no-repeat',zIndex:0}} />
+        <div style={{position:'fixed',inset:0,background:'linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.75) 45%, rgba(0,0,0,0.92) 100%)',zIndex:1}} />
+        <div style={{position:'relative',zIndex:2,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'100dvh',padding:'2rem 1rem'}}>
+          <div style={{width:'100%',maxWidth:'420px',background:'rgba(5,10,20,0.88)',border:'1px solid rgba(245,158,11,0.3)',borderRadius:'24px',padding:'2rem 1.5rem',backdropFilter:'blur(24px)',boxShadow:'0 24px 80px rgba(0,0,0,0.7)',textAlign:'center'}}>
+            <div style={{fontSize:'3rem',marginBottom:'0.75rem'}}>📧</div>
+            <div style={{fontFamily:"'Syne',sans-serif",fontSize:'1.15rem',fontWeight:800,color:'#F59E0B',marginBottom:'0.5rem',letterSpacing:'0.04em'}}>E-POSTANI DOĞRULA</div>
+            <div style={{color:'rgba(255,255,255,0.6)',fontSize:'0.85rem',lineHeight:1.6,marginBottom:'1.5rem'}}>
+              <span style={{color:'#E8EDF2',fontWeight:600}}>{profile.email}</span> adresine bir doğrulama bağlantısı gönderdik.<br/>
+              Maili açıp bağlantıya tıkladıktan sonra giriş yapabilirsin.
+            </div>
+
+            {resendMsg && (
+              <div style={{background: resendMsg.startsWith('✅') ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', border: `1px solid ${resendMsg.startsWith('✅') ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`, borderRadius:'10px', padding:'0.6rem 0.8rem', marginBottom:'1rem', fontSize:'0.82rem', color: resendMsg.startsWith('✅') ? '#6EE7B7' : '#FCA5A5'}}>
+                {resendMsg}
+              </div>
+            )}
+
+            <button
+              onClick={() => doResendVerify(token)}
+              disabled={resendLoading}
+              style={{width:'100%',padding:'0.9rem',borderRadius:'12px',border:'none',background:resendLoading?'rgba(245,158,11,0.3)':'rgba(245,158,11,0.2)',color:'#F59E0B',fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:'0.95rem',cursor:resendLoading?'not-allowed':'pointer',marginBottom:'0.75rem',border:'1px solid rgba(245,158,11,0.35)',display:'flex',alignItems:'center',justifyContent:'center',gap:'0.5rem',transition:'all 0.2s'}}>
+              {resendLoading ? <><div style={{width:16,height:16,border:'2px solid rgba(245,158,11,0.3)',borderTopColor:'#F59E0B',borderRadius:'50%',animation:'spin 0.7s linear infinite'}} /> Gönderiliyor...</> : '📨 Tekrar Gönder'}
+            </button>
+
+            <button
+              onClick={() => { _setupSocket(profile); onLogin(profile); }}
+              style={{width:'100%',padding:'0.9rem',borderRadius:'12px',border:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.05)',color:'rgba(255,255,255,0.5)',fontFamily:"'DM Sans',sans-serif",fontWeight:600,fontSize:'0.88rem',cursor:'pointer',marginBottom:'0.75rem',transition:'all 0.2s'}}>
+              Şimdilik Atla →
+            </button>
+
+            <button
+              onClick={() => { setUnverifiedUser(null); setResendMsg(''); }}
+              style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',fontSize:'0.78rem',cursor:'pointer',fontFamily:"'DM Sans',sans-serif",textDecoration:'underline',padding:'4px 8px'}}>
+              ← Farklı hesapla giriş yap
+            </button>
+          </div>
+        </div>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    );
+  }
 
   return (
     <div style={{position:'fixed',inset:0,display:'flex',flexDirection:'column',overflowY:'auto',minHeight:'100dvh'}}>

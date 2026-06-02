@@ -416,6 +416,45 @@ function Notif({ msg, type='info', onClose }) {
   );
 }
 
+function EmailVerifyBanner({ email, onDismiss }) {
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const resend = async () => {
+    setSending(true);
+    try {
+      const token = localStorage.getItem('us_jwt') || '';
+      const res = await fetch('/api/auth/resend-verify', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}
+      });
+      const d = await res.json();
+      if (d.success) setSent(true);
+    } catch {}
+    setSending(false);
+  };
+
+  return (
+    <div style={{background:'rgba(120,85,0,0.25)',borderBottom:'1px solid rgba(245,158,11,0.35)',padding:'0.55rem 0.9rem',display:'flex',alignItems:'center',gap:'0.5rem',flexShrink:0}}>
+      <span style={{fontSize:'0.9rem',flexShrink:0}}>📧</span>
+      <div style={{flex:1,minWidth:0}}>
+        {sent
+          ? <span style={{fontSize:'0.75rem',color:'#6EE7B7',fontWeight:600}}>Doğrulama maili gönderildi — gelen kutunu kontrol et!</span>
+          : <span style={{fontSize:'0.75rem',color:'rgba(255,220,120,0.9)',fontWeight:500,lineHeight:1.3}}>
+              <span style={{fontWeight:700,color:'#FCD34D'}}>{email}</span> adresin doğrulanmamış.{' '}
+              <button onClick={resend} disabled={sending}
+                style={{background:'none',border:'none',color:'#F59E0B',fontWeight:700,fontSize:'0.75rem',cursor:sending?'not-allowed':'pointer',padding:0,textDecoration:'underline',fontFamily:"'DM Sans',sans-serif"}}>
+                {sending ? 'Gönderiliyor…' : 'Mail gönder →'}
+              </button>
+            </span>
+        }
+      </div>
+      <button onClick={onDismiss}
+        style={{background:'none',border:'none',color:'rgba(245,158,11,0.5)',fontSize:'1rem',cursor:'pointer',padding:'2px 4px',flexShrink:0,lineHeight:1}}>✕</button>
+    </div>
+  );
+}
+
 function Spinner({ size=20 }) {
   return <div style={{width:size,height:size,border:'2.5px solid rgba(59,130,246,0.2)',borderTopColor:'#3B82F6',borderRadius:'50%',animation:'spin 0.7s linear infinite'}} />;
 }
@@ -1324,6 +1363,8 @@ function App() {
     } catch(e){}
   };
 
+  const [emailBannerDismissed, setEmailBannerDismissed] = useState(false);
+
   const handleLogin = (p) => {
     setProfile_raw(p);
     setAuthed(true);
@@ -1392,6 +1433,14 @@ function App() {
 
           {/* Canlı Olaylar Ticker */}
           <GameEventTicker events={gameEvents} onNavigate={setPage} />
+
+          {/* Email doğrulama banner */}
+          {profile && !profile.emailVerified && !emailBannerDismissed && (
+            <EmailVerifyBanner
+              email={profile.email}
+              onDismiss={() => setEmailBannerDismissed(true)}
+            />
+          )}
 
           {/* Main scrollable content */}
           <div style={{flex:1,overflowY:'auto',WebkitOverflowScrolling:'touch',paddingBottom:'calc(70px + env(safe-area-inset-bottom, 0px))',background:pageBg}}>
