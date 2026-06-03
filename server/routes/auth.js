@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
-const { register, login, getProfile, logout, refreshToken, forgotPassword, resetPassword } = require('../auth/authController');
+const { register, login, getProfile, logout, refreshToken, forgotPassword, resetPassword, changePassword } = require('../auth/authController');
+const twoFactor = require('../services/twoFactorService');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { authLimiter, registerLimiter } = require('../middleware/rateLimiter');
 const { sanitizeInput } = require('../middleware/sanitize');
@@ -39,6 +40,44 @@ router.get('/verify-email', async (req, res) => {
 });
 
 // ── Doğrulama Maili Yeniden Gönder ──────────────────────────────────────────
+router.post('/change-password', authLimiter, authMiddleware, changePassword);
+
+// ── 2FA Routes ────────────────────────────────────────────────────────────────
+router.get('/2fa/status', authMiddleware, async (req, res) => {
+  try {
+    const enabled = await twoFactor.is2FAEnabled(req.user.id);
+    res.json({ success: true, enabled });
+  } catch(e) { res.status(500).json({ success: false }); }
+});
+
+router.get('/2fa/setup', authMiddleware, async (req, res) => {
+  try {
+    const result = await twoFactor.setup2FA(req.user.id);
+    res.json({ success: !!result?.qrCode, ...result });
+  } catch(e) {
+    logger.error('[2FA] Setup hatası:', e.message);
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.post('/2fa/enable', authMiddleware, async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ success: false, message: 'token gerekli' });
+    const ok = await twoFactor.enable2FA(req.user.id, token);
+    res.json({ success: ok, message: ok ? '2FA etkinleştirildi ✓' : 'Geçersiz doğrulama kodu' });
+  } catch(e) { res.status(500).json({ success: false }); }
+});
+
+router.post('/2fa/disable', authMiddleware, async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ success: false, message: 'token gerekli' });
+    const ok = await twoFactor.disable2FA(req.user.id, token);
+    res.json({ success: ok, message: ok ? '2FA devre dışı bırakıldı' : 'Geçersiz doğrulama kodu' });
+  } catch(e) { res.status(500).json({ success: false }); }
+});
+
 router.post('/resend-verify', authLimiter, authMiddleware, async (req, res) => {
   try {
     if (!sb.isReady()) return res.status(503).json({ success: false, message: 'DB bağlı değil' });

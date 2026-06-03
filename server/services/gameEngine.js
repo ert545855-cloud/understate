@@ -1,5 +1,6 @@
 const logger = require('../utils/logger');
 const db = require('./dbService');
+const { processOverdueLoans } = require('./loanService');
 
 let _io = null;
 
@@ -266,6 +267,10 @@ async function startGameEngine(io) {
       _io.emit('economyUpdate', state.economy);
     }
   }, 3000);
+
+  // Günlük vadesi dolmuş kredi kontrolü
+  processOverdueLoans().catch(() => {});
+  setInterval(() => processOverdueLoans().catch(() => {}), 24 * 60 * 60 * 1000);
 
   logger.success('Game Engine başlatıldı (market + ekonomi + persistence + full entity sync) ✓');
 }

@@ -436,18 +436,18 @@ async function setAnnouncements(anns) {
 
 async function saveNotification(notif) {
   try {
-    const id = notif.id || `notif_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+    const uid = notif.userId || notif.user_id || null;
+    if (!uid) return false;
     await query(
-      `INSERT INTO notifications (id, user_id, type, title, msg, icon, read)
-       VALUES ($1, $2, $3, $4, $5, $6, false)
-       ON CONFLICT (id) DO NOTHING`,
+      `INSERT INTO notifications (user_id, type, title, message, icon, ts)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
       [
-        id,
-        notif.userId || notif.user_id || null,
+        uid,
         notif.type  || 'info',
         (notif.title || '').slice(0, 200),
-        (notif.msg   || notif.body || '').slice(0, 500),
+        (notif.msg   || notif.body || notif.message || '').slice(0, 500),
         notif.icon  || '🔔',
+        notif.ts    || Date.now(),
       ]
     );
     return true;
@@ -457,7 +457,7 @@ async function saveNotification(notif) {
 async function getNotifications(userId, limit = 50) {
   try {
     const { rows } = await query(
-      `SELECT id, type, title, msg, icon, read, ts, created_at
+      `SELECT id, type, title, message AS msg, icon, is_read AS read, ts, created_at
        FROM notifications
        WHERE user_id = $1
        ORDER BY created_at DESC LIMIT $2`,
@@ -470,7 +470,7 @@ async function getNotifications(userId, limit = 50) {
 async function getUnreadCount(userId) {
   try {
     const { rows } = await query(
-      `SELECT COUNT(*) AS c FROM notifications WHERE user_id = $1 AND NOT read`,
+      `SELECT COUNT(*) AS c FROM notifications WHERE user_id = $1 AND NOT is_read`,
       [userId]
     );
     return parseInt(rows[0]?.c || 0);
@@ -480,7 +480,7 @@ async function getUnreadCount(userId) {
 async function markNotificationRead(userId, notifId) {
   try {
     await query(
-      'UPDATE notifications SET read = true WHERE id = $1 AND user_id = $2',
+      'UPDATE notifications SET is_read = true WHERE id = $1 AND user_id = $2',
       [notifId, userId]
     );
     return true;
@@ -489,7 +489,7 @@ async function markNotificationRead(userId, notifId) {
 
 async function markNotificationsRead(userId) {
   try {
-    await query('UPDATE notifications SET read = true WHERE user_id = $1', [userId]);
+    await query('UPDATE notifications SET is_read = true WHERE user_id = $1', [userId]);
     return true;
   } catch { return false; }
 }

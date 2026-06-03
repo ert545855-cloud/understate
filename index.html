@@ -1015,7 +1015,7 @@ window._US_AUDIO_SRC = "audio/background.mp3";
       if (!isSupported()) return null;
       try {
         _reg = await navigator.serviceWorker.ready;
-        var vapidKey = await fetch((window._SOCKET_URL||'')+'/api/vapid-public-key').then(r => r.text());
+        var vapidKey = await fetch((window._SOCKET_URL||'')+'/api/push/vapid-key').then(r => r.json()).then(d => d.publicKey || '');
         var sub = await _reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: vapidKey
@@ -1032,7 +1032,7 @@ window._US_AUDIO_SRC = "audio/background.mp3";
     async function sendSubscriptionToServer(sub) {
       if (!sub) return;
       try {
-        var token = localStorage.getItem('understate_token') || '';
+        var token = localStorage.getItem('us_jwt') || '';
         await fetch((window._SOCKET_URL||'')+'/api/push/subscribe', {
           method: 'POST',
           headers: {
@@ -1048,6 +1048,26 @@ window._US_AUDIO_SRC = "audio/background.mp3";
     }
 
     return { isSupported, requestPermission, subscribe, sendSubscriptionToServer };
+  })();
+
+  // ── URL Param Handler (emailVerified + resetToken) ──────────────────────────
+  (function() {
+    try {
+      var params = new URLSearchParams(window.location.search);
+      if (params.get('emailVerified') === '1') {
+        window._emailVerifiedFlag = true;
+        try {
+          var p = JSON.parse(localStorage.getItem('rep_userProfile') || 'null');
+          if (p) { p.emailVerified = true; localStorage.setItem('rep_userProfile', JSON.stringify(p)); }
+        } catch(e) {}
+        history.replaceState(null, '', window.location.pathname);
+      }
+      var rt = params.get('resetToken'), ruid = params.get('userId');
+      if (rt && ruid) {
+        window._resetTokenData = { token: rt, userId: ruid };
+        history.replaceState(null, '', window.location.pathname);
+      }
+    } catch(e) {}
   })();
 
   // ── Notification Click Handler ─────────────────────────────────────

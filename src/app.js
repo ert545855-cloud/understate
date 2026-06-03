@@ -1321,6 +1321,12 @@ function App() {
         showNotif(`🏢 ${data.fromUsername} şirket ortaklığı teklif etti!`, 'info', '🏢');
       });
 
+      // ── Rate limit uyarısı ───────────────────────────────────────────────────
+      s.on('rateLimited', ({ event: ev, retryAfter } = {}) => {
+        const sec = retryAfter ? Math.ceil(retryAfter / 1000) : null;
+        showNotif(`⚠️ Çok hızlı! ${sec ? `${sec}s bekle` : 'Yavaşla'}`, 'error');
+      });
+
       // ── Market güncelleme ────────────────────────────────────────
       s.on('marketUpdate', (data) => {
         try {
@@ -1400,6 +1406,20 @@ function App() {
     setAuthed(false);
     setPage('home');
   };
+
+  // Email verification URL param handler
+  useEffect(() => {
+    if (window._emailVerifiedFlag) {
+      window._emailVerifiedFlag = false;
+      setEmailBannerDismissed(true);
+      setProfile_raw(p => p ? { ...p, emailVerified: true } : p);
+      try {
+        const s = JSON.parse(localStorage.getItem('rep_userProfile') || 'null');
+        if (s) { s.emailVerified = true; localStorage.setItem('rep_userProfile', JSON.stringify(s)); }
+      } catch {}
+      setTimeout(() => showNotif('✅ E-posta adresin başarıyla doğrulandı!', 'success'), 600);
+    }
+  }, [authed]);
 
   // Hide loading screen
   useEffect(() => {

@@ -7,7 +7,29 @@ function AuthScreen({ onLogin }) {
   const [unverifiedUser, setUnverifiedUser] = useState(null);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMsg, setResendMsg] = useState('');
+  // ForgotPassword
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotMsg, setForgotMsg] = useState('');
+  // ResetPassword
+  const [showReset, setShowReset] = useState(false);
+  const [resetData, setResetData] = useState(null);
+  const [resetPw, setResetPw] = useState('');
+  const [resetPw2, setResetPw2] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetMsg, setResetMsg] = useState('');
   const u = (k,v) => setF(p => ({...p,[k]:v}));
+
+  useEffect(() => {
+    window._USForgot = { open: () => { setForgotMsg(''); setForgotEmail(''); setShowForgot(true); } };
+    if (window._resetTokenData) {
+      setResetData(window._resetTokenData);
+      window._resetTokenData = null;
+      setShowReset(true);
+    }
+    return () => { window._USForgot = null; };
+  }, []);
 
   const getUsers = () => { try { return JSON.parse(localStorage.getItem('rep_users')||'[]'); } catch{return [];} };
   const saveUsers = (arr) => localStorage.setItem('rep_users', JSON.stringify(arr));
@@ -437,6 +459,90 @@ function AuthScreen({ onLogin }) {
         </div>
       </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+
+      {/* ── Forgot Password Modal ─────────────────────────────────── */}
+      {showForgot && (
+        <div style={{position:'fixed',inset:0,zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:'1.25rem',background:'rgba(0,0,0,0.7)',backdropFilter:'blur(8px)'}}>
+          <div style={{background:'linear-gradient(135deg,#0B1527,#0F1F36)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:'20px',padding:'1.75rem 1.5rem',width:'100%',maxWidth:'380px',boxShadow:'0 24px 64px rgba(0,0,0,0.6)'}}>
+            <div style={{textAlign:'center',marginBottom:'1.25rem'}}>
+              <div style={{fontSize:'2rem',marginBottom:'0.35rem'}}>🔑</div>
+              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,color:'#E8EDF2',fontSize:'1.2rem',marginBottom:'0.25rem'}}>Şifremi Unuttum</div>
+              <div style={{fontSize:'0.78rem',color:'#5A7089'}}>E-posta adresinize sıfırlama bağlantısı göndereceğiz</div>
+            </div>
+            {forgotMsg && (
+              <div style={{background:forgotMsg.startsWith('✅')?'rgba(16,185,129,0.1)':'rgba(239,68,68,0.1)',border:`1px solid ${forgotMsg.startsWith('✅')?'rgba(16,185,129,0.3)':'rgba(239,68,68,0.3)'}`,borderRadius:'10px',padding:'0.6rem 0.85rem',marginBottom:'0.85rem',fontSize:'0.82rem',color:forgotMsg.startsWith('✅')?'#6EE7B7':'#FCA5A5',textAlign:'center'}}>
+                {forgotMsg}
+              </div>
+            )}
+            <input
+              type="email" value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)}
+              placeholder="E-posta adresiniz"
+              style={{width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'10px',padding:'0.75rem 1rem',color:'#E8EDF2',fontFamily:"'DM Sans',sans-serif",fontSize:'16px',outline:'none',boxSizing:'border-box',marginBottom:'0.75rem'}}
+              onKeyDown={e=>{ if(e.key==='Enter') doForgot(); }}
+            />
+            <button disabled={forgotLoading || forgotMsg.startsWith('✅')} onClick={async()=>{
+              if(!forgotEmail.trim()){setForgotMsg('⚠️ E-posta adresinizi girin');return;}
+              setForgotLoading(true);
+              try{
+                const r=await fetch('/api/auth/forgot-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:forgotEmail.trim().toLowerCase()})});
+                const d=await r.json();
+                setForgotMsg(d.success?'✅ Sıfırlama bağlantısı gönderildi! E-postanı kontrol et.':'⚠️ '+(d.message||'Hata oluştu'));
+              }catch{setForgotMsg('⚠️ Bağlantı hatası');}
+              setForgotLoading(false);
+            }} style={{width:'100%',padding:'0.85rem',borderRadius:'10px',border:'none',background:forgotLoading?'rgba(59,130,246,0.3)':'rgba(59,130,246,0.9)',color:'#fff',fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:'0.95rem',cursor:forgotLoading?'not-allowed':'pointer',marginBottom:'0.5rem',transition:'all 0.2s'}}>
+              {forgotLoading ? 'Gönderiliyor...' : '📨 Bağlantı Gönder'}
+            </button>
+            <button onClick={()=>setShowForgot(false)} style={{width:'100%',padding:'0.65rem',borderRadius:'10px',border:'1px solid rgba(255,255,255,0.08)',background:'transparent',color:'#5A7089',fontFamily:"'DM Sans',sans-serif",fontWeight:600,fontSize:'0.9rem',cursor:'pointer'}}>
+              İptal
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Reset Password Modal ──────────────────────────────────── */}
+      {showReset && (
+        <div style={{position:'fixed',inset:0,zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:'1.25rem',background:'rgba(0,0,0,0.7)',backdropFilter:'blur(8px)'}}>
+          <div style={{background:'linear-gradient(135deg,#0B1527,#0F1F36)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:'20px',padding:'1.75rem 1.5rem',width:'100%',maxWidth:'380px',boxShadow:'0 24px 64px rgba(0,0,0,0.6)'}}>
+            <div style={{textAlign:'center',marginBottom:'1.25rem'}}>
+              <div style={{fontSize:'2rem',marginBottom:'0.35rem'}}>🔒</div>
+              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,color:'#E8EDF2',fontSize:'1.2rem',marginBottom:'0.25rem'}}>Yeni Şifre Belirle</div>
+              <div style={{fontSize:'0.78rem',color:'#5A7089'}}>Güçlü bir şifre seçin (min 8 karakter)</div>
+            </div>
+            {resetMsg && (
+              <div style={{background:resetMsg.startsWith('✅')?'rgba(16,185,129,0.1)':'rgba(239,68,68,0.1)',border:`1px solid ${resetMsg.startsWith('✅')?'rgba(16,185,129,0.3)':'rgba(239,68,68,0.3)'}`,borderRadius:'10px',padding:'0.6rem 0.85rem',marginBottom:'0.85rem',fontSize:'0.82rem',color:resetMsg.startsWith('✅')?'#6EE7B7':'#FCA5A5',textAlign:'center'}}>
+                {resetMsg}
+              </div>
+            )}
+            <input
+              type="password" value={resetPw} onChange={e=>setResetPw(e.target.value)}
+              placeholder="Yeni şifre" autoComplete="new-password"
+              style={{width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'10px',padding:'0.75rem 1rem',color:'#E8EDF2',fontFamily:"'DM Sans',sans-serif",fontSize:'16px',outline:'none',boxSizing:'border-box',marginBottom:'0.5rem'}}
+            />
+            <input
+              type="password" value={resetPw2} onChange={e=>setResetPw2(e.target.value)}
+              placeholder="Yeni şifre (tekrar)" autoComplete="new-password"
+              style={{width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'10px',padding:'0.75rem 1rem',color:'#E8EDF2',fontFamily:"'DM Sans',sans-serif",fontSize:'16px',outline:'none',boxSizing:'border-box',marginBottom:'0.75rem'}}
+            />
+            <button disabled={resetLoading||resetMsg.startsWith('✅')} onClick={async()=>{
+              if(!resetPw||resetPw.length<6){setResetMsg('⚠️ Şifre en az 6 karakter olmalı');return;}
+              if(resetPw!==resetPw2){setResetMsg('⚠️ Şifreler eşleşmiyor');return;}
+              setResetLoading(true);
+              try{
+                const r=await fetch('/api/auth/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:resetData?.token,userId:resetData?.userId,newPassword:resetPw})});
+                const d=await r.json();
+                if(d.success){setResetMsg('✅ Şifren güncellendi! Giriş yapabilirsin.'); setTimeout(()=>setShowReset(false),2000);}
+                else setResetMsg('⚠️ '+(d.message||'Hata oluştu'));
+              }catch{setResetMsg('⚠️ Bağlantı hatası');}
+              setResetLoading(false);
+            }} style={{width:'100%',padding:'0.85rem',borderRadius:'10px',border:'none',background:resetLoading?'rgba(59,130,246,0.3)':'rgba(59,130,246,0.9)',color:'#fff',fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:'0.95rem',cursor:resetLoading?'not-allowed':'pointer',marginBottom:'0.5rem',transition:'all 0.2s'}}>
+              {resetLoading ? 'Güncelleniyor...' : '🔒 Şifreyi Kaydet'}
+            </button>
+            <button onClick={()=>setShowReset(false)} style={{width:'100%',padding:'0.65rem',borderRadius:'10px',border:'1px solid rgba(255,255,255,0.08)',background:'transparent',color:'#5A7089',fontFamily:"'DM Sans',sans-serif",fontWeight:600,fontSize:'0.9rem',cursor:'pointer'}}>
+              İptal
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

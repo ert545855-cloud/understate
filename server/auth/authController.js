@@ -322,4 +322,28 @@ async function getProfile(req, res) {
   }
 }
 
-module.exports = { register, login, logout, refreshToken, forgotPassword, resetPassword, getProfile, userToPublic };
+// ── Change Password (authenticated) ──────────────────────────────────────────
+async function changePassword(req, res) {
+  try {
+    if (!sb.isReady())
+      return res.status(503).json({ success: false, message: 'Veritabanı bağlı değil' });
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword)
+      return res.status(400).json({ success: false, message: 'Mevcut ve yeni şifre gerekli' });
+    const pErr = validatePassword(newPassword);
+    if (pErr) return res.status(400).json({ success: false, message: pErr });
+    const user = await sb.findUserById(req.user.id);
+    if (!user) return res.status(404).json({ success: false, message: 'Kullanıcı bulunamadı' });
+    const ok = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!ok) return res.status(400).json({ success: false, message: 'Mevcut şifre hatalı' });
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    await sb.updateUser(user.id, { password_hash: passwordHash, refresh_token: null });
+    logger.info(`[Auth] Şifre değiştirildi: ${user.username}`);
+    res.json({ success: true, message: 'Şifreniz başarıyla güncellendi' });
+  } catch (err) {
+    logger.error('ChangePassword hatası:', err.message);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+}
+
+module.exports = { register, login, logout, refreshToken, forgotPassword, resetPassword, changePassword, getProfile, userToPublic };

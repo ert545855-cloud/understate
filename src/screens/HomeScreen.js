@@ -725,6 +725,74 @@ function AdminSupportTab({ setMsg, inp, cs }) {
   );
 }
 
+function AdminPushTab({ setMsg, cs, inp }) {
+  const [pushTitle, setPushTitle] = useState('');
+  const [pushBody, setPushBody] = useState('');
+  const [pushUrl, setPushUrl] = useState('/');
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushResult, setPushResult] = useState(null);
+  const [targetUserId, setTargetUserId] = useState('');
+  const [pushMode, setPushMode] = useState('all');
+
+  const sendPush = async () => {
+    if (!pushTitle.trim() || !pushBody.trim()) { setMsg('⚠️ Başlık ve mesaj gerekli'); return; }
+    setPushLoading(true); setPushResult(null);
+    const jwt = localStorage.getItem('us_jwt') || '';
+    const apiBase = window._SOCKET_URL || '';
+    const endpoint = pushMode === 'all'
+      ? apiBase + '/api/push/broadcast'
+      : apiBase + '/api/push/send/' + targetUserId.trim();
+    try {
+      const r = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+        body: JSON.stringify({ title: pushTitle, body: pushBody, url: pushUrl || '/' })
+      });
+      const d = await r.json();
+      setPushResult(d);
+      if (d.success || d.sent >= 0) setMsg('✅ Push gönderildi: ' + (d.sent||0) + ' alıcı');
+      else setMsg('⚠️ ' + (d.message || 'Gönderme hatası'));
+    } catch(e) { setMsg('❌ Hata: ' + e.message); }
+    setPushLoading(false);
+  };
+
+  return (
+    <div style={cs}>
+      <div style={{fontWeight:700,color:'#E8EDF2',marginBottom:'0.75rem',fontSize:'0.9rem'}}>📲 Push Bildirim Yayını</div>
+
+      <div style={{display:'flex',gap:'0.5rem',marginBottom:'0.65rem'}}>
+        {[['all','🌍 Tüm Kullanıcılar'],['user','👤 Belirli Kullanıcı']].map(([v,l])=>(
+          <button key={v} onClick={()=>setPushMode(v)}
+            style={{flex:1,padding:'0.45rem',borderRadius:'8px',border:'1px solid '+(pushMode===v?'rgba(239,68,68,0.4)':'rgba(255,255,255,0.08)'),background:pushMode===v?'rgba(239,68,68,0.12)':'rgba(255,255,255,0.03)',color:pushMode===v?'#F87171':'#5A7089',fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:'0.75rem',cursor:'pointer'}}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {pushMode === 'user' && (
+        <input value={targetUserId} onChange={e=>setTargetUserId(e.target.value)} placeholder="Kullanıcı ID (UUID)" style={{...inp,marginBottom:'0.5rem'}} />
+      )}
+
+      <input value={pushTitle} onChange={e=>setPushTitle(e.target.value)} placeholder="Bildirim başlığı" style={{...inp,marginBottom:'0.5rem'}} />
+      <textarea value={pushBody} onChange={e=>setPushBody(e.target.value)} placeholder="Bildirim mesajı..." rows={3}
+        style={{...inp,marginBottom:'0.5rem',resize:'vertical',height:'70px'}} />
+      <input value={pushUrl} onChange={e=>setPushUrl(e.target.value)} placeholder="Yönlendirme URL (ör: /)" style={{...inp,marginBottom:'0.65rem'}} />
+
+      <button onClick={sendPush} disabled={pushLoading}
+        style={{width:'100%',padding:'0.75rem',borderRadius:'10px',border:'none',background:pushLoading?'rgba(239,68,68,0.3)':'rgba(239,68,68,0.85)',color:'#fff',fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:'0.9rem',cursor:pushLoading?'not-allowed':'pointer'}}>
+        {pushLoading ? '⏳ Gönderiliyor...' : '📲 Push Gönder'}
+      </button>
+
+      {pushResult && (
+        <div style={{marginTop:'0.75rem',background:'rgba(16,185,129,0.07)',border:'1px solid rgba(16,185,129,0.2)',borderRadius:'8px',padding:'0.6rem 0.85rem',fontSize:'0.8rem',color:'#6EE7B7'}}>
+          ✅ Gönderildi: {pushResult.sent||0} / {pushResult.total||0} aboneye
+          {pushResult.errors > 0 && React.createElement('span',{style:{color:'#FCA5A5',marginLeft:'0.5rem'}},'('+pushResult.errors+' hata)')}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminPage({ profile, showNotif, onNavigate }) {
   const [tab, setTab] = useState('dashboard');
   const [allUsers, setAllUsersRaw] = useState(() => {
@@ -927,7 +995,7 @@ function AdminPage({ profile, showNotif, onNavigate }) {
 
   const cs = {background:'rgba(255,255,255,0.04)',borderRadius:'14px',padding:'1rem',border:'1px solid rgba(255,255,255,0.07)',marginBottom:'0.65rem'};
   const inp = {width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'10px',padding:'0.55rem 0.8rem',color:'#E8EDF2',fontFamily:"'DM Sans',sans-serif",fontSize:'15px',outline:'none',boxSizing:'border-box'};
-  const tabs = [['dashboard','📊 Panel'],['users','👥 Kullanıcılar'],['manage','🛡️ Yönet'],['announce','📢 Duyuru'],['support','💬 Destek'],['logs','📋 Log'],['economy','💰 Ekonomi'],['education','🎓 Eğitim'],['tools','🛠️ Araçlar'],['election','🗳️ Seçim'],['makamlar','👑 Makamlar']];
+  const tabs = [['dashboard','📊 Panel'],['users','👥 Kullanıcılar'],['manage','🛡️ Yönet'],['announce','📢 Duyuru'],['push','📲 Push'],['support','💬 Destek'],['logs','📋 Log'],['economy','💰 Ekonomi'],['education','🎓 Eğitim'],['tools','🛠️ Araçlar'],['election','🗳️ Seçim'],['makamlar','👑 Makamlar']];
   const [elections_multi, setElections_multi] = useLs('rep_elections_multi', {});
 
   return (
@@ -1405,6 +1473,9 @@ function AdminPage({ profile, showNotif, onNavigate }) {
 
       {/* ── MAKAMLAR ── */}
       {tab==='makamlar' && <AdminMakamlarTab allUsers={allUsers} setAllUsersRaw={setAllUsersRaw} setMsg={setMsg} cs={cs} inp={inp} />}
+
+      {/* ── PUSH BROADCAST ── */}
+      {tab==='push' && <AdminPushTab setMsg={setMsg} cs={cs} inp={inp} />}
     </div>
   );
 }

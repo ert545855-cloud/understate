@@ -1951,6 +1951,150 @@ function ProfilePage({ profile, setProfile, onLogout, showNotif }) {
   const [avatarUrlInput, setAvatarUrlInput] = useState(profile?.avatarUrl||'');
   const [bannerUrlInput, setBannerUrlInput] = useState(profile?.bannerUrl||'');
   const fileInputRef = useRef(null);
+
+  // ── Yeni state'ler ───────────────────────────────────────────────────────────
+  const [pwForm, setPwForm] = useState({ current:'', newPw:'', confirm:'' });
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwMsg, setPwMsg] = useState('');
+  const [streak, setStreak] = useState(null);
+  const [streakLoading, setStreakLoading] = useState(false);
+  const [referralCode, setReferralCode] = useState(null);
+  const [loans, setLoans] = useState([]);
+  const [loansLoading, setLoansLoading] = useState(false);
+  const [loanAmt, setLoanAmt] = useState('');
+  const [twoFAStatus, setTwoFAStatus] = useState(null);
+  const [twoFASetup, setTwoFASetup] = useState(null);
+  const [twoFAToken, setTwoFAToken] = useState('');
+
+  useEffect(() => {
+    const token = localStorage.getItem('us_jwt');
+    if (!token) return;
+    if (tab === 'settings') {
+      fetch('/api/streak', { headers:{ Authorization:`Bearer ${token}` } })
+        .then(r=>r.json()).then(d=>{ if(d.success) setStreak(d.streak); }).catch(()=>{});
+      fetch('/api/profile/referral', { headers:{ Authorization:`Bearer ${token}` } })
+        .then(r=>r.json()).then(d=>{ if(d.success) setReferralCode(d.referralCode); }).catch(()=>{});
+      if (twoFAStatus === null)
+        fetch('/api/auth/2fa/status', { headers:{ Authorization:`Bearer ${token}` } })
+          .then(r=>r.json()).then(d=>{ if(d.success !== undefined) setTwoFAStatus(!!d.enabled); }).catch(()=>{});
+    }
+    if (tab === 'kredi') {
+      setLoansLoading(true);
+      fetch('/api/loans', { headers:{ Authorization:`Bearer ${token}` } })
+        .then(r=>r.json()).then(d=>{ setLoans(d.loans||[]); setLoansLoading(false); })
+        .catch(()=>setLoansLoading(false));
+    }
+  }, [tab]);
+
+  const _fetchLoans = () => {
+    const token = localStorage.getItem('us_jwt');
+    if (!token) return;
+    fetch('/api/loans', { headers:{ Authorization:`Bearer ${token}` } })
+      .then(r=>r.json()).then(d=>setLoans(d.loans||[])).catch(()=>{});
+  };
+
+  const doChangePassword = async () => {
+    if (!pwForm.current || !pwForm.newPw) { setPwMsg('⚠️ Tüm alanları doldurun'); return; }
+    if (pwForm.newPw !== pwForm.confirm) { setPwMsg('⚠️ Şifreler eşleşmiyor'); return; }
+    if (pwForm.newPw.length < 6) { setPwMsg('⚠️ En az 6 karakter'); return; }
+    setPwLoading(true); setPwMsg('');
+    try {
+      const token = localStorage.getItem('us_jwt');
+      const r = await fetch('/api/auth/change-password', {
+        method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+        body: JSON.stringify({ currentPassword:pwForm.current, newPassword:pwForm.newPw })
+      });
+      const d = await r.json();
+      setPwMsg(d.success ? '✅ Şifre güncellendi!' : '⚠️ '+(d.message||'Hata'));
+      if (d.success) setPwForm({ current:'', newPw:'', confirm:'' });
+    } catch { setPwMsg('⚠️ Bağlantı hatası'); }
+    setPwLoading(false);
+  };
+
+  const doClaimStreak = async () => {
+    setStreakLoading(true);
+    try {
+      const token = localStorage.getItem('us_jwt');
+      const r = await fetch('/api/streak/claim', { method:'POST', headers:{ Authorization:`Bearer ${token}` } });
+      const d = await r.json();
+      if (d.success) {
+        showNotif(`🎁 +${(d.reward?.money||0).toLocaleString('tr-TR')}₺ +${d.reward?.xp||0}XP!`, 'success');
+        setStreak(prev => prev ? { ...prev, current_streak:d.streak, last_claim_date:new Date().toISOString().slice(0,10) } : prev);
+        if (d.reward) setProfile(p => ({ ...p, money:(p.money||0)+(d.reward.money||0), xp:(p.xp||0)+(d.reward.xp||0) }));
+      } else {
+        showNotif(d.message || 'Ödül alınamadı', 'error');
+      }
+    } catch { showNotif('Bağlantı hatası', 'error'); }
+    setStreakLoading(false);
+  };
+
+  const doSetup2FA = async () => {
+    const token = localStorage.getItem('us_jwt');
+    const r = await fetch('/api/auth/2fa/setup', { headers:{ Authorization:`Bearer ${token}` } });
+    const d = await r.json();
+    if (d.success) setTwoFASetup(d);
+    else showNotif('⚠️ '+(d.message||'2FA kurulum hatası'), 'error');
+  };
+
+  const doEnable2FA = async () => {
+    if (!twoFAToken || twoFAToken.length < 6) { showNotif('6 haneli kod girin', 'error'); return; }
+    const token = localStorage.getItem('us_jwt');
+    const r = await fetch('/api/auth/2fa/enable', {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+      body: JSON.stringify({ token: twoFAToken })
+    });
+    const d = await r.json();
+    if (d.success) { setTwoFAStatus(true); setTwoFASetup(null); setTwoFAToken(''); showNotif('✅ 2FA etkinleştirildi!', 'success'); }
+    else showNotif('⚠️ '+(d.message||'Hatalı kod'), 'error');
+  };
+
+  const doDisable2FA = async () => {
+    if (!twoFAToken || twoFAToken.length < 6) { showNotif('6 haneli kod girin', 'error'); return; }
+    const token = localStorage.getItem('us_jwt');
+    const r = await fetch('/api/auth/2fa/disable', {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+      body: JSON.stringify({ token: twoFAToken })
+    });
+    const d = await r.json();
+    if (d.success) { setTwoFAStatus(false); setTwoFAToken(''); showNotif('2FA devre dışı bırakıldı', 'info'); }
+    else showNotif('⚠️ '+(d.message||'Hatalı kod'), 'error');
+  };
+
+  const doRequestLoan = async () => {
+    const amt = parseInt(loanAmt);
+    if (!amt || amt < 1000) { showNotif('Minimum 1.000₺ kredi alabilirsiniz', 'error'); return; }
+    const token = localStorage.getItem('us_jwt');
+    const r = await fetch('/api/loans/request', {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+      body: JSON.stringify({ amount: amt })
+    });
+    const d = await r.json();
+    if (d.success) {
+      showNotif(`✅ ${amt.toLocaleString('tr-TR')}₺ hesabınıza yüklendi!`, 'success');
+      setProfile(p => ({ ...p, money:(p.money||0)+amt }));
+      setLoanAmt('');
+      _fetchLoans();
+    } else {
+      showNotif('⚠️ '+(d.message||'Kredi alınamadı'), 'error');
+    }
+  };
+
+  const doRepayLoan = async (loanId, amount) => {
+    const token = localStorage.getItem('us_jwt');
+    const r = await fetch(`/api/loans/repay/${loanId}`, {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+      body: JSON.stringify({ amount })
+    });
+    const d = await r.json();
+    if (d.success) {
+      showNotif(d.closed ? '✅ Krediniz kapatıldı!' : `✅ ${amount.toLocaleString('tr-TR')}₺ ödendi`, 'success');
+      setProfile(p => ({ ...p, money:(p.money||0)-amount }));
+      _fetchLoans();
+    } else {
+      showNotif('⚠️ '+(d.message||'Ödeme başarısız'), 'error');
+    }
+  };
+
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -2047,8 +2191,8 @@ function ProfilePage({ profile, setProfile, onLogout, showNotif }) {
 
       {/* Tabs */}
       <div style={{display:'flex',gap:'4px',marginBottom:'0.75rem'}}>
-        {[['stats','📊 İstatistik'],['achievements',`🏆 (${earnedCount}/${achievements.length})`],['customize','📸 Özelleştir'],['settings','⚙️ Ayarlar']].map(([v,l])=>(
-          <button key={v} onClick={()=>setTab(v)} style={{flex:1,padding:'0.4rem 0.4rem',borderRadius:'8px',border:`1px solid ${tab===v?'rgba(59,130,246,0.4)':'rgba(255,255,255,0.07)'}`,background:tab===v?'rgba(59,130,246,0.12)':'rgba(255,255,255,0.03)',color:tab===v?'#60A5FA':'#5A7089',fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:'0.72rem',cursor:'pointer'}}>
+        {[['stats','📊'],['achievements',`🏆(${earnedCount})`],['customize','📸'],['settings','⚙️ Ayarlar'],['kredi','💳 Kredi']].map(([v,l])=>(
+          <button key={v} onClick={()=>setTab(v)} style={{flex:1,padding:'0.4rem 0.2rem',borderRadius:'8px',border:`1px solid ${tab===v?'rgba(59,130,246,0.4)':'rgba(255,255,255,0.07)'}`,background:tab===v?'rgba(59,130,246,0.12)':'rgba(255,255,255,0.03)',color:tab===v?'#60A5FA':'#5A7089',fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:'0.65rem',cursor:'pointer',whiteSpace:'nowrap'}}>
             {l}
           </button>
         ))}
@@ -2204,6 +2348,104 @@ function ProfilePage({ profile, setProfile, onLogout, showNotif }) {
           <div style={{marginTop:'0.75rem'}}>
             <Btn variant='primary' size='full' onClick={()=>setEditModal(true)}>✏️ Profili Düzenle</Btn>
           </div>
+
+          {/* Streak */}
+          <div style={{marginTop:'0.75rem',paddingTop:'0.75rem',borderTop:'1px solid rgba(255,255,255,0.05)'}}>
+            <div style={{fontSize:'0.7rem',color:'#5A7089',fontWeight:700,marginBottom:'0.4rem'}}>🔥 Günlük Streak</div>
+            {streak ? (
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <div>
+                  <span style={{color:'#F59E0B',fontWeight:900,fontSize:'1.1rem',fontFamily:"'JetBrains Mono',monospace"}}>🔥 {streak.current_streak||0}</span>
+                  <span style={{color:'#5A7089',fontSize:'0.7rem',marginLeft:'0.4rem'}}>gün · En iyi: {streak.longest_streak||0}</span>
+                </div>
+                <Btn variant={streak.last_claim_date===new Date().toISOString().slice(0,10)?'ghost':'primary'} size='sm'
+                  onClick={streak.last_claim_date===new Date().toISOString().slice(0,10)?undefined:doClaimStreak}
+                  disabled={streakLoading||streak.last_claim_date===new Date().toISOString().slice(0,10)}>
+                  {streak.last_claim_date===new Date().toISOString().slice(0,10)?'✅ Alındı':streakLoading?'...':'🎁 Al'}
+                </Btn>
+              </div>
+            ) : (
+              <Btn variant='ghost' size='sm' onClick={doClaimStreak} disabled={streakLoading}>
+                {streakLoading?'Yükleniyor...':'🎁 Günlük Ödül Al'}
+              </Btn>
+            )}
+          </div>
+
+          {/* Referral */}
+          <div style={{marginTop:'0.6rem',paddingTop:'0.6rem',borderTop:'1px solid rgba(255,255,255,0.05)'}}>
+            <div style={{fontSize:'0.7rem',color:'#5A7089',fontWeight:700,marginBottom:'0.4rem'}}>🔗 Referans Kodun</div>
+            <div style={{display:'flex',alignItems:'center',gap:'0.5rem'}}>
+              <code style={{background:'rgba(59,130,246,0.08)',border:'1px solid rgba(59,130,246,0.18)',borderRadius:'6px',padding:'0.3rem 0.55rem',color:'#60A5FA',fontFamily:"'JetBrains Mono',monospace",fontSize:'0.85rem',flex:1,textAlign:'center',letterSpacing:'0.08em'}}>
+                {referralCode||'—'}
+              </code>
+              {referralCode && (
+                <button onClick={()=>{navigator.clipboard?.writeText(referralCode).then(()=>showNotif('✅ Kopyalandı!','success')).catch(()=>{});}}
+                  style={{background:'rgba(59,130,246,0.08)',border:'1px solid rgba(59,130,246,0.18)',borderRadius:'7px',padding:'0.3rem 0.55rem',color:'#60A5FA',cursor:'pointer',fontSize:'0.72rem',fontWeight:700,fontFamily:"'DM Sans',sans-serif"}}>
+                  📋
+                </button>
+              )}
+            </div>
+            <div style={{fontSize:'0.6rem',color:'#5A7089',marginTop:'0.25rem'}}>Arkadaşın kullanırsa +2.000₺ sen, +5.000₺ sen</div>
+          </div>
+        </Card>
+      )}
+
+      {/* ── Şifre Değiştir Kartı ──────────────────────────────────────── */}
+      {tab==='settings' && (
+        <Card style={{marginTop:'0.5rem'}}>
+          <div style={{fontWeight:700,color:'#E8EDF2',marginBottom:'0.65rem',fontSize:'0.85rem'}}>🔑 Şifre Değiştir</div>
+          {pwMsg && (
+            <div style={{background:pwMsg.startsWith('✅')?'rgba(16,185,129,0.1)':'rgba(239,68,68,0.1)',border:`1px solid ${pwMsg.startsWith('✅')?'rgba(16,185,129,0.3)':'rgba(239,68,68,0.3)'}`,borderRadius:'8px',padding:'0.45rem 0.7rem',marginBottom:'0.55rem',fontSize:'0.78rem',color:pwMsg.startsWith('✅')?'#6EE7B7':'#FCA5A5'}}>
+              {pwMsg}
+            </div>
+          )}
+          <input type="password" value={pwForm.current} onChange={e=>setPwForm(p=>({...p,current:e.target.value}))}
+            placeholder="Mevcut şifre" style={{...inputSt,marginBottom:'0.45rem'}} />
+          <input type="password" value={pwForm.newPw} onChange={e=>setPwForm(p=>({...p,newPw:e.target.value}))}
+            placeholder="Yeni şifre (min 6 karakter)" style={{...inputSt,marginBottom:'0.45rem'}} />
+          <input type="password" value={pwForm.confirm} onChange={e=>setPwForm(p=>({...p,confirm:e.target.value}))}
+            placeholder="Yeni şifre (tekrar)" style={{...inputSt,marginBottom:'0.6rem'}} />
+          <Btn variant='primary' size='full' onClick={doChangePassword} disabled={pwLoading}>
+            {pwLoading?'Güncelleniyor...':'🔑 Şifreyi Güncelle'}
+          </Btn>
+        </Card>
+      )}
+
+      {/* ── 2FA Kartı ──────────────────────────────────────────────────── */}
+      {tab==='settings' && (
+        <Card style={{marginTop:'0.5rem'}}>
+          <div style={{fontWeight:700,color:'#E8EDF2',marginBottom:'0.65rem',fontSize:'0.85rem'}}>🛡️ İki Faktörlü Doğrulama (2FA)</div>
+          {twoFAStatus === null ? (
+            <div style={{color:'#5A7089',fontSize:'0.8rem',textAlign:'center',padding:'0.5rem'}}>Yükleniyor...</div>
+          ) : twoFAStatus ? (
+            <div>
+              <div style={{background:'rgba(16,185,129,0.08)',border:'1px solid rgba(16,185,129,0.2)',borderRadius:'8px',padding:'0.45rem 0.7rem',marginBottom:'0.55rem',fontSize:'0.78rem',color:'#6EE7B7'}}>
+                ✅ 2FA etkin — Hesabınız korumalı
+              </div>
+              <input type="text" inputMode="numeric" value={twoFAToken} onChange={e=>setTwoFAToken(e.target.value.replace(/\D/g,'').slice(0,6))}
+                placeholder="6 haneli kodu girin" style={{...inputSt,marginBottom:'0.5rem',textAlign:'center',letterSpacing:'0.2em',fontFamily:"'JetBrains Mono',monospace"}} />
+              <Btn variant='danger' size='full' onClick={doDisable2FA}>2FA'yı Kapat</Btn>
+            </div>
+          ) : twoFASetup ? (
+            <div>
+              <div style={{fontSize:'0.73rem',color:'#5A7089',marginBottom:'0.5rem'}}>Authenticator uygulamasıyla QR kodu okutun:</div>
+              <div style={{textAlign:'center',marginBottom:'0.6rem'}}>
+                <img src={twoFASetup.qrCode} alt="QR" style={{width:'150px',height:'150px',borderRadius:'8px',background:'#fff',padding:'4px'}} />
+              </div>
+              <div style={{background:'rgba(0,0,0,0.3)',borderRadius:'6px',padding:'0.4rem 0.6rem',marginBottom:'0.6rem',fontFamily:"'JetBrains Mono',monospace",fontSize:'0.68rem',color:'#A78BFA',textAlign:'center',wordBreak:'break-all'}}>
+                {twoFASetup.secret}
+              </div>
+              <input type="text" inputMode="numeric" value={twoFAToken} onChange={e=>setTwoFAToken(e.target.value.replace(/\D/g,'').slice(0,6))}
+                placeholder="6 haneli kodu girin" style={{...inputSt,marginBottom:'0.45rem',textAlign:'center',letterSpacing:'0.2em',fontFamily:"'JetBrains Mono',monospace"}} />
+              <Btn variant='primary' size='full' onClick={doEnable2FA} style={{marginBottom:'0.35rem'}}>✅ 2FA Etkinleştir</Btn>
+              <Btn variant='ghost' size='full' onClick={()=>setTwoFASetup(null)}>İptal</Btn>
+            </div>
+          ) : (
+            <div>
+              <div style={{fontSize:'0.73rem',color:'#5A7089',marginBottom:'0.6rem'}}>Google Authenticator ile hesabınızı koruyun. Giriş sırasında 6 haneli kod gerekecek.</div>
+              <Btn variant='ghost' size='full' onClick={doSetup2FA}>🛡️ 2FA Kurulumunu Başlat</Btn>
+            </div>
+          )}
         </Card>
       )}
 
@@ -2262,6 +2504,70 @@ function ProfilePage({ profile, setProfile, onLogout, showNotif }) {
               <Btn variant='ghost' onClick={()=>showNotif('Premium sayfasına yönlendiriliyor... 💎','gold')}>💎 VIP Ol</Btn>
             </Card>
           )}
+        </div>
+      )}
+
+      {/* ── Kredi / Loan Tabı ──────────────────────────────────────────── */}
+      {tab==='kredi' && (
+        <div>
+          <Card style={{marginBottom:'0.5rem'}}>
+            <div style={{fontSize:'0.7rem',color:'#5A7089',fontWeight:700,textTransform:'uppercase',marginBottom:'0.5rem'}}>📊 Kredi Skoru</div>
+            <div style={{display:'flex',alignItems:'center',gap:'0.75rem'}}>
+              <div style={{fontSize:'2rem',fontWeight:900,fontFamily:"'JetBrains Mono',monospace",color:(profile?.creditScore||profile?.credit_score||500)>=700?'#10B981':(profile?.creditScore||profile?.credit_score||500)>=500?'#F59E0B':'#EF4444'}}>
+                {profile?.creditScore||profile?.credit_score||500}
+              </div>
+              <div>
+                <Tag color={(profile?.creditScore||500)>=700?'green':(profile?.creditScore||500)>=500?'gold':'red'}>
+                  {(profile?.creditScore||500)>=700?'İyi':((profile?.creditScore||500)>=500?'Normal':'Kötü')}
+                </Tag>
+              </div>
+            </div>
+          </Card>
+
+          <Card style={{marginBottom:'0.5rem'}}>
+            <div style={{fontWeight:700,color:'#E8EDF2',marginBottom:'0.6rem',fontSize:'0.85rem'}}>💳 Kredi Talebi</div>
+            <input type="number" value={loanAmt} onChange={e=>setLoanAmt(e.target.value)}
+              placeholder="Tutar girin (min 1.000₺)" style={{...inputSt,marginBottom:'0.45rem'}} />
+            {parseInt(loanAmt)>=1000 && (
+              <div style={{fontSize:'0.7rem',color:'#5A7089',marginBottom:'0.45rem'}}>
+                Tahmini faiz: %8 · Geri ödeme: ~{Math.ceil(parseInt(loanAmt)*1.08).toLocaleString('tr-TR')}₺ (30 gün)
+              </div>
+            )}
+            <Btn variant='primary' size='full' onClick={doRequestLoan}>💳 Kredi Al</Btn>
+          </Card>
+
+          <Card>
+            <div style={{fontWeight:700,color:'#E8EDF2',marginBottom:'0.6rem',fontSize:'0.85rem'}}>📋 Kredilerim</div>
+            {loansLoading ? (
+              <div style={{textAlign:'center',padding:'0.75rem',color:'#5A7089',fontSize:'0.8rem'}}>Yükleniyor...</div>
+            ) : loans.length===0 ? (
+              <div style={{textAlign:'center',padding:'0.75rem',color:'#5A7089',fontSize:'0.8rem'}}>Aktif kredi yok</div>
+            ) : loans.map(loan=>(
+              <div key={loan.id} style={{background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.06)',borderRadius:'10px',padding:'0.6rem',marginBottom:'0.35rem'}}>
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:'0.3rem'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:'0.4rem'}}>
+                    <span style={{color:'#E8EDF2',fontWeight:700,fontSize:'0.85rem'}}>{parseInt(loan.principal||loan.amount||0).toLocaleString('tr-TR')}₺</span>
+                    <Tag color={loan.status==='active'?'blue':loan.status==='paid'?'green':'red'}>
+                      {loan.status==='active'?'Aktif':loan.status==='paid'?'Ödendi':'Gecikmiş'}
+                    </Tag>
+                  </div>
+                  <span style={{color:'#5A7089',fontSize:'0.68rem'}}>{loan.due_date?new Date(loan.due_date).toLocaleDateString('tr-TR'):'-'}</span>
+                </div>
+                {loan.status==='active' && (
+                  <div>
+                    <ProgressBar pct={Math.min(100,(parseInt(loan.amount_paid||0)/Math.max(1,parseInt(loan.amount_due||loan.total_due||loan.principal||1)))*100)} color='#10B981' h={4} />
+                    <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.67rem',color:'#5A7089',margin:'0.25rem 0 0.4rem'}}>
+                      <span>Ödenen: {parseInt(loan.amount_paid||0).toLocaleString('tr-TR')}₺</span>
+                      <span>Kalan: {(parseInt(loan.amount_due||loan.total_due||0)-parseInt(loan.amount_paid||0)).toLocaleString('tr-TR')}₺</span>
+                    </div>
+                    <Btn variant='ghost' size='sm' onClick={()=>doRepayLoan(loan.id,(parseInt(loan.amount_due||loan.total_due||0)-parseInt(loan.amount_paid||0)))}>
+                      💰 Tamamını Öde
+                    </Btn>
+                  </div>
+                )}
+              </div>
+            ))}
+          </Card>
         </div>
       )}
 
