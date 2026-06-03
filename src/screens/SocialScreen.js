@@ -1045,13 +1045,13 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
 
   const uid = profile?.uid || profile?.id;
   const filteredGangs = typeFilter ? gangs.filter(g=>g.type===typeFilter) : gangs;
-  const myGang = gangs.find(g => g.leaderId===uid || (g.members||[]).includes(uid));
-  const isMyGangMatchFilter = myGang && (!typeFilter || myGang.type===typeFilter);
+  const myGang = gangs.find(g => (!typeFilter || g.type===typeFilter) && (g.leaderId===uid || (g.members||[]).includes(uid)));
+  const isMyGangMatchFilter = !!myGang;
   const isGangLeader = !!uid && myGang?.leaderId === uid;
 
   const createGang = () => {
     if (!gForm.name.trim()) { showNotif('İsim gerekli','error'); return; }
-    if (myGang) { showNotif('Zaten bir çeteye/aileye üyesin','error'); return; }
+    if (myGang) { showNotif(`Zaten bir ${isFamily?'aileye':'çeteye'} üyesin`,'error'); return; }
     if (profile?.party) { showNotif('🏛️ Parti üyeleri çete veya aile kuramazlar. Önce partiden ayrılın.','error'); return; }
     const actualType = typeFilter || gForm.type;
     const cost = actualType==='family' ? 500000 : 100000;
@@ -1063,7 +1063,7 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
       power:10, territory:0, reputation:0, createdAt:Date.now()
     };
     setGangs(prev => { const next=[...prev, gang]; try{window._socket?.emit('gang:create',{gang});window._socket?.emit('gang:sync',{gangs:next});}catch(e){}; return next; });
-    setProfile(p => { const np={...p,gang:gang.id,money:(p.money||0)-cost}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
+    setProfile(p => { const field=actualType==='family'?'family':'gang'; const np={...p,[field]:gang.id,money:(p.money||0)-cost}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
     setCreateModal(false);
     setGForm({name:'',type:'gang',desc:''});
     showNotif(`${gang.type==='family'?'👨‍👩‍👧‍👦':'⚔️'} ${gang.name} kuruldu!`,'success');
@@ -1071,17 +1071,17 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
   };
 
   const joinGang = (gang) => {
-    if (myGang) { showNotif('Zaten bir çeteye/aileye üyesin','error'); return; }
+    if (myGang) { showNotif(`Zaten bir ${isFamily?'aileye':'çeteye'} üyesin`,'error'); return; }
     if (profile?.party) { showNotif('🏛️ Parti üyeleri çete veya aileye katılamaz. Önce partiden ayrılın.','error'); return; }
     setGangs(prev => { const next=prev.map(g => g.id===gang.id ? {...g, members:[...(g.members||[]),uid], memberCount:(g.memberCount||0)+1, power:(g.power||10)+50} : g); try{window._socket?.emit('gang:join',{gangId:gang.id});window._socket?.emit('gang:sync',{gangs:next});}catch(e){}; return next; });
-    setProfile(p => { const np={...p,gang:gang.id}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
+    setProfile(p => { const field=gang.type==='family'?'family':'gang'; const np={...p,[field]:gang.id}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
     showNotif(`✅ ${gang.name}'e katıldın! Çete gücüne +50 eklendi.`,'success');
   };
 
   const leaveGang = () => {
     if (!myGang||isGangLeader) { if(isGangLeader) showNotif('Lider ayrılamaz. Önce liderliği devret.','error'); return; }
     setGangs(prev => { const next=prev.map(g => g.id===myGang.id ? {...g,members:(g.members||[]).filter(m=>m!==uid),memberCount:Math.max(0,(g.memberCount||1)-1),power:Math.max(10,(g.power||10)-50)} : g); try{window._socket?.emit('gang:leave',{gangId:myGang.id});window._socket?.emit('gang:sync',{gangs:next});}catch(e){}; return next; });
-    setProfile(p => { const np={...p,gang:null}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
+    setProfile(p => { const field=myGang.type==='family'?'family':'gang'; const np={...p,[field]:null}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
     showNotif('Çeteden ayrıldın. -50 güç.','info');
   };
 
@@ -1123,7 +1123,7 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
   const disbandGang = () => {
     if (!isGangLeader) return;
     setGangs(prev => { const next=prev.filter(g => g.id!==myGang.id); try{window._socket?.emit('gang:disband',{gangId:myGang.id});window._socket?.emit('gang:sync',{gangs:next});}catch(e){}; return next; });
-    setProfile(p => { const np={...p,gang:null}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
+    setProfile(p => { const field=myGang.type==='family'?'family':'gang'; const np={...p,[field]:null}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
     setDisbandConfirm(false);
     showNotif(`${myGang.type==='family'?'👨‍👩‍👧‍👦':'⚔️'} ${myGang.name} dağıtıldı`,'info');
   };

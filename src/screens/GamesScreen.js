@@ -1,6 +1,9 @@
 function FootballPage({ profile, setProfile, showNotif }) {
   const [clubs, setClubs] = useLs('footballClubs', []);
   const [matches, setMatches] = useLs('footballMatches', []);
+  const [socialPosts, setSocialPosts] = useLs('footballSocialPosts', []);
+  const [sponsors, setSponsors] = useLs('footballSponsors', []);
+  const [newSocialPost, setNewSocialPost] = useState('');
   const [tab, setTab] = useState('clubs');
   const [cooldown, setCooldown] = useLs('footballCooldown', {});
   const now = Date.now();
@@ -62,6 +65,28 @@ function FootballPage({ profile, setProfile, showNotif }) {
     setCooldown(prev => ({...prev,[cu.username]:now}));
     const res = won?`🏆 GALİBİYET! ${myG}-${oppG}`:drew?`🤝 BERABERLİK! ${myG}-${oppG}`:`💔 MAĞLUBIYET! ${myG}-${oppG}`;
     showNotif(res + (prize ? ' +₺'+prize.toLocaleString() : '') + (fanChg>0 ? ' +'+fanChg+' taraftar' : fanChg<0 ? ' '+fanChg+' taraftar' : ''), won?'success':drew?'info':'error');
+
+    const autoMessages = won ? [
+      `⚽ ${myClub.name} bugün ${opp.name}'ı ${myG}-${oppG} mağlup etti! Muhteşem bir performans! 🏆🔥`,
+      `${myG}-${oppG} ile galip gelindik! ${myClub.name} taraftarları çılgına döndü! 🎉⚽`,
+      `Harika bir galibiyet! ${myClub.name} sahadan başı dik çıktı. ${myG}-${oppG} 💪`,
+    ] : drew ? [
+      `Beraberlikle ayrıldık: ${myClub.name} ${myG}-${oppG} ${opp.name}. Güzel bir maçtı! 🤝⚽`,
+      `${myG}-${oppG} beraberlik. Puan alındı, devam edelim! ${myClub.name} 💪`,
+    ] : [
+      `Bugün mağlup olduk: ${myClub.name} ${myG}-${oppG} ${opp.name}. Başka gün 💙`,
+      `${myG}-${oppG}... Hayal kırıklığı ama daha iyisini yapacağız! ${myClub.name} 💪`,
+    ];
+    const autoMsg = autoMessages[Math.floor(Math.random()*autoMessages.length)];
+    const autoPost = {id:Date.now(),author:cu.username||'Taraftar',club:myClub.name,content:autoMsg,date:new Date().toLocaleDateString('tr-TR'),time:new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}),result:won?'win':drew?'draw':'loss',auto:true,likes:[]};
+    setSocialPosts(prev => [autoPost,...prev].slice(0,100));
+
+    const mySponsorIncome = sponsors.filter(s=>s.club===myClub.name&&(s.duration||0)>0).reduce((sum,s)=>sum+(s.perMatch||0),0);
+    if (mySponsorIncome > 0) {
+      updateUser({ money: (cu.money||0) + prize + mySponsorIncome });
+      setSponsors(prev => prev.map(s => s.club===myClub.name ? {...s, duration:Math.max(0,(s.duration||0)-1), total:(s.total||0)+s.perMatch} : s).filter(s=>s.duration>0 || s.club!==myClub.name));
+      showNotif(`💰 Sponsor geliri: +₺${mySponsorIncome.toLocaleString()}`, 'info');
+    }
   };
 
   const transferPlayer = () => {
@@ -82,7 +107,7 @@ function FootballPage({ profile, setProfile, showNotif }) {
     <div style={{padding:'1rem',background:bg,minHeight:'100%'}}>
       <div style={{fontFamily:"'Syne',sans-serif",fontSize:'1.3rem',fontWeight:900,color:'#10B981',marginBottom:'1rem',letterSpacing:'0.05em'}}>⚽ Futbol Yönetimi</div>
       <div style={{display:'flex',gap:'0.4rem',marginBottom:'1rem',flexWrap:'wrap'}}>
-        {[{k:'clubs',l:'⚽ Kulübüm'},{k:'league',l:'🏆 Lig'},{k:'matches',l:'📅 Maçlar'},{k:'transfer',l:'🔄 Transfer'},{k:'training',l:'🏃 Antrenman'},{k:'tactics',l:'🧠 Taktik'},{k:'infrastructure',l:'🏟 Altyapı'}].map(t=>(
+        {[{k:'clubs',l:'⚽ Kulübüm'},{k:'league',l:'🏆 Lig'},{k:'matches',l:'📅 Maçlar'},{k:'sponsor',l:'💰 Sponsor'},{k:'sosyal',l:'📱 Sosyal'},{k:'transfer',l:'🔄 Transfer'},{k:'training',l:'🏃 Antrenman'},{k:'tactics',l:'🧠 Taktik'},{k:'infrastructure',l:'🏟 Altyapı'}].map(t=>(
           <button key={t.k} onClick={()=>setTab(t.k)} style={{padding:'0.4rem 1rem',borderRadius:'2rem',border:`1px solid ${tab===t.k?'#10B981':'rgba(255,255,255,0.12)'}`,background:tab===t.k?'rgba(16,185,129,0.15)':'transparent',color:tab===t.k?'#10B981':'#999',cursor:'pointer',fontWeight:tab===t.k?700:400,fontSize:'0.83rem',fontFamily:'inherit'}}>{t.l}</button>
         ))}
       </div>
@@ -343,6 +368,105 @@ function FootballPage({ profile, setProfile, showNotif }) {
           </div>)}
         </div>
       </div>)}
+
+      {tab==='sponsor'&&(<div>
+        <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:'12px',padding:'1rem',marginBottom:'1rem'}}>
+          <div style={{fontWeight:700,color:'#F59E0B',marginBottom:'0.75rem',fontSize:'0.95rem'}}>💰 Aktif Sponsorlar</div>
+          {!myClub&&<div style={{color:'#EF4444',fontSize:'0.85rem',marginBottom:'0.5rem'}}>Sponsor almak için önce bir kulüp kur!</div>}
+          {sponsors.filter(s=>s.club===myClub?.name).length===0 && myClub && (
+            <div style={{color:'#555',textAlign:'center',padding:'0.75rem',fontSize:'0.82rem'}}>Henüz sponsor yok. Aşağıdan anlaşma yap!</div>
+          )}
+          {sponsors.filter(s=>s.club===myClub?.name).map(s=>(
+            <div key={s.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'0.55rem 0.7rem',background:'rgba(245,158,11,0.06)',border:'1px solid rgba(245,158,11,0.2)',borderRadius:'8px',marginBottom:'0.35rem'}}>
+              <div>
+                <div style={{fontWeight:700,fontSize:'0.85rem',color:'#F59E0B'}}>{s.logo} {s.name}</div>
+                <div style={{fontSize:'0.68rem',color:'#5A7089'}}>Seviye: {s.tier} · Sözleşme: {s.duration} maç kaldı</div>
+              </div>
+              <div style={{textAlign:'right'}}>
+                <div style={{fontWeight:700,color:'#10B981',fontSize:'0.82rem'}}>+₺{(s.perMatch||0).toLocaleString()}/maç</div>
+                <div style={{fontSize:'0.65rem',color:'#5A7089'}}>Toplam: ₺{(s.total||0).toLocaleString()}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:'12px',padding:'1rem'}}>
+          <div style={{fontWeight:700,color:'#60A5FA',marginBottom:'0.75rem',fontSize:'0.95rem'}}>📋 Sponsor Teklifleri</div>
+          {!myClub&&<div style={{color:'#EF4444',fontSize:'0.85rem'}}>Önce kulüp kur!</div>}
+          {myClub&&[
+            {id:'nike',name:'NiKick Spor',logo:'👟',tier:'Platin',perMatch:200000,duration:10,cost:500000},
+            {id:'energy',name:'TurkBoost Enerji',logo:'⚡',tier:'Altın',perMatch:100000,duration:15,cost:0},
+            {id:'bank',name:'MegaBank',logo:'🏦',tier:'Gümüş',perMatch:50000,duration:20,cost:0},
+            {id:'telecom',name:'UltraGSM',logo:'📱',tier:'Bronz',perMatch:25000,duration:25,cost:0},
+            {id:'airline',name:'AkdenizAir',logo:'✈️',tier:'Platin',perMatch:300000,duration:8,cost:1000000},
+          ].filter(sp=>!sponsors.find(s=>s.id===sp.id&&s.club===myClub.name)).map(sp=>(
+            <div key={sp.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'0.6rem 0.7rem',background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:'10px',marginBottom:'0.4rem'}}>
+              <div>
+                <div style={{fontWeight:700,fontSize:'0.85rem'}}>{sp.logo} {sp.name}</div>
+                <div style={{fontSize:'0.7rem',color:sp.tier==='Platin'?'#A78BFA':sp.tier==='Altın'?'#FFD700':sp.tier==='Gümüş'?'#C0C0C0':'#CD7F32'}}>
+                  {sp.tier} Sponsor · +₺{(sp.perMatch/1000).toFixed(0)}K/maç · {sp.duration} maç
+                </div>
+                {sp.cost>0&&<div style={{fontSize:'0.65rem',color:'#EF4444'}}>Anlaşma bedeli: ₺{(sp.cost/1000).toFixed(0)}K</div>}
+              </div>
+              <button onClick={()=>{
+                if(sp.cost>(myClub.budget||0)){showNotif('Yetersiz bütçe!','error');return;}
+                const newSp={...sp,club:myClub.name,total:0};
+                setSponsors(prev=>[...prev,newSp]);
+                if(sp.cost>0)setClubs(prev=>prev.map(c=>c.id===myClub.id?{...c,budget:(c.budget||0)-sp.cost}:c));
+                showNotif(`✅ ${sp.name} ile sponsorluk anlaşması imzalandı! +₺${(sp.perMatch/1000).toFixed(0)}K/maç`,'success');
+              }} style={{padding:'0.35rem 0.75rem',background:'rgba(16,185,129,0.12)',border:'1px solid rgba(16,185,129,0.3)',borderRadius:'7px',color:'#10B981',cursor:'pointer',fontWeight:700,fontSize:'0.78rem',fontFamily:'inherit',flexShrink:0}}>
+                İmzala
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>)}
+
+      {tab==='sosyal'&&(<div>
+        <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:'12px',padding:'1rem',marginBottom:'1rem'}}>
+          <div style={{fontWeight:700,color:'#A78BFA',marginBottom:'0.65rem',fontSize:'0.95rem'}}>📱 Futbol Sosyal Medya</div>
+          <textarea value={newSocialPost} onChange={e=>setNewSocialPost(e.target.value)}
+            placeholder={`${cu.username||'Taraftar'} olarak futbol düşüncelerini paylaş...`} rows={2}
+            style={{width:'100%',background:'rgba(167,139,250,0.05)',border:'1px solid rgba(167,139,250,0.2)',borderRadius:'8px',padding:'0.5rem 0.7rem',color:'#E8EDF2',fontFamily:'inherit',fontSize:'0.85rem',resize:'none',outline:'none',boxSizing:'border-box',marginBottom:'0.5rem'}} />
+          <div style={{display:'flex',justifyContent:'flex-end'}}>
+            <button onClick={()=>{
+              if(!newSocialPost.trim()){return;}
+              const post={id:Date.now(),author:cu.username||'Taraftar',club:myClub?.name||'',content:newSocialPost.trim(),date:new Date().toLocaleDateString('tr-TR'),time:new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}),auto:false,likes:[]};
+              setSocialPosts(prev=>[post,...prev].slice(0,100));
+              setNewSocialPost('');
+              showNotif('📱 Paylaşıldı!','success');
+            }} style={{padding:'0.4rem 1rem',background:'rgba(167,139,250,0.15)',border:'1px solid rgba(167,139,250,0.35)',borderRadius:'8px',color:'#A78BFA',cursor:'pointer',fontWeight:700,fontFamily:'inherit',fontSize:'0.82rem'}}>📢 Paylaş</button>
+          </div>
+        </div>
+
+        {socialPosts.length===0&&<div style={{textAlign:'center',padding:'2rem',color:'#555'}}>
+          <div style={{fontSize:'2.5rem',marginBottom:'0.5rem'}}>⚽📱</div>
+          <div style={{fontSize:'0.85rem'}}>Maç oyna, otomatik paylaşımlar burada görünecek!</div>
+        </div>}
+        {socialPosts.map(p=>(
+          <div key={p.id} style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${p.result==='win'?'rgba(16,185,129,0.2)':p.result==='loss'?'rgba(239,68,68,0.15)':p.result==='draw'?'rgba(245,158,11,0.15)':'rgba(255,255,255,0.06)'}`,borderRadius:'12px',padding:'0.85rem',marginBottom:'0.55rem'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.4rem'}}>
+              <div style={{display:'flex',alignItems:'center',gap:'0.45rem'}}>
+                <div style={{width:'28px',height:'28px',borderRadius:'50%',background:'rgba(167,139,250,0.15)',border:'1px solid rgba(167,139,250,0.3)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.8rem'}}>⚽</div>
+                <div>
+                  <div style={{fontWeight:700,color:'#A78BFA',fontSize:'0.82rem'}}>{p.author}{p.club?' · '+p.club:''}</div>
+                  <div style={{fontSize:'0.62rem',color:'#555'}}>{p.date} {p.time}</div>
+                </div>
+                {p.auto&&<span style={{fontSize:'0.62rem',background:'rgba(16,185,129,0.1)',border:'1px solid rgba(16,185,129,0.2)',borderRadius:'4px',padding:'0 0.3rem',color:'#6EE7B7'}}>Otomatik</span>}
+              </div>
+              {p.result&&<span style={{fontSize:'0.75rem',fontWeight:700,color:p.result==='win'?'#10B981':p.result==='loss'?'#EF4444':'#F59E0B'}}>{p.result==='win'?'🏆 Galibiyet':p.result==='loss'?'💔 Mağlubiyet':'🤝 Beraberlik'}</span>}
+            </div>
+            <div style={{fontSize:'0.87rem',color:'#ccc',lineHeight:1.5}}>{p.content}</div>
+            <div style={{display:'flex',gap:'0.5rem',marginTop:'0.45rem'}}>
+              <button onClick={()=>setSocialPosts(prev=>prev.map(x=>x.id===p.id?{...x,likes:[...(x.likes||[]).filter(l=>l!==cu.username),(x.likes||[]).includes(cu.username)?null:cu.username].filter(Boolean)}:x))}
+                style={{padding:'0.2rem 0.6rem',background:(p.likes||[]).includes(cu.username)?'rgba(239,68,68,0.15)':'rgba(255,255,255,0.04)',border:`1px solid ${(p.likes||[]).includes(cu.username)?'rgba(239,68,68,0.4)':'rgba(255,255,255,0.08)'}`,borderRadius:'6px',color:(p.likes||[]).includes(cu.username)?'#EF4444':'#999',cursor:'pointer',fontSize:'0.75rem',fontFamily:'inherit'}}>
+                ❤️ {(p.likes||[]).length}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>)}
+
     </div>
   );
 }
