@@ -61,6 +61,164 @@ const VERDICT_INFO = {
 const SEVERITY_COLOR = { dusuk:'#F59E0B', orta:'#EF4444', yuksek:'#7C3AED' };
 const SEVERITY_LABEL = { dusuk:'Düşük', orta:'Orta', yuksek:'Yüksek' };
 
+function GangCrimePage({ profile, setProfile, showNotif }) {
+  const [ops, setOps] = React.useState([]);
+  const [log, setLog] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [running, setRunning] = React.useState(null);
+  const [tick, setTick] = React.useState(0);
+
+  const jwt = () => localStorage.getItem('us_jwt') || '';
+  const myGangId = (() => {
+    try {
+      const gangs = JSON.parse(localStorage.getItem('rep_gangs') || '[]');
+      const uid = profile?.id || profile?.uid;
+      const g = gangs.find(g => g.leaderId === uid || (g.members || []).includes(uid));
+      return g ? g.id : null;
+    } catch { return null; }
+  })();
+
+  const loadOps = () => {
+    fetch('/api/gang-crime/operations', { headers: { 'Authorization': 'Bearer ' + jwt() } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.operations) setOps(d.operations); setLoading(false); })
+      .catch(() => setLoading(false));
+  };
+
+  const loadLog = () => {
+    if (!myGangId) return;
+    fetch(`/api/gang-crime/log/${myGangId}`, { headers: { 'Authorization': 'Bearer ' + jwt() } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.log) setLog(d.log); })
+      .catch(() => {});
+  };
+
+  React.useEffect(() => { loadOps(); loadLog(); }, []);
+
+  // Countdown tick
+  React.useEffect(() => {
+    const t = setInterval(() => setTick(x => x + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const execute = async (op) => {
+    if (!op.ready) return;
+    setRunning(op.id);
+    try {
+      const res = await fetch('/api/gang-crime/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt() },
+        body: JSON.stringify({ operationId: op.id, gangId: myGangId }),
+      });
+      const d = await res.json();
+      if (!d.success) { showNotif(d.error || 'Hata', 'error'); setRunning(null); return; }
+      if (d.operationSuccess) {
+        const r = d.rewards;
+        setProfile(p => {
+          const np = { ...p, money: (p.money || 0) + (r.playerMoney || 0), xp: (p.xp || 0) + (r.xp || 0), hp: Math.max(1, (p.hp || 100) - (r.hpCost || 0)) };
+          localStorage.setItem('rep_userProfile', JSON.stringify(np));
+          return np;
+        });
+        showNotif(d.message, 'success');
+      } else {
+        setProfile(p => {
+          const np = { ...p, hp: Math.max(1, (p.hp || 100) - (d.rewards?.hpCost || 10)) };
+          localStorage.setItem('rep_userProfile', JSON.stringify(np));
+          return np;
+        });
+        showNotif(d.message, 'error');
+      }
+      loadOps();
+      loadLog();
+    } catch { showNotif('Bağlantı hatası', 'error'); }
+    setRunning(null);
+  };
+
+  const fmtMs = (ms) => {
+    if (ms <= 0) return 'Hazır';
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    if (h > 0) return `${h}s ${m}dk`;
+    if (m > 0) return `${m}dk ${s}s`;
+    return `${s}s`;
+  };
+
+  const riskColor = { low: '#10B981', medium: '#F59E0B', high: '#EF4444', extreme: '#7C3AED' };
+  const riskLabel = { low: 'Düşük', medium: 'Orta', high: 'Yüksek', extreme: 'Ekstrm' };
+
+  if (loading) return <div style={{textAlign:'center',padding:'2rem',color:'#5A7089'}}>⏳ Yükleniyor...</div>;
+
+  return (
+    <div style={{padding:'0.75rem'}}>
+      <div style={{background:'linear-gradient(135deg,#1a0505,#3d0000)',border:'1px solid rgba(239,68,68,0.3)',borderRadius:'16px',padding:'1rem',textAlign:'center',marginBottom:'0.75rem'}}>
+        <div style={{fontSize:'1.75rem',marginBottom:'0.25rem'}}>🔫</div>
+        <div style={{fontFamily:"'Syne',sans-serif",fontSize:'1rem',fontWeight:900,color:'#fff'}}>ÇETE SUÇ OPERASYONLARI</div>
+        <div style={{fontSize:'0.68rem',color:'#94A3B8',marginTop:'0.2rem'}}>
+          HP: <span style={{color:'#EF4444',fontWeight:700}}>{profile?.hp || 100}</span>
+          &nbsp;•&nbsp;Çete: <span style={{color: myGangId ? '#10B981' : '#5A7089',fontWeight:700}}>{myGangId ? 'Aktif' : 'Yok'}</span>
+        </div>
+      </div>
+
+      {ops.map(op => {
+        const remaining = op.remainingMs > 0 ? Math.max(0, op.remainingMs - (tick * 1000 - tick * 0)) : 0;
+        const liveRemaining = op.lastDone
+          ? Math.max(0, op.lastDone + op.cooldownMs - Date.now())
+          : 0;
+        const ready = liveRemaining <= 0;
+        const isRunning = running === op.id;
+        const rc = riskColor[op.riskLevel] || '#F59E0B';
+        return (
+          <div key={op.id} style={{background:'rgba(11,21,39,0.9)',border:`1px solid ${ready?'rgba(239,68,68,0.25)':'rgba(255,255,255,0.05)'}`,borderRadius:'14px',padding:'0.85rem',marginBottom:'0.5rem',opacity:ready?1:0.75}}>
+            <div style={{display:'flex',alignItems:'flex-start',gap:'0.65rem'}}>
+              <div style={{fontSize:'1.6rem',flexShrink:0}}>{op.icon}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:'flex',alignItems:'center',gap:'0.4rem',flexWrap:'wrap',marginBottom:'0.2rem'}}>
+                  <span style={{fontWeight:800,color:'#E8EDF2',fontSize:'0.88rem'}}>{op.name}</span>
+                  <span style={{fontSize:'0.58rem',background:`${rc}20`,color:rc,border:`1px solid ${rc}40`,borderRadius:'5px',padding:'1px 5px',fontWeight:700}}>{riskLabel[op.riskLevel]}</span>
+                  {op.minLevel > 1 && <span style={{fontSize:'0.58rem',color:'#5A7089'}}>Lv{op.minLevel}+</span>}
+                </div>
+                <div style={{fontSize:'0.67rem',color:'#5A7089',marginBottom:'0.4rem'}}>{op.description}</div>
+                <div style={{display:'flex',gap:'0.75rem',fontSize:'0.65rem',color:'#94A3B8',flexWrap:'wrap'}}>
+                  <span>💰 ₺{(op.rewards.money[0]/1000).toFixed(0)}K–{(op.rewards.money[1]/1000).toFixed(0)}K</span>
+                  <span>⚡ {op.rewards.xp[0]}–{op.rewards.xp[1]} XP</span>
+                  <span>🏅 {op.rewards.merit[0]}–{op.rewards.merit[1]}</span>
+                  <span>❤️ -{op.rewards.hpCost[0]}–{op.rewards.hpCost[1]} HP</span>
+                  <span>✅ %{Math.round(op.successBase * 100)}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => execute(op)}
+                disabled={!ready || !!running}
+                style={{flexShrink:0,padding:'0.45rem 0.75rem',borderRadius:'10px',border:'none',background:ready?'linear-gradient(135deg,#EF4444,#DC2626)':'rgba(255,255,255,0.05)',color:ready?'#fff':'#5A7089',fontWeight:700,fontSize:'0.75rem',cursor:ready&&!running?'pointer':'not-allowed',minWidth:'64px',textAlign:'center',opacity:isRunning?0.6:1}}>
+                {isRunning ? '⏳' : ready ? '▶ Yap' : fmtMs(liveRemaining)}
+              </button>
+            </div>
+          </div>
+        );
+      })}
+
+      {log.length > 0 && (
+        <div style={{marginTop:'0.75rem'}}>
+          <div style={{fontSize:'0.7rem',color:'#5A7089',fontWeight:800,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:'0.4rem'}}>📜 Son Operasyonlar</div>
+          {log.slice(0, 8).map((l, i) => (
+            <div key={i} style={{display:'flex',alignItems:'center',gap:'0.5rem',padding:'0.45rem 0.6rem',background:'rgba(255,255,255,0.03)',borderRadius:'8px',marginBottom:'0.25rem',border:'1px solid rgba(255,255,255,0.05)'}}>
+              <span style={{fontSize:'0.9rem'}}>{l.success ? '✅' : '❌'}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <span style={{fontSize:'0.73rem',fontWeight:700,color:'#E8EDF2'}}>{l.username}</span>
+                <span style={{fontSize:'0.65rem',color:'#5A7089',marginLeft:'0.4rem'}}>{l.operation_id}</span>
+              </div>
+              <span style={{fontSize:'0.68rem',color:l.success?'#10B981':'#EF4444',fontWeight:700}}>
+                {l.success ? `+₺${Number(l.reward_money||0).toLocaleString('tr-TR')}` : 'Başarısız'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CrimePage({ profile, setProfile, showNotif }) {
   const [tab, setTab] = useState('mahkeme');
   const [cases, setCases] = useLs('sucDavalari', []);
@@ -165,9 +323,10 @@ function CrimePage({ profile, setProfile, showNotif }) {
         </div>
       )}
 
-      <div style={{display:'flex',gap:'0.4rem',marginBottom:'1rem'}}>
-        <button style={tabStyle('mahkeme')} onClick={()=>setTab('mahkeme')}>⚖️ Aktif Davalar {activeCases.length>0&&<span style={{background:'rgba(239,68,68,0.3)',borderRadius:'6px',padding:'0 5px',marginLeft:'4px'}}>{activeCases.length}</span>}</button>
+      <div style={{display:'flex',gap:'0.4rem',marginBottom:'1rem',flexWrap:'wrap'}}>
+        <button style={tabStyle('mahkeme')} onClick={()=>setTab('mahkeme')}>⚖️ Davalar {activeCases.length>0&&<span style={{background:'rgba(239,68,68,0.3)',borderRadius:'6px',padding:'0 5px',marginLeft:'4px'}}>{activeCases.length}</span>}</button>
         <button style={tabStyle('suclar')} onClick={()=>setTab('suclar')}>🎭 Suç İşle</button>
+        <button style={tabStyle('gang')} onClick={()=>setTab('gang')}>🔫 Çete Ops</button>
         <button style={tabStyle('gecmis')} onClick={()=>setTab('gecmis')}>📜 Geçmiş</button>
       </div>
 
@@ -262,6 +421,10 @@ function CrimePage({ profile, setProfile, showNotif }) {
             );
           })}
         </div>
+      )}
+
+      {tab==='gang' && (
+        <GangCrimePage profile={profile} setProfile={setProfile} showNotif={showNotif} />
       )}
 
       {tab==='gecmis' && (

@@ -7,3 +7,4 @@
 - [PoliticsPage Meclis](politics-meclis.md) — meclis sub-tab REMOVED from PoliticsScreen; standalone PartyCenterScreen.js loaded via index.html, routed as party_center in Devlet nav.
 - [Score Calculation](score-calc.md) — calcScore(p) in app.js before App(); useEffect auto-updates profile.score on level/xp/money/merits/edu changes; autosave uses calcScore(p) directly.
 - [DB Proper Tables](db-proper-tables.md) — gangs/parties/alliances now use proper SQL tables (not game_state KV); getFullGameState wantedKeys excludes these three.
+- [Babel Global Scope Hook Clash](babel-hook-clash.md) — app.js declares useState/useEffect globally; new component files MUST NOT redeclare them. Use React.useState directly or omit the destructuring.

@@ -30,20 +30,41 @@ function KariyerCalismaPage({ profile, setProfile, showNotif }) {
   const card  = dark ? 'rgba(255,255,255,0.04)' : '#FFFFFF';
   const bord  = dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
 
-  const [activeWork, setActiveWork] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('rep_kariyer_calisma') || 'null'); } catch { return null; }
-  });
-  const [tick, setTick] = useState(0);
-  const [factories, setFactories] = useLs('factories', []);
+  const [activeWork, setActiveWork] = useState(null);
+  const [factories, setFactories] = useState([]);
   const [selFactory, setSelFactory] = useState(null);
+  const [tick, setTick] = useState(0);
+  const [apiLoading, setApiLoading] = useState(false);
 
   useEffect(() => {
     const t = setInterval(() => setTick(p => p + 1), 1000);
     return () => clearInterval(t);
   }, []);
 
+  // Fabrika listesi ve aktif çalışma seansını sunucudan yükle
+  useEffect(() => {
+    const jwt = localStorage.getItem('us_jwt');
+    if (!jwt) return;
+    fetch('/api/factory', { headers: { Authorization: 'Bearer ' + jwt } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d?.success) return;
+        setFactories(d.factories || []);
+        setActiveWork(d.session || null);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Socket: fabrika güncellemelerini dinle
+  useEffect(() => {
+    const s = window._socket;
+    if (!s) return;
+    const handler = (data) => { if (Array.isArray(data.factories)) setFactories(data.factories); };
+    s.on('factory:sync', handler);
+    return () => s.off('factory:sync', handler);
+  }, []);
+
   const cu = profile || {};
-  const now = Date.now();
 
   const fmtTime = (ms) => {
     if (ms <= 0) return '✅ Tamamlandı';
@@ -54,57 +75,75 @@ function KariyerCalismaPage({ profile, setProfile, showNotif }) {
     return `${h}sa ${m}dk`;
   };
 
-  const startWork = (factory, role) => {
+  const startWork = async (factory, role) => {
     if (activeWork) { showNotif('⛔ Zaten aktif bir çalışman var! Önce tamamla.', 'error'); return; }
-    const pLevel = cu.level || 1;
-    if (pLevel < role.level) { showNotif(`🔒 Bu iş için Seviye ${role.level} gerekli!`, 'error'); return; }
-    const session = {
-      factoryId: factory.id, factoryName: factory.name, factoryOwner: factory.owner,
-      factoryIcon: factory.icon || KARIYER_ICONS[factory.type] || '🏭',
-      factoryType: factory.type, roleId: role.id, roleName: role.name, roleIcon: role.icon,
-      salary: role.salary, duration: role.duration,
-      startedAt: now, endsAt: now + role.duration,
-    };
-    localStorage.setItem('rep_kariyer_calisma', JSON.stringify(session));
-    setActiveWork(session);
-    setSelFactory(null);
-    showNotif(`✅ ${role.name} olarak çalışmaya başladın! Süre: ${fmtTime(role.duration)}`, 'success');
+    const jwt = localStorage.getItem('us_jwt');
+    if (!jwt) return;
+    setApiLoading(true);
+    try {
+      const res = await fetch('/api/factory/work/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + jwt },
+        body: JSON.stringify({ factoryId: factory.id, roleKey: role.id }),
+      });
+      const data = await res.json();
+      if (!data.success) { showNotif(data.msg || '❌ Hata', 'error'); return; }
+      setActiveWork(data.session);
+      setSelFactory(null);
+      showNotif(`✅ ${role.name} olarak çalışmaya başladın! Süre: ${fmtTime(role.duration)}`, 'success');
+    } catch { showNotif('❌ Bağlantı hatası', 'error'); }
+    finally { setApiLoading(false); }
   };
 
-  const collectSalary = () => {
+  const collectSalary = async () => {
     if (!activeWork) return;
-    if (now < activeWork.endsAt) {
-      showNotif(`⏳ Daha ${fmtTime(activeWork.endsAt - now)} kaldı!`, 'error');
+    if (Date.now() < activeWork.endsAt) {
+      showNotif(`⏳ Daha ${fmtTime(activeWork.endsAt - Date.now())} kaldı!`, 'error');
       return;
     }
-    const bonus = 1 + (cu.tradePoints || 0) * 0.0001;
-    const earned = Math.round(activeWork.salary * bonus);
-    const xpGain = Math.max(10, Math.floor(earned / 3000));
-    setProfile(p => {
-      const np = { ...p, money: (p.money || 0) + earned, xp: (p.xp || 0) + xpGain };
-      localStorage.setItem('rep_userProfile', JSON.stringify(np));
-      return np;
-    });
+    const jwt = localStorage.getItem('us_jwt');
+    if (!jwt) return;
+    setApiLoading(true);
     try {
-      const today = new Date().toDateString();
-      const dk = `day_${today}`;
-      const s = JSON.parse(localStorage.getItem('rep_dailyTaskState') || '{}');
-      s[dk] = { ...(s[dk] || {}), dailyJobCount: ((s[dk]?.dailyJobCount) || 0) + 1 };
-      localStorage.setItem('rep_dailyTaskState', JSON.stringify(s));
-    } catch(e) {}
-    localStorage.removeItem('rep_kariyer_calisma');
-    setActiveWork(null);
-    showNotif(`💰 ${fmtWord(earned)} maaş + ${xpGain} XP kazandın!`, 'success');
+      const res = await fetch('/api/factory/work/collect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + jwt },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!data.success) { showNotif(data.msg || '❌ Hata', 'error'); return; }
+      setProfile(p => {
+        const np = { ...p, money: (p.money || 0) + data.earned, xp: (p.xp || 0) + data.xpGain };
+        localStorage.setItem('rep_userProfile', JSON.stringify(np));
+        return np;
+      });
+      try {
+        const today = new Date().toDateString();
+        const dk = `day_${today}`;
+        const s = JSON.parse(localStorage.getItem('rep_dailyTaskState') || '{}');
+        s[dk] = { ...(s[dk] || {}), dailyJobCount: ((s[dk]?.dailyJobCount) || 0) + 1 };
+        localStorage.setItem('rep_dailyTaskState', JSON.stringify(s));
+      } catch(e) {}
+      setActiveWork(null);
+      showNotif(`💰 ${fmtWord(data.earned)} maaş + ${data.xpGain} XP kazandın!`, 'success');
+    } catch { showNotif('❌ Bağlantı hatası', 'error'); }
+    finally { setApiLoading(false); }
   };
 
-  const cancelWork = () => {
-    localStorage.removeItem('rep_kariyer_calisma');
+  const cancelWork = async () => {
+    const jwt = localStorage.getItem('us_jwt');
+    if (!jwt) return;
+    await fetch('/api/factory/work/cancel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + jwt },
+      body: JSON.stringify({}),
+    }).catch(() => {});
     setActiveWork(null);
     showNotif('❌ Çalışma iptal edildi.', 'info');
   };
 
-  const availableFactories = factories.filter(f => f.owner !== cu.username);
-  const myFactory = factories.find(f => f.owner === cu.username);
+  const availableFactories = factories.filter(f => f.ownerUsername !== cu.username && f.owner !== cu.username);
+  const myFactory = factories.find(f => f.ownerUsername === cu.username || f.owner === cu.username);
 
   const pct = activeWork
     ? Math.min(100, Math.round(((now - activeWork.startedAt) / activeWork.duration) * 100))
@@ -276,11 +315,21 @@ function JobsPage({ profile, setProfile, showNotif }) {
   const bg = dark ? '#0F172A' : '#F8FAFC';
   const card = dark ? 'rgba(255,255,255,0.04)' : '#FFFFFF';
   const border = dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
-  const [cooldowns, setCooldowns] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('rep_jobCooldowns') || '{}'); } catch { return {}; }
-  });
+  const [cooldowns, setCooldowns] = useState({});
+  const [loading, setLoading] = useState(false);
   const [tick, setTick] = useState(0);
+
   useEffect(() => { const t = setInterval(() => setTick(p=>p+1), 1000); return () => clearInterval(t); }, []);
+
+  // Sunucudan cooldown'ları yükle
+  useEffect(() => {
+    const jwt = localStorage.getItem('us_jwt');
+    if (!jwt) return;
+    fetch('/api/jobs/cooldowns', { headers: { Authorization: 'Bearer ' + jwt } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.success) setCooldowns(d.cooldowns || {}); })
+      .catch(() => {});
+  }, []);
 
   const fmtCd = (ms) => {
     const s = Math.ceil(ms/1000);
@@ -289,33 +338,60 @@ function JobsPage({ profile, setProfile, showNotif }) {
     return `${Math.floor(s/3600)}sa ${Math.floor((s%3600)/60)}dk`;
   };
 
-  const doWork = (job) => {
+  const doWork = async (job) => {
+    if (loading) return;
+    const jwt = localStorage.getItem('us_jwt');
+    if (!jwt) { showNotif('⚠️ Giriş yapman gerekiyor', 'error'); return; }
+
+    // Optimistik cooldown (UX için anlık güncelleme)
+    const now = Date.now();
     const lastDone = cooldowns[job.id] || 0;
-    const remaining = job.cd - (Date.now() - lastDone);
+    const remaining = job.cd - (now - lastDone);
     if (remaining > 0) { showNotif(`⏳ ${fmtCd(remaining)} bekle!`, 'error'); return; }
-    const newCd = {...cooldowns, [job.id]: Date.now()};
-    setCooldowns(newCd);
-    localStorage.setItem('rep_jobCooldowns', JSON.stringify(newCd));
-    const xpGain = Math.max(5, Math.floor(job.earn / 200));
-    const hasUCBoost = !!(profile?.packages?.ucBoost || profile?.ucBoost || profile?.ucMultiplier);
-    const ucMulti = hasUCBoost ? 2 : 1;
-    const tpBonus = 1 + (profile?.tradePoints || 0) * 0.0001;
-    const ucGain = Math.max(1, Math.round(Math.floor(job.earn / 50000) * ucMulti * tpBonus));
-    setProfile(p => {
-      const np = {...p, money:(p.money||0)+job.earn, xp:(p.xp||0)+xpGain, underCoin:(p.underCoin||0)+ucGain};
-      localStorage.setItem('rep_userProfile', JSON.stringify(np));
-      return np;
-    });
-    // Günlük görev sayacı
+
+    setLoading(true);
     try {
-      const today = new Date().toDateString();
-      const dk = `day_${today}`;
-      const s = JSON.parse(localStorage.getItem('rep_dailyTaskState')||'{}');
-      s[dk] = {...(s[dk]||{}), dailyJobCount:((s[dk]?.dailyJobCount)||0)+1};
-      localStorage.setItem('rep_dailyTaskState', JSON.stringify(s));
-    } catch(e){}
-    const ucMsg = ucGain > 0 ? ` +${ucGain} UC` : '';
-    showNotif(`${job.emoji} +${fmtWord(job.earn)} kazandın! +${xpGain} XP${ucMsg}`, 'success');
+      const res = await fetch('/api/jobs/do', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + jwt },
+        body: JSON.stringify({ jobId: job.id }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        showNotif(data.msg || '❌ Bir hata oluştu', 'error');
+        // Sunucudan güncel cooldown'ları al
+        fetch('/api/jobs/cooldowns', { headers: { Authorization: 'Bearer ' + jwt } })
+          .then(r => r.json()).then(d => { if (d?.success) setCooldowns(d.cooldowns || {}); }).catch(()=>{});
+        return;
+      }
+      // Cooldown güncelle
+      setCooldowns(prev => ({ ...prev, [job.id]: Date.now() }));
+      // Profili güncelle
+      setProfile(p => {
+        const np = {
+          ...p,
+          money: data.newMoney ?? ((p.money||0) + data.earned),
+          xp: data.newXp ?? ((p.xp||0) + data.xpGain),
+          underCoin: data.newUc ?? ((p.underCoin||0) + (data.ucEarned||0)),
+        };
+        localStorage.setItem('rep_userProfile', JSON.stringify(np));
+        return np;
+      });
+      // Günlük görev sayacı
+      try {
+        const today = new Date().toDateString();
+        const dk = `day_${today}`;
+        const s = JSON.parse(localStorage.getItem('rep_dailyTaskState')||'{}');
+        s[dk] = {...(s[dk]||{}), dailyJobCount:((s[dk]?.dailyJobCount)||0)+1};
+        localStorage.setItem('rep_dailyTaskState', JSON.stringify(s));
+      } catch(e){}
+      const ucMsg = data.ucEarned > 0 ? ` +${data.ucEarned} UC` : '';
+      showNotif(`${job.emoji} +${fmtWord(data.earned)} kazandın! +${data.xpGain} XP${ucMsg}`, 'success');
+    } catch (err) {
+      showNotif('❌ Bağlantı hatası', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const playerLevel = profile?.level || 1;

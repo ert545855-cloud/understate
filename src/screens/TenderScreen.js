@@ -1,131 +1,114 @@
 
 // ═══════════════════════════════════════════════════════
 // UNDERSTATE — Devlet İhaleleri (State Tenders) Ekranı
-// Sistem otomatik ihale oluşturur — Devlet Başkanı SADECE iletir
+// Tüm veri PostgreSQL'de — çok oyunculu gerçek zamanlı
 // ═══════════════════════════════════════════════════════
 window.TenderScreen = function TenderScreen({ cu, families, allUsers, setCurrentPage }) {
-  const S = {
-    load: (k, def) => { try { const v = localStorage.getItem("us_tender_"+k); return v ? JSON.parse(v) : def; } catch { return def; } },
-    save: (k, v)   => { try { localStorage.setItem("us_tender_"+k, JSON.stringify(v)); } catch {} },
-  };
-
-  // Sistem havuzu — Devlet Başkanı bunları AKTARIR (oluşturmaz)
-  const SYSTEM_POOL = [
-    {id:"sys_1",title:"Karayolu Altyapı Projesi",description:"300 km'lik çift yönlü otoyol yapımı. Ulaşım altyapısı güçlendirilecek.",startBid:5000000,category:"Altyapı"},
-    {id:"sys_2",title:"Devlet Hastanesi İnşaatı",description:"500 yataklı tam teşekküllü devlet hastanesi yapımı.",startBid:8000000,category:"Sağlık"},
-    {id:"sys_3",title:"Liman Genişletme İhalesi",description:"Ana limanın kapasitesi 3 katına çıkarılacak.",startBid:12000000,category:"Lojistik"},
-    {id:"sys_4",title:"Yenilenebilir Enerji Santrali",description:"Güneş ve rüzgar enerjisi karma santrali kurulumu.",startBid:20000000,category:"Enerji"},
-    {id:"sys_5",title:"Şehir Metro Hattı",description:"Yeni metro hattı yapım ve 10 yıllık işletme ihalesi.",startBid:35000000,category:"Ulaşım"},
-    {id:"sys_6",title:"Tarımsal Sulama Projesi",description:"5.000 dönümlük arazi için modern sulama sistemi.",startBid:3000000,category:"Tarım"},
-    {id:"sys_7",title:"Okul Yenileme Projesi",description:"50 devlet okulunun yenilenmesi ve modernizasyonu.",startBid:7000000,category:"Eğitim"},
-    {id:"sys_8",title:"Köprü ve Viyadük Onarımı",description:"Şehir içi 12 köprünün kapsamlı onarımı.",startBid:4500000,category:"Altyapı"},
-    {id:"sys_9",title:"Atık Su Arıtma Tesisi",description:"Büyükşehir için modern atık su arıtma tesisi.",startBid:9000000,category:"Çevre"},
-    {id:"sys_10",title:"Akıllı Şehir Sistemi",description:"Trafik, güvenlik ve kamu hizmetlerinin dijital entegrasyonu.",startBid:15000000,category:"Teknoloji"},
-  ];
-
-  const initTenders = React.useCallback(()=>{
-    const stored = S.load("list", null);
-    if (stored) return stored;
-    // Başlangıçta sistem 3 ihale otomatik açar (48-72 saat aralıklı)
-    const now2 = Date.now();
-    return SYSTEM_POOL.slice(0, 3).map((t, i) => ({
-      ...t,
-      presidentId: "Sistem",
-      relayedBy: null,
-      currentBid: t.startBid,
-      currentBidder: null,
-      bids: [],
-      status: "open",
-      endsAt: now2 + (48 + i * 24) * 3600000,
-      controlInterval: 8,
-      lastControl: null,
-      missedControls: 0,
-      createdAt: now2,
-    }));
-  }, []);
-
-  const [tenders, setTenders] = React.useState(()=>initTenders());
-  const [pendingPool, setPendingPool] = React.useState(()=>{
-    // Kalan sistem ihaleleri (henüz aktif edilmemiş)
-    try {
-      const stored = S.load("pending_pool", null);
-      if (stored) return stored;
-      const activeSysIds = new Set((initTenders()||[]).map(t=>t.id));
-      return SYSTEM_POOL.filter(p=>!activeSysIds.has(p.id));
-    } catch { return SYSTEM_POOL.slice(3); }
-  });
+  const [tenders, setTenders] = React.useState([]);
+  const [pool, setPool] = React.useState([]);
   const [tab, setTab] = React.useState("list");
   const [bidInput, setBidInput] = React.useState({});
   const [relayDuration, setRelayDuration] = React.useState("72");
   const [msg, setMsg] = React.useState(null);
+  const [loading, setLoading] = React.useState(false);
+  const [tick, setTick] = React.useState(0);
 
-  const saveTenders = (t) => { setTenders(t); S.save("list", t); };
-  const savePool    = (p) => { setPendingPool(p); S.save("pending_pool", p); };
+  const jwt = () => localStorage.getItem('us_jwt') || '';
   const showMsg = (text, type="info") => { setMsg({text,type}); setTimeout(()=>setMsg(null),3500); };
-
   const fmtMoney = (n) => { if(!n)return "₺0"; if(n>=1e9)return "₺"+(n/1e9).toFixed(1)+"Mlr"; if(n>=1e6)return "₺"+(n/1e6).toFixed(1)+"M"; if(n>=1e3)return "₺"+(n/1e3).toFixed(0)+"K"; return "₺"+n; };
   const fmtTime  = (ms) => { if(ms<=0)return "Süresi Doldu"; const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000); return h>0?`${h}s ${m}dk`:`${m}dk`; };
-  const now = Date.now();
 
+  // Tick için sayaç (kalan süre güncelleme)
+  React.useEffect(() => {
+    const t = setInterval(() => setTick(p=>p+1), 10000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Sunucudan yükle
+  const loadTenders = React.useCallback(async () => {
+    try {
+      const res = await fetch('/api/tender', { headers: { Authorization: 'Bearer ' + jwt() } });
+      const data = await res.json();
+      if (data.success) {
+        setTenders(data.tenders || []);
+        setPool(data.pool || []);
+      }
+    } catch(e) {}
+  }, []);
+
+  React.useEffect(() => { loadTenders(); }, [loadTenders]);
+
+  // Socket: gerçek zamanlı güncelleme
+  React.useEffect(() => {
+    const s = window._socket;
+    if (!s) return;
+    const handler = (data) => { if (Array.isArray(data.tenders)) setTenders(data.tenders); };
+    s.on('tender:sync', handler);
+    return () => s.off('tender:sync', handler);
+  }, []);
+
+  const now = Date.now();
   const fams = Array.isArray(families) ? families : [];
   const isPresident  = cu?.position==="Devlet Başkanı" || cu?.role==="admin";
   const isFamilyLeader = fams.some(f=>f.leader===cu?.username);
   const userFamily   = fams.find(f=>f.leader===cu?.username||(Array.isArray(f.members)&&f.members.includes(cu?.username)));
 
-  // Devlet Başkanı bir sistem ihalesini iletiyor/aktarıyor
-  const relayTender = (poolItem) => {
+  const relayTender = async (poolItem) => {
     if (!isPresident) return showMsg("Sadece Devlet Başkanı ihale iletebilir", "error");
-    const hours = parseInt(relayDuration) || 72;
-    const newTender = {
-      ...poolItem,
-      id: poolItem.id + "_" + Date.now(),
-      presidentId: "Sistem",
-      relayedBy: cu.username,
-      currentBid: poolItem.startBid,
-      currentBidder: null,
-      bids: [],
-      status: "open",
-      endsAt: now + hours * 3600000,
-      controlInterval: 8,
-      lastControl: null,
-      missedControls: 0,
-      createdAt: now,
-    };
-    saveTenders([newTender, ...tenders]);
-    savePool(pendingPool.filter(p=>p.id !== poolItem.id));
-    showMsg(`✅ "${poolItem.title}" ihalesi duyuruldu! (${hours} saat)`, "success");
-    setTab("list");
-    try { window._pushGameEvent?.('ihale_duyuruldu', `🏗️ İhale: ${poolItem.title}`, `Devlet Başkanı ${cu.username} yeni ihale açtı. Taban: ₺${(poolItem.startBid||0).toLocaleString()}`, '🏗️', 'ihale'); } catch(e){}
+    setLoading(true);
+    try {
+      const res = await fetch('/api/tender/relay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + jwt() },
+        body: JSON.stringify({ poolItem, durationHours: parseInt(relayDuration) || 72 }),
+      });
+      const data = await res.json();
+      if (!data.success) { showMsg(data.msg || 'Hata oluştu', 'error'); return; }
+      setTenders(data.tenders || []);
+      setPool(data.pool || []);
+      showMsg(`✅ "${poolItem.title}" ihalesi duyuruldu!`, "success");
+      setTab("list");
+      try { window._pushGameEvent?.('ihale_duyuruldu', `🏗️ İhale: ${poolItem.title}`, `Devlet Başkanı ${cu.username} yeni ihale açtı. Taban: ${fmtMoney(poolItem.startBid||0)}`, '🏗️', 'ihale'); } catch(e){}
+    } catch { showMsg('Bağlantı hatası', 'error'); }
+    finally { setLoading(false); }
   };
 
-  const placeBid = (tenderId) => {
+  const placeBid = async (tenderId) => {
     if (!isFamilyLeader) return showMsg("Sadece aile liderleri teklif verebilir", "error");
     const amount = parseInt(bidInput[tenderId]);
     if (!amount||isNaN(amount)) return showMsg("Geçerli bir teklif miktarı girin", "error");
-    const updated = tenders.map(t => {
-      if (t.id!==tenderId) return t;
-      if (t.status!=="open") return t;
-      if (t.endsAt<now) return {...t, status:"closed"};
-      if (amount<=t.currentBid) return (showMsg(`Mevcut tekliften (${fmtMoney(t.currentBid)}) yüksek teklif verin`,"error"),t);
-      const bid = {bidder:cu.username, amount, familyName:userFamily?.name||cu.username, timestamp:now};
-      return {...t, currentBid:amount, currentBidder:cu.username, bids:[bid,...(t.bids||[])].slice(0,20)};
-    });
-    saveTenders(updated);
-    setBidInput(prev=>({...prev,[tenderId]:""}));
-    showMsg("Teklifiniz verildi! ✓", "success");
-    const tender = tenders.find(t=>t.id===tenderId);
-    if (tender && amount > (tender.currentBid || 0)) {
-      try { window._pushGameEvent?.('ihale_teklif', `💰 İhale Teklifi: ${tender.title}`, `${cu.username} ₺${amount.toLocaleString()} teklif verdi.`, '💰', 'ihale'); } catch(e){}
-    }
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/tender/${tenderId}/bid`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + jwt() },
+        body: JSON.stringify({ amount, familyName: userFamily?.name || cu?.username }),
+      });
+      const data = await res.json();
+      if (!data.success) { showMsg(data.msg || 'Hata', 'error'); return; }
+      setTenders(data.tenders || []);
+      setBidInput(prev=>({...prev,[tenderId]:""}));
+      showMsg("Teklifiniz verildi! ✓", "success");
+      const t = tenders.find(t=>t.id===tenderId);
+      if (t) try { window._pushGameEvent?.('ihale_teklif', `💰 İhale: ${t.title}`, `${cu.username} ${fmtMoney(amount)} teklif verdi.`, '💰', 'ihale'); } catch(e){}
+    } catch { showMsg('Bağlantı hatası', 'error'); }
+    finally { setLoading(false); }
   };
 
-  const doControl = (tenderId) => {
-    const updated = tenders.map(t => {
-      if (t.id!==tenderId||t.currentBidder!==cu.username) return t;
-      return {...t, lastControl:now, status:"active"};
-    });
-    saveTenders(updated);
-    showMsg("Kontrol başarıyla yapıldı! ✓", "success");
+  const doControl = async (tenderId) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/tender/${tenderId}/control`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + jwt() },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!data.success) { showMsg(data.msg || 'Hata', 'error'); return; }
+      setTenders(data.tenders || []);
+      showMsg("Kontrol başarıyla yapıldı! ✓", "success");
+    } catch { showMsg('Bağlantı hatası', 'error'); }
+    finally { setLoading(false); }
   };
 
   const card = {background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:14,padding:"1rem",marginBottom:"0.75rem"};
@@ -143,9 +126,8 @@ window.TenderScreen = function TenderScreen({ cu, families, allUsers, setCurrent
         İhaleler sistem tarafından otomatik oluşturulur. <strong style={{color:"#F59E0B"}}>Devlet Başkanı ihaleleri duyurur</strong>, aileler teklif verir, kazanan projeyi üstlenir.
       </p>
 
-      {/* Bilgi kutusu */}
       <div style={{background:"rgba(99,102,241,0.08)",border:"1px solid rgba(99,102,241,0.2)",borderRadius:10,padding:"0.55rem 0.75rem",marginBottom:"0.75rem",fontSize:"0.75rem",color:"#818CF8",lineHeight:1.5}}>
-        ℹ️ Devlet Başkanı kendi ihalesi <strong>oluşturamaz</strong>. Sistem havuzundaki ihaleleri seçerek kamuoyuna <strong>iletir/duyurur</strong>.
+        ℹ️ Tüm teklifler <strong>gerçek zamanlı</strong> senkronize edilir. Devlet Başkanı kendi ihalesi <strong>oluşturamaz</strong> — sistem havuzundaki ihaleleri duyurur.
       </div>
 
       {msg&&(
@@ -167,7 +149,7 @@ window.TenderScreen = function TenderScreen({ cu, families, allUsers, setCurrent
             <div style={{...card,textAlign:"center",padding:"2rem"}}>
               <div style={{fontSize:"2rem",marginBottom:"0.5rem"}}>🏗️</div>
               <div style={{color:"#5E7390",fontSize:"0.85rem",marginBottom:"0.5rem"}}>Henüz duyurulan ihale yok.</div>
-              <div style={{color:"#3B4E63",fontSize:"0.75rem"}}>Devlet Başkanı sistem havuzundan ihale duyurduğunda burada görünür.</div>
+              <div style={{color:"#5A7089",fontSize:"0.75rem"}}>Devlet Başkanı sistem havuzundan ihale duyurduğunda burada görünür.</div>
             </div>
           )}
           {tenders.map(tender=>{
@@ -185,7 +167,7 @@ window.TenderScreen = function TenderScreen({ cu, families, allUsers, setCurrent
                     </div>
                     <div style={{fontWeight:700,color:"#fff",fontSize:"0.95rem"}}>{tender.title}</div>
                     {tender.description && <div style={{fontSize:"0.72rem",color:"#5E7390",marginTop:"0.1rem",lineHeight:1.4}}>{tender.description}</div>}
-                    <div style={{fontSize:"0.65rem",color:"#3B4E63",marginTop:"0.15rem"}}>
+                    <div style={{fontSize:"0.65rem",color:"#5A7089",marginTop:"0.15rem"}}>
                       Duyuran: {tender.relayedBy ? `🏛️ ${tender.relayedBy}` : "⚙️ Sistem"}
                     </div>
                   </div>
@@ -207,12 +189,14 @@ window.TenderScreen = function TenderScreen({ cu, families, allUsers, setCurrent
                   <div style={{display:"flex",gap:"0.4rem",marginBottom:"0.4rem"}}>
                     <input
                       type="number"
-                      placeholder={`Min: ${fmtMoney(tender.currentBid+1)}`}
+                      placeholder={`Min: ${fmtMoney((tender.currentBid||0)+1)}`}
                       value={bidInput[tender.id]||""}
                       onChange={e=>setBidInput(p=>({...p,[tender.id]:e.target.value}))}
                       style={{flex:1,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:8,padding:"0.5rem 0.75rem",color:"#fff",fontSize:"0.82rem",fontFamily:"JetBrains Mono,monospace",outline:"none"}}
                     />
-                    <button className="btn btn-primary" style={{flexShrink:0}} onClick={()=>placeBid(tender.id)}>Teklif Ver</button>
+                    <button className="btn btn-primary" style={{flexShrink:0}} onClick={()=>placeBid(tender.id)} disabled={loading}>
+                      {loading ? '...' : 'Teklif Ver'}
+                    </button>
                   </div>
                 )}
                 {isOpen && !isFamilyLeader && !isPresident && (
@@ -221,9 +205,9 @@ window.TenderScreen = function TenderScreen({ cu, families, allUsers, setCurrent
                 {isWinner && tender.status==="active" && (
                   <div>
                     <div style={{background:"rgba(245,158,11,0.08)",border:"1px solid rgba(245,158,11,0.25)",borderRadius:8,padding:"0.5rem",marginBottom:"0.4rem",fontSize:"0.78rem",color:"#F59E0B"}}>
-                      ⚠️ {tender.lastControl ? `Son kontrol: ${new Date(tender.lastControl).toLocaleTimeString("tr-TR")}` : "Henüz kontrol yapılmadı!"} · Kaçırılan: {tender.missedControls||0}
+                      ⚠️ {tender.data?.lastControl ? `Son kontrol: ${new Date(tender.data.lastControl).toLocaleTimeString("tr-TR")}` : "Henüz kontrol yapılmadı!"} · Kaçırılan: {tender.data?.missedControls||0}
                     </div>
-                    <button className="btn btn-primary" style={{width:"100%"}} onClick={()=>doControl(tender.id)}>✅ Proje Kontrolü Yap</button>
+                    <button className="btn btn-primary" style={{width:"100%"}} onClick={()=>doControl(tender.id)} disabled={loading}>✅ Proje Kontrolü Yap</button>
                   </div>
                 )}
                 {tender.bids && tender.bids.length>0 && (
@@ -251,7 +235,7 @@ window.TenderScreen = function TenderScreen({ cu, families, allUsers, setCurrent
               <div style={{fontSize:"1.5rem",marginBottom:"0.5rem"}}>🏆</div>
               <div style={{fontSize:"0.85rem"}}>Henüz teklif verdiğiniz veya kazandığınız ihale yok.</div>
               {!isFamilyLeader && (
-                <div style={{marginTop:"0.75rem",fontSize:"0.75rem",color:"#3B4E63"}}>Teklif verebilmek için bir aile lideri olmanız gerekiyor.</div>
+                <div style={{marginTop:"0.75rem",fontSize:"0.75rem",color:"#5A7089"}}>Teklif verebilmek için bir aile lideri olmanız gerekiyor.</div>
               )}
             </div>
           )}
@@ -260,7 +244,7 @@ window.TenderScreen = function TenderScreen({ cu, families, allUsers, setCurrent
               <div style={{fontWeight:700,color:"#FFB800",marginBottom:"0.25rem"}}>{t.title}</div>
               <div style={{fontSize:"0.8rem",color:"#8899AA"}}>Teklifiniz: {fmtMoney(t.currentBid)} · Durum: {t.status}</div>
               {t.status==="active" && (
-                <button className="btn btn-primary" style={{marginTop:"0.5rem",width:"100%"}} onClick={()=>doControl(t.id)}>✅ Proje Kontrolü Yap</button>
+                <button className="btn btn-primary" style={{marginTop:"0.5rem",width:"100%"}} onClick={()=>doControl(t.id)} disabled={loading}>✅ Proje Kontrolü Yap</button>
               )}
             </div>
           ))}
@@ -273,7 +257,7 @@ window.TenderScreen = function TenderScreen({ cu, families, allUsers, setCurrent
           <div style={{...card,border:"1px solid rgba(245,158,11,0.3)",marginBottom:"0.75rem"}}>
             <div style={{fontWeight:700,color:"#F59E0B",fontSize:"0.85rem",marginBottom:"0.5rem"}}>📢 Devlet Başkanı İhale İletme Paneli</div>
             <p style={{fontSize:"0.78rem",color:"#8BA0B5",lineHeight:1.5,margin:"0 0 0.65rem 0"}}>
-              Sistem tarafından hazırlanmış ihalelerden birini seçip duyurun. İhaleyi kendiniz oluşturamazsınız — sadece sistemin hazırladıklarını halka iletirsiniz.
+              Sistem tarafından hazırlanmış ihalelerden birini seçip duyurun. İhaleyi kendiniz oluşturamazsınız.
             </p>
             <div style={{marginBottom:"0.75rem"}}>
               <div style={{fontSize:"0.7rem",color:"#5E7390",marginBottom:"0.25rem"}}>İhale Süresi</div>
@@ -288,14 +272,14 @@ window.TenderScreen = function TenderScreen({ cu, families, allUsers, setCurrent
             </div>
           </div>
 
-          {pendingPool.length === 0 && (
+          {pool.length === 0 && (
             <div style={{...card,textAlign:"center",padding:"2rem",color:"#5E7390"}}>
               <div style={{fontSize:"1.5rem",marginBottom:"0.5rem"}}>✅</div>
               <div style={{fontSize:"0.85rem"}}>Tüm sistem ihaleleri duyurulmuş. Yeni ihaleler periyodik olarak sisteme eklenir.</div>
             </div>
           )}
 
-          {pendingPool.map(item=>(
+          {pool.map(item=>(
             <div key={item.id} style={{...card,border:"1px solid rgba(99,102,241,0.2)"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"0.5rem"}}>
                 <div style={{flex:1}}>
@@ -308,11 +292,11 @@ window.TenderScreen = function TenderScreen({ cu, families, allUsers, setCurrent
               </div>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"0.5rem"}}>
                 <div>
-                  <span style={{fontSize:"0.72rem",color:"#5E7390"}}>Taban Bedeli: </span>
+                  <span style={{fontSize:"0.72rem",color:"#5E7390"}}>Taban: </span>
                   <span style={{fontWeight:700,color:"#FFB800",fontFamily:"JetBrains Mono,monospace"}}>{fmtMoney(item.startBid)}</span>
                 </div>
-                <button className="btn btn-primary" onClick={()=>relayTender(item)} style={{padding:"0.38rem 0.85rem",fontSize:"0.78rem"}}>
-                  📢 Duyur
+                <button className="btn btn-primary" onClick={()=>relayTender(item)} style={{padding:"0.38rem 0.85rem",fontSize:"0.78rem"}} disabled={loading}>
+                  {loading ? '...' : '📢 Duyur'}
                 </button>
               </div>
             </div>

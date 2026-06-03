@@ -2664,27 +2664,80 @@ function PremiumPage({ profile, setProfile, showNotif }) {
 // MARKET / MAĞAZA SAYFASI
 // ═══════════════════════════════════════════════════════
 const UC_PACKAGES = [
-  { id:'uc70',   uc:70,    price:65,    bonus:'',          badge:'🪙', popular:false },
-  { id:'uc200',  uc:200,   price:180,   bonus:'+15 bonus', badge:'🪙', popular:false },
-  { id:'uc500',  uc:500,   price:420,   bonus:'+50 bonus', badge:'⭐', popular:false },
-  { id:'uc1000', uc:1000,  price:800,   bonus:'+100 bonus',badge:'⭐', popular:true  },
-  { id:'uc2000', uc:2000,  price:1500,  bonus:'+250 bonus',badge:'💎', popular:false },
-  { id:'uc5000', uc:5000,  price:3500,  bonus:'+700 bonus',badge:'💎', popular:false },
-  { id:'uc10000',uc:10000, price:6500,  bonus:'+1500 bonus',badge:'👑',popular:false },
+  { id:'uc_50',   uc:50,   bonus:0,   price:9.99,   badge:'🪙', popular:false },
+  { id:'uc_150',  uc:150,  bonus:10,  price:24.99,  badge:'🪙', popular:false },
+  { id:'uc_350',  uc:350,  bonus:30,  price:49.99,  badge:'⭐', popular:false },
+  { id:'uc_750',  uc:750,  bonus:75,  price:99.99,  badge:'⭐', popular:true  },
+  { id:'uc_1500', uc:1500, bonus:200, price:179.99, badge:'💎', popular:false },
+  { id:'uc_3000', uc:3000, bonus:500, price:299.99, badge:'💎', popular:false },
 ];
 
 function StorePage({ profile, setProfile, showNotif }) {
   const [tab, setTab] = useState('uc');
+  const [buying, setBuying] = useState(null);
+  const [history, setHistory] = useState([]);
   const card = {background:'rgba(11,21,39,0.9)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:'16px',padding:'0.85rem',marginBottom:'0.5rem'};
-  const handleBuyUC = (pkg) => {
-    showNotif(`💳 ${pkg.uc} UC paketi için ödeme sayfasına yönlendiriliyor... (₺${pkg.price})`, 'gold');
+
+  useEffect(() => {
+    const jwt = localStorage.getItem('us_jwt');
+    if (!jwt) return;
+    fetch('/api/store/history', { headers:{'Authorization':'Bearer '+jwt} })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.history) setHistory(d.history); })
+      .catch(() => {});
+  }, []);
+
+  const handleBuyUC = async (pkg) => {
+    const jwt = localStorage.getItem('us_jwt');
+    if (!jwt) { showNotif('Önce giriş yap!', 'error'); return; }
+    setBuying(pkg.id);
+    try {
+      const res = await fetch('/api/store/purchase/uc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+jwt },
+        body: JSON.stringify({ packageId: pkg.id }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        const total = pkg.uc + (pkg.bonus || 0);
+        setProfile(p => { const np={...p, underCoin:(p.underCoin||0)+total}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
+        showNotif(`✅ ${total} UC hesabına yüklendi!`, 'success');
+        setHistory(prev => [{ package_id:pkg.id, uc_amount:total, price_tl:pkg.price, status:'completed', created_at:new Date().toISOString() }, ...prev].slice(0,20));
+      } else {
+        showNotif(d.message || 'Satın alma başarısız', 'error');
+      }
+    } catch (e) {
+      showNotif('Bağlantı hatası', 'error');
+    }
+    setBuying(null);
   };
-  const handleBuyVIP = (plan) => {
-    showNotif(`💎 VIP ${plan.label} için ödeme sayfasına yönlendiriliyor... (₺${plan.price})`, 'gold');
+
+  const handleBuyVIP = async (plan) => {
+    const jwt = localStorage.getItem('us_jwt');
+    if (!jwt) { showNotif('Önce giriş yap!', 'error'); return; }
+    setBuying(plan.id);
+    try {
+      const res = await fetch('/api/store/purchase/vip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+jwt },
+        body: JSON.stringify({ packageId: plan.id }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        setProfile(p => { const np={...p, premium:true, premiumExpiry:d.premiumExpiry, vip:true}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
+        showNotif(`✅ ${plan.label} aktifleştirildi! ${plan.days} gün VIP.`, 'success');
+      } else {
+        showNotif(d.message || 'Satın alma başarısız', 'error');
+      }
+    } catch (e) {
+      showNotif('Bağlantı hatası', 'error');
+    }
+    setBuying(null);
   };
   const vipPlans = [
-    { id:'month', label:'Aylık VIP', price:249.99, days:30, badge:'⭐', popular:true, features:['💎 VIP çerçeve','⚡ 2× XP','🎁 Günlük kutu','📈 5× çiftlik geliri'] },
-    { id:'year',  label:'Yıllık VIP', price:2499.99, days:365, badge:'💎', save:'%17 Tasarruf', features:['💎 VIP çerçeve','⚡ 2× XP','🎁 Günlük kutu','📈 5× çiftlik geliri','🏆 Yıllık rozet'] },
+    { id:'vip_30',  label:'Aylık VIP',  price:49.99,  days:30,  badge:'⭐', popular:true, features:['💎 VIP çerçeve','⚡ +50% XP','📈 %2 banka faizi','🎁 Özel rozet'] },
+    { id:'vip_90',  label:'3 Aylık VIP', price:129.99, days:90,  badge:'💎', save:'%14 Tasarruf', features:['💎 VIP çerçeve','⚡ +50% XP','📈 %2 banka faizi','🪙 Aylık 100 UC'] },
+    { id:'vip_365', label:'Yıllık VIP',  price:399.99, days:365, badge:'👑', save:'%25 Tasarruf', features:['💎 VIP çerçeve','⚡ +50% XP','📈 %2 banka faizi','🪙 Aylık 150 UC','🏆 Yıllık rozet'] },
   ];
   return (
     <div style={{padding:'0.7rem'}}>
@@ -2716,13 +2769,13 @@ function StorePage({ profile, setProfile, showNotif }) {
               <div style={{display:'flex',alignItems:'center',gap:'0.75rem'}}>
                 <div style={{fontSize:'1.6rem',width:'40px',textAlign:'center',flexShrink:0}}>{pkg.badge}</div>
                 <div style={{flex:1}}>
-                  <div style={{fontWeight:800,color:'#E8EDF2',fontSize:'0.9rem'}}>{pkg.uc.toLocaleString('tr-TR')} UC {pkg.bonus && <span style={{color:'#10B981',fontSize:'0.72rem',fontWeight:700}}>+{pkg.bonus.split('+')[1]}</span>}</div>
-                  <div style={{fontSize:'0.65rem',color:'#5A7089'}}>₺{pkg.price.toLocaleString('tr-TR')} ödeme</div>
+                  <div style={{fontWeight:800,color:'#E8EDF2',fontSize:'0.9rem'}}>{pkg.uc.toLocaleString('tr-TR')} UC {pkg.bonus>0 && <span style={{color:'#10B981',fontSize:'0.72rem',fontWeight:700}}>+{pkg.bonus} bonus</span>}</div>
+                  <div style={{fontSize:'0.65rem',color:'#5A7089'}}>₺{pkg.price.toLocaleString('tr-TR')} ödeme • Toplam: {(pkg.uc+pkg.bonus).toLocaleString('tr-TR')} UC</div>
                   {pkg.popular && <div style={{display:'inline-block',marginTop:'0.2rem',background:'rgba(245,158,11,0.2)',border:'1px solid rgba(245,158,11,0.4)',borderRadius:'6px',padding:'1px 6px',fontSize:'0.6rem',color:'#F59E0B',fontWeight:700}}>En Popüler</div>}
                 </div>
-                <button onClick={()=>handleBuyUC(pkg)}
-                  style={{padding:'0.45rem 0.85rem',borderRadius:'10px',border:'none',background:pkg.popular?'linear-gradient(135deg,#F59E0B,#D97706)':'rgba(245,158,11,0.15)',color:pkg.popular?'#000':'#F59E0B',fontWeight:700,fontSize:'0.78rem',cursor:'pointer',flexShrink:0,border:`1px solid rgba(245,158,11,${pkg.popular?0.8:0.3})`}}>
-                  Satın Al
+                <button onClick={()=>handleBuyUC(pkg)} disabled={buying===pkg.id}
+                  style={{padding:'0.45rem 0.85rem',borderRadius:'10px',border:`1px solid rgba(245,158,11,${pkg.popular?0.8:0.3})`,background:pkg.popular?'linear-gradient(135deg,#F59E0B,#D97706)':'rgba(245,158,11,0.15)',color:pkg.popular?'#000':'#F59E0B',fontWeight:700,fontSize:'0.78rem',cursor:buying?'not-allowed':'pointer',flexShrink:0,opacity:buying===pkg.id?0.6:1}}>
+                  {buying===pkg.id ? '...' : 'Satın Al'}
                 </button>
               </div>
             </div>
@@ -2754,8 +2807,8 @@ function StorePage({ profile, setProfile, showNotif }) {
                   </div>
                 ))}
               </div>
-              <button onClick={()=>handleBuyVIP(plan)} style={{width:'100%',padding:'0.65rem',borderRadius:'12px',border:'none',background:'linear-gradient(135deg,#7C3AED,#A855F7)',color:'#fff',fontWeight:700,fontSize:'0.85rem',cursor:'pointer',letterSpacing:'0.03em'}}>
-                💎 {plan.label} Satın Al
+              <button onClick={()=>handleBuyVIP(plan)} disabled={buying===plan.id} style={{width:'100%',padding:'0.65rem',borderRadius:'12px',border:'none',background:'linear-gradient(135deg,#7C3AED,#A855F7)',color:'#fff',fontWeight:700,fontSize:'0.85rem',cursor:buying?'not-allowed':'pointer',letterSpacing:'0.03em',opacity:buying===plan.id?0.6:1}}>
+                {buying===plan.id ? '⏳ İşleniyor...' : `💎 ${plan.label} Satın Al`}
               </button>
             </div>
           ))}

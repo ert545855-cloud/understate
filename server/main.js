@@ -60,6 +60,11 @@ app.use('/api/streak',        require('./routes/streak'));
 app.use('/api/tax',           require('./routes/tax'));
 app.use('/api/tfa',           require('./routes/tfa'));
 app.use('/api/transfer',      require('./routes/transfer'));
+app.use('/api/tender',        require('./routes/tender'));
+app.use('/api/factory',       require('./routes/factory'));
+app.use('/api/jobs',          require('./routes/jobs'));
+app.use('/api/store',         require('./routes/store'));
+app.use('/api/gang-crime',    require('./routes/gangCrime'));
 
 app.get('/health',            (_req, res) => res.json({ status: 'OK', ts: Date.now() }));
 app.get('/api/admob-config',  (_req, res) => res.json(getPublicAdConfig(process.env.NODE_ENV !== 'production')));
@@ -133,6 +138,7 @@ const io     = socketIo(server, {
   pingInterval: 25000,
 });
 
+app.set('io', io);
 connectDB(io);
 initSocket(io);
 

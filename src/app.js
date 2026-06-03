@@ -333,33 +333,11 @@ function useOnlineCount() {
 }
 
 // ═══════════════════════════════════════════════════════
-// FIREBASE AUTH HELPERS
+// AUTH HELPERS (Firebase kaldırıldı — JWT tabanlı)
 // ═══════════════════════════════════════════════════════
-async function fbLogin(email, password) {
-  const auth = firebase.auth();
-  const cred = await auth.signInWithEmailAndPassword(email, password);
-  return cred.user;
-}
-async function fbRegister(email, password) {
-  const auth = firebase.auth();
-  const cred = await auth.createUserWithEmailAndPassword(email, password);
-  return cred.user;
-}
 async function fbLogout() {
-  await firebase.auth().signOut();
-}
-async function loadUserProfile(uid) {
-  if (!window._fb?.db) return null;
-  const snap = await window._fb.db.collection('games').doc(GAME_ID)
-    .collection('users').doc(uid).get();
-  return snap.exists ? snap.data()?.userProfile : null;
-}
-async function saveUserProfile(uid, profile) {
-  if (!window._fb?.db) return;
-  await window._fb.db.collection('games').doc(GAME_ID)
-    .collection('users').doc(uid)
-    .set({ userProfile: profile }, { merge: true });
-  localStorage.setItem('rep_userProfile', JSON.stringify(profile));
+  // Eski Firebase auth kodu kaldırıldı — socket üzerinden logout
+  try { window._socket?.emit('logout'); } catch {}
 }
 
 // ═══════════════════════════════════════════════════════
@@ -592,320 +570,7 @@ function Btn({ children, onClick, variant='primary', size='md', disabled=false, 
   );
 }
 
-// ═══════════════════════════════════════════════════════
-// HEADER
-// ═══════════════════════════════════════════════════════
-function Header({ profile, notifCount, onNotif, page, onNavigate }) {
-  const onlineCnt = useOnlineCount();
-  const lvl = getLevelInfo(profile?.xp || 0);
-  const { dark, toggle } = useTheme();
-  const T = useT();
-  const [parties] = useLs('parties', []);
-  const [gangs] = useLs('gangs', []);
-  const uid = profile?.uid;
-  const myParty = uid ? parties.find(p => p.leaderId===uid || (p.members||[]).includes(uid)) : null;
-  const myGang  = uid ? gangs.find(g => g.leaderId===uid || (g.members||[]).includes(uid)) : null;
-  const orgLabel = myParty ? `🏛️ ${myParty.name}` : myGang ? `💀 ${myGang.name}` : null;
-  return (
-    <div style={{position:'sticky',top:0,zIndex:100,background: dark ? '#0F172A' : '#FFFFFF',borderBottom: dark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.08)',boxShadow: dark ? '0 1px 8px rgba(0,0,0,0.4)' : '0 1px 8px rgba(0,0,0,0.06)'}} >
-      {/* Ticker */}
-      <div style={{height:'22px',background:'rgba(0,0,0,0.4)',borderBottom:'1px solid rgba(255,255,255,0.04)',overflow:'hidden',display:'flex',alignItems:'center'}}>
-        <div style={{whiteSpace:'nowrap',fontSize:'0.58rem',fontFamily:"'JetBrains Mono',monospace",color:'#94A3B8',animation:'ticker 35s linear infinite',paddingLeft:'100%'}}>
-          🟢 {onlineCnt} çevrimiçi oyuncu &nbsp;•&nbsp; 💰 TECH +2.4% ENERGY -1.1% BANK +3.2% &nbsp;•&nbsp; 🏛️ Parlamento: Anayasa değişikliği oylaması &nbsp;•&nbsp; ⚔️ Aktif çatışma: Kuzey bölgesi &nbsp;•&nbsp; 🕵️ İstihbarat: Gizli holding soruşturması &nbsp;•&nbsp; 🎓 Yeni üniversite kuruldu: Başvurular açık &nbsp;•&nbsp; 💼 İşsizlik oranı %12.4 &nbsp;•&nbsp; 🏗️ İstanbul'da 3 yeni inşaat ruhsatı &nbsp;•&nbsp; 👨‍👩‍👧 Yeni bir aile kuruldu &nbsp;•&nbsp; 🗳️ Seçim tarihi yaklaşıyor: 30 gün kaldı &nbsp;•&nbsp; 📈 Borsa rekor kırdı: 10 yılın en yüksek değeri &nbsp;•&nbsp; 🚔 Organize suç soruşturması genişledi &nbsp;•&nbsp; 🟢 {onlineCnt} çevrimiçi oyuncu &nbsp;•&nbsp; 💰 TECH +2.4% ENERGY -1.1%
-        </div>
-      </div>
-      {/* Main header */}
-      <div style={{display:'flex',alignItems:'center',padding:'0.4rem 0.75rem',gap:'0.55rem'}}>
-        {/* Avatar + İsim — tıklanınca profil sayfasına git */}
-        <div onClick={()=>onNavigate&&onNavigate('profile')} style={{display:'flex',alignItems:'center',gap:'0.5rem',flex:1,minWidth:0,cursor:'pointer',WebkitTapHighlightColor:'transparent'}}>
-          <Avatar profile={profile} size={38} />
-          <div style={{display:'flex',flexDirection:'column',justifyContent:'center',minWidth:0}}>
-            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:'0.78rem',fontWeight:700,color: dark ? '#E2E8F0' : '#1E293B',lineHeight:1.2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
-              {profile?.username || '—'}
-            </div>
-            <div style={{display:'flex',alignItems:'center',gap:'0.3rem',flexWrap:'nowrap',overflow:'hidden'}}>
-              <span style={{fontSize:'0.57rem',color:'#F59E0B',fontWeight:700,whiteSpace:'nowrap'}}>{lvl.title}</span>
-              {orgLabel && <>
-                <span style={{fontSize:'0.5rem',color: dark ? '#475569' : '#94A3B8'}}>•</span>
-                <span style={{fontSize:'0.57rem',color: dark ? '#94A3B8' : '#64748B',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{orgLabel}</span>
-              </>}
-            </div>
-          </div>
-        </div>
-        {/* Para */}
-        <div style={{textAlign:'center',padding:'0.18rem 0.45rem',background: dark ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.08)',border:'1px solid rgba(16,185,129,0.25)',borderRadius:'8px',flexShrink:0}}>
-          <div style={{fontSize:'0.42rem',color:'#6EE7B7',textTransform:'uppercase',letterSpacing:'0.06em',fontWeight:700}}>{T('money')}</div>
-          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.67rem',fontWeight:700,color:'#10B981',lineHeight:1.3}}>{fmtWord(profile?.money)}</div>
-        </div>
-        {/* UnderCoin */}
-        <div style={{textAlign:'center',padding:'0.18rem 0.45rem',background: dark ? 'rgba(139,92,246,0.1)' : 'rgba(139,92,246,0.08)',border:'1px solid rgba(139,92,246,0.3)',borderRadius:'8px',flexShrink:0}}>
-          <div style={{fontSize:'0.42rem',color:'#C4B5FD',textTransform:'uppercase',letterSpacing:'0.06em',fontWeight:700}}>{T('uc')}</div>
-          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:'0.67rem',fontWeight:700,color:'#A78BFA',lineHeight:1.3}}>{fmt(profile?.underCoin||0)}</div>
-        </div>
-        {/* Tema + Bildirim */}
-        <button onClick={toggle} title={dark?'Aydınlık mod':'Karanlık mod'} style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:'10px',padding:'0.32rem 0.48rem',cursor:'pointer',fontSize:'0.9rem',color:'#8BA0B5',flexShrink:0}}>
-          {dark ? '☀️' : '🌙'}
-        </button>
-        {/* Online oyuncu sayısı */}
-        <div onClick={()=>onNavigate&&onNavigate('players')} style={{display:'flex',alignItems:'center',gap:'3px',padding:'0.18rem 0.4rem',background:'rgba(74,222,128,0.08)',border:'1px solid rgba(74,222,128,0.2)',borderRadius:'8px',cursor:'pointer',flexShrink:0}} title="Çevrimiçi oyuncular">
-          <span style={{width:'6px',height:'6px',borderRadius:'50%',background:'#4ADE80',display:'inline-block',boxShadow:'0 0 5px #4ADE80'}}/>
-          <span style={{fontSize:'0.6rem',color:'#4ADE80',fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>{onlineCnt}</span>
-        </div>
-        <button onClick={onNotif} style={{position:'relative',background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:'10px',padding:'0.32rem 0.48rem',cursor:'pointer',fontSize:'0.9rem',color:'#8BA0B5',flexShrink:0}}>
-          🔔
-          {notifCount > 0 && <span style={{position:'absolute',top:'-4px',right:'-4px',background:'#EF4444',color:'#fff',fontSize:'0.52rem',fontWeight:900,minWidth:'14px',height:'14px',borderRadius:'7px',display:'flex',alignItems:'center',justifyContent:'center',padding:'0 2px',border:'2px solid #06080F'}}>{notifCount}</span>}
-        </button>
-      </div>
-      <style>{`@keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}`}</style>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════
-// ALT NAVİGASYON (5 Ana Tab + Grid Alt Menü)
-// ═══════════════════════════════════════════════════════
-const NAV_GROUPS = [
-  {
-    id: 'home',
-    icon: '🏠',
-    label: 'Ana Sayfa',
-    rgb: '59,130,246',
-    direct: true,
-  },
-  {
-    id: 'ekonomi',
-    icon: '💰', svgIcon: 'money',
-    label: 'Ekonomi',
-    rgb: '16,185,129',
-    items: [
-      { id:'jobs',       icon:'💼', svgIcon:'briefcase',  label:'İşler',        rgb:'16,185,129' },
-      { id:'kariyer',    icon:'🏗️',                        label:'Kariyer Çalışma', rgb:'245,158,11' },
-      { id:'economy',    icon:'📊', svgIcon:'chart',       label:'Genel',         rgb:'16,185,129' },
-      { id:'farm',       icon:'🌾',                        label:'Tarım',         rgb:'34,197,94'  },
-      { id:'livestock',  icon:'🐄',                        label:'Hayvancılık',   rgb:'16,185,129' },
-      { id:'market',     icon:'🛒',                        label:'Market',        rgb:'236,72,153' },
-      { id:'holdings',        icon:'🏢',                        label:'Şirketler',     rgb:'245,158,11' },
-      { id:'economic_empire', icon:'🏢',                        label:'İmparatorluk',  rgb:'16,185,129'  },
-      { id:'factory',    icon:'🏭', svgIcon:'factory',    label:'Fabrika',       rgb:'245,158,11' },
-      { id:'mining',     icon:'⛏️',                       label:'Maden',         rgb:'161,97,40'  },
-      { id:'education',  icon:'🎓', svgIcon:'education',  label:'Eğitim',        rgb:'59,130,246' },
-      { id:'unions',     icon:'🏭',                        label:'Sendikalar',    rgb:'16,185,129'  },
-      { id:'daily',      icon:'📅',                        label:'Görevler',      rgb:'245,158,11' },
-    ],
-  },
-  {
-    id: 'savas',
-    icon: '⚔️',
-    label: 'Savaş',
-    rgb: '239,68,68',
-    items: [
-      { id:'army',       icon:'⚔️',                   label:'Ordu',      rgb:'239,68,68'  },
-      { id:'pvp',        icon:'🥊',                   label:'Dövüş',     rgb:'239,68,68'  },
-      { id:'gang',       icon:'🔫', svgIcon:'weapon', label:'Çete',      rgb:'239,68,68'  },
-      { id:'family',     icon:'👨‍👩‍👧‍👦',                  label:'Aile',      rgb:'245,158,11' },
-      { id:'tournament', icon:'🎯',                   label:'Turnuva',   rgb:'239,68,68'  },
-      { id:'crisis',     icon:'🚨',                   label:'Kriz',      rgb:'239,68,68'  },
-      { id:'army_system',      icon:'🪖', label:'Genelkurmay',  rgb:'239,68,68'  },
-      { id:'independent_army', icon:'🪖', label:'Ordu Sistemi', rgb:'239,68,68'  },
-      { id:'protection_deals', icon:'🛡️', label:'Koruma',       rgb:'239,68,68'  },
-      { id:'gang_treasury',    icon:'💰', label:'Çete Kasası',  rgb:'239,68,68'  },
-      { id:'crime',      icon:'⚖️', svgIcon:'law',   label:'Mahkeme',   rgb:'239,68,68'  },
-    ],
-  },
-  {
-    id: 'devlet',
-    icon: '🏛️', svgIcon: 'government',
-    label: 'Devlet',
-    rgb: '245,200,66',
-    items: [
-      { id:'politics',        icon:'🏛️', svgIcon:'government', label:'Siyaset',   rgb:'245,200,66' },
-      { id:'yetkilerim',      icon:'⭐',                        label:'Yetkilerim', rgb:'245,200,66' },
-      { id:'election_events', icon:'🚨',                        label:'Olaylar',   rgb:'239,68,68'  },
-      { id:'teamwar',         icon:'⚔️',                       label:'Savaş',     rgb:'239,68,68'  },
-      { id:'citygov',         icon:'🏙️',                       label:'Yönetim',   rgb:'99,102,241' },
-      { id:'taxgov',          icon:'🏦', svgIcon:'bank',        label:'Belediye',   rgb:'245,158,11' },
-      { id:'citybuild',       icon:'🏗️',                       label:'İnşaat',    rgb:'245,158,11' },
-      { id:'map',             icon:'🗺️', svgIcon:'map',         label:'Harita',     rgb:'0,200,100'  },
-      { id:'alliance',        icon:'🤝',                        label:'İttifak',    rgb:'96,165,250' },
-      { id:'world',           icon:'🌍',                        label:'Dünya',      rgb:'59,130,246' },
-      { id:'npcplayers',      icon:'🤖',                        label:'NPC',        rgb:'99,102,241' },
-      { id:'parti_etki',     icon:'⚡', label:'Etki Puanı',   rgb:'167,139,250' },
-      { id:'party_center',   icon:'🏛️', label:'Meclis',        rgb:'167,139,250' },
-      { id:'power_triangle', icon:'⚡', label:'Güç Üçgeni',    rgb:'245,200,66' },
-      { id:'tenders',        icon:'🏗️', label:'İhaleler',      rgb:'245,200,66' },
-      { id:'wiki',            icon:'📚',                        label:'Wiki',       rgb:'59,130,246' },
-    ],
-  },
-  {
-    id: 'sosyal',
-    icon: '👥',
-    label: 'Sosyal',
-    rgb: '139,92,246',
-    items: [
-      { id:'chat',        icon:'💬', label:'Sohbet',    rgb:'139,92,246' },
-      { id:'klanchat',    icon:'🔒', label:'Klan',      rgb:'139,92,246' },
-      { id:'dm',          icon:'📬', label:'Mesaj',     rgb:'96,165,250' },
-      { id:'players',     icon:'👥', label:'Oyuncular', rgb:'59,130,246' },
-      { id:'social',      icon:'📱', label:'Sosyal',    rgb:'167,139,250'},
-      { id:'newspaper',   icon:'📰', label:'Gazete',    rgb:'96,165,250' },
-      { id:'football',    icon:'⚽', label:'Futbol',    rgb:'16,185,129' },
-      { id:'casino',      icon:'🎰', label:'Kumarhane', rgb:'255,215,0'  },
-      { id:'duyurular',   icon:'📣', label:'Duyurular', rgb:'245,158,11' },
-      { id:'leaderboard', icon:'🏆', label:'Sıralama',  rgb:'255,215,0'  },
-      { id:'achievements',icon:'🎖️', label:'Başarılar', rgb:'255,215,0' },
-    ],
-  },
-];
-
-const NAV_ITEMS = NAV_GROUPS.flatMap(g => g.direct ? [{ id: g.id, icon: g.icon, label: g.label, rgb: g.rgb }] : (g.items || []));
-
-function getActiveGroup(page) {
-  if (page === 'home') return 'home';
-  for (const g of NAV_GROUPS) {
-    if (g.direct) continue;
-    if (g.items && g.items.some(i => i.id === page)) return g.id;
-  }
-  return null;
-}
-
-const NAV_GROUP_TKEYS = { home:'home', ekonomi:'economy', savas:'battle', devlet:'state', sosyal:'social' };
-
-function BottomNav({ page, onChange, items, notifMap={} }) {
-  const { dark } = useTheme();
-  const T = useT();
-  const [openGroup, setOpenGroup] = useState(null);
-  const activeGroup = getActiveGroup(page);
-
-  // Build groups — add extra tabs (e.g. Admin) from `items` prop if not already in groups
-  const allGroupIds = new Set(NAV_GROUPS.flatMap(g => g.direct ? [g.id] : (g.items||[]).map(i=>i.id)));
-  const extraItems  = (items||[]).filter(i => !allGroupIds.has(i.id));
-  const extraGroups = extraItems.map(i => ({ ...i, direct: true }));
-  const allGroups   = [...NAV_GROUPS, ...extraGroups];
-
-  const handleTabClick = (group) => {
-    if (group.direct) {
-      setOpenGroup(null);
-      onChange(group.id);
-      return;
-    }
-    setOpenGroup(prev => prev === group.id ? null : group.id);
-  };
-
-  const handleItemClick = (itemId) => {
-    setOpenGroup(null);
-    onChange(itemId);
-  };
-
-  const currentGroup = allGroups.find(g => g.id === openGroup);
-
-  const bg     = dark ? '#0F172A' : '#FFFFFF';
-  const border = dark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.08)';
-  const shadow = dark ? '0 -4px 16px rgba(0,0,0,0.4)'     : '0 -4px 16px rgba(0,0,0,0.08)';
-  const navH   = 64;
-
-  return (
-    <>
-      {openGroup && currentGroup && (
-        <>
-          {/* Backdrop — tıklayınca menüyü kapat */}
-          <div
-            onClick={() => setOpenGroup(null)}
-            style={{position:'fixed',inset:0,zIndex:890,background:'rgba(0,0,0,0.5)'}}
-          />
-          {/* Grid menü — app container ile hizalı */}
-          <div style={{
-            position:'fixed',
-            bottom: navH,
-            left:'50%',
-            transform:'translateX(-50%)',
-            width:'min(100vw, 480px)',
-            zIndex:895,
-            background: dark ? '#111827' : '#F8FAFC',
-            borderTop:`2px solid rgba(${currentGroup.rgb},0.45)`,
-            borderRadius:'18px 18px 0 0',
-            padding:'14px 12px 10px',
-            boxShadow:'0 -8px 40px rgba(0,0,0,0.5)',
-            maxHeight:'56vh',
-            overflowY:'auto',
-          }}>
-            {/* Başlık */}
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px',paddingLeft:'2px'}}>
-              <span style={{fontSize:'0.95rem',fontWeight:800,color: dark ? '#E2E8F0' : '#1E293B',fontFamily:"'Syne',sans-serif",letterSpacing:'0.04em'}}>
-                {currentGroup.icon}&nbsp;{NAV_GROUP_TKEYS[currentGroup.id]?T(NAV_GROUP_TKEYS[currentGroup.id]):currentGroup.label}
-              </span>
-              <button
-                onClick={() => setOpenGroup(null)}
-                style={{background: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.07)',border:'none',borderRadius:'8px',color: dark ? '#94A3B8' : '#64748B',fontSize:'0.9rem',cursor:'pointer',padding:'4px 10px',lineHeight:1}}
-              >✕</button>
-            </div>
-            {/* İtem ızgarası */}
-            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'7px'}}>
-              {(currentGroup.items||[]).map(it => {
-                const active = page === it.id;
-                return (
-                  <button
-                    key={it.id}
-                    onClick={() => handleItemClick(it.id)}
-                    style={{
-                      display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
-                      gap:'5px',padding:'11px 4px',borderRadius:'13px',
-                      border:`1px solid ${active ? `rgba(${it.rgb},0.5)` : dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
-                      background: active ? `rgba(${it.rgb},0.18)` : dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
-                      cursor:'pointer',WebkitTapHighlightColor:'transparent',
-                      transition:'all 0.12s',position:'relative',
-                    }}
-                  >
-                    {it.svgIcon
-                      ? <SvgIcon name={it.svgIcon} size={26} style={{filter:active?`drop-shadow(0 0 5px rgba(${it.rgb},0.7))`:'none'}} />
-                      : <span style={{fontSize:'1.45rem',lineHeight:1,filter:active?`drop-shadow(0 0 5px rgba(${it.rgb},0.7))`:'none'}}>{it.icon}</span>}
-                    <span style={{fontSize:'0.58rem',fontWeight:700,color:active?`rgb(${it.rgb})`:dark?'#94A3B8':'#64748B',textAlign:'center',lineHeight:1.2,letterSpacing:'0.01em'}}>{T(NAV_ITEM_TKEYS[it.id]||it.id)||it.label}</span>
-                    {notifMap[it.id] > 0 && (
-                      <span style={{position:'absolute',top:3,right:5,background:'#EF4444',color:'#fff',fontSize:'0.45rem',fontWeight:900,minWidth:'13px',height:'13px',borderRadius:'7px',display:'flex',alignItems:'center',justifyContent:'center',padding:'0 2px'}}>
-                        {notifMap[it.id]}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Ana nav çubuğu */}
-      <div style={{position:'fixed',bottom:0,left:0,right:0,zIndex:900,background:bg,borderTop:border,paddingBottom:'env(safe-area-inset-bottom,0px)',boxShadow:shadow}}>
-        <div style={{display:'flex',height:`${navH}px`,maxWidth:'480px',margin:'0 auto'}}>
-          {allGroups.map(group => {
-            const isActive = group.direct ? page === group.id : activeGroup === group.id;
-            const isOpen   = openGroup === group.id;
-            const hasNotif = !group.direct && (group.items||[]).some(i => notifMap[i.id] > 0);
-            const lit      = isActive || isOpen;
-            return (
-              <button
-                key={group.id}
-                onClick={() => handleTabClick(group)}
-                style={{
-                  flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
-                  gap:'3px',border:'none',
-                  background: isOpen ? `rgba(${group.rgb},0.1)` : 'transparent',
-                  cursor:'pointer',WebkitTapHighlightColor:'transparent',
-                  position:'relative',transition:'background 0.15s',
-                  borderTop: lit ? `2px solid rgb(${group.rgb})` : '2px solid transparent',
-                }}
-              >
-                {group.svgIcon
-                  ? <SvgIcon name={group.svgIcon} size={22} style={{transform:lit?'scale(1.12)':'scale(1)',transition:'transform 0.15s',filter:lit?`drop-shadow(0 0 5px rgba(${group.rgb},0.7))`:'none'}} />
-                  : <span style={{fontSize:'1.25rem',lineHeight:1,transform:lit?'scale(1.12)':'scale(1)',transition:'transform 0.15s',filter:lit?`drop-shadow(0 0 5px rgba(${group.rgb},0.7))`:'none'}}>{group.icon}</span>}
-                <span style={{fontSize:'0.5rem',fontWeight:800,letterSpacing:'0.04em',textTransform:'uppercase',color:lit?`rgb(${group.rgb})`:dark?'#475569':'#94A3B8',transition:'color 0.15s'}}>{NAV_GROUP_TKEYS[group.id]?T(NAV_GROUP_TKEYS[group.id]):group.label}</span>
-                {hasNotif && <span style={{position:'absolute',top:5,right:'16%',width:'6px',height:'6px',borderRadius:'50%',background:'#EF4444'}} />}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </>
-  );
-}
+// Header ve BottomNav → src/components/Header.js ve BottomNav.js dosyalarına taşındı
 
 // ═══════════════════════════════════════════════════════
 // SKOR HESAPLAMA
@@ -1039,35 +704,21 @@ function App() {
     }
   }, [profile?.level, profile?.xp, profile?.money, profile?.bankMoney, profile?.meritPoints, profile?.loyaltyPoints, profile?.education?.diploma, profile?.educationLevel]);
 
-  // Firebase auth state observer
+  // JWT tabanlı oturum yenileme — sayfa yüklendiğinde token geçerliyse profili yükle
   useEffect(() => {
-    if (typeof firebase !== 'undefined') {
-      const unsubscribe = firebase.auth().onAuthStateChanged(async (user) => {
-        if (user) {
-          const stored = localStorage.getItem('rep_userProfile');
-          if (stored) {
-            try {
-              const p = JSON.parse(stored);
-              if (p.uid === user.uid) {
-                setProfile_raw(p);
-                setAuthed(true);
-                window._startPresenceHeartbeat?.(user.uid, p.username || 'Oyuncu');
-                window._setupUserListener?.(user.uid);
-                window.dispatchEvent(new CustomEvent('user-logged-in', { detail:{ userId:user.uid } }));
-              }
-            } catch{}
-          }
-        } else {
-          // Not logged in
-          if (authed) {
-            setAuthed(false);
-            setProfile_raw(null);
-            localStorage.removeItem('userId');
-          }
+    const jwt = localStorage.getItem('us_jwt');
+    if (!jwt || authed) return;
+    fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + jwt } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.profile) {
+          setProfile_raw(d.profile);
+          setAuthed(true);
+          localStorage.setItem('rep_userProfile', JSON.stringify(d.profile));
+          window._setupSocket?.(d.profile);
         }
-      });
-      return () => unsubscribe?.();
-    }
+      })
+      .catch(() => {});
   }, []);
 
   // Sync profile from firebase events
@@ -1492,7 +1143,7 @@ function App() {
   const pageProps = { profile, setProfile, showNotif, onNavigate: setPage };
   const navItems = isAdmin
     ? [...NAV_ITEMS, { id:'admin', icon:'⚙️', label:'Admin', rgb:'239,68,68' }]
-    : NAV_ITEMS;
+    : (NAV_ITEMS || []);
 
   const themeVal = { dark, toggle: toggleDark };
   const pageBg = dark ? '#0F172A' : '#F0F2F5';
