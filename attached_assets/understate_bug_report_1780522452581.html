@@ -1,0 +1,289 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); }
+.report { padding: 1rem 0; }
+.section { margin-bottom: 2rem; }
+.section-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+}
+.bug-card {
+  background: var(--color-background-primary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-lg);
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+}
+.bug-card:hover { border-color: var(--color-border-secondary); }
+.bug-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 0.5rem;
+}
+.severity {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.sev-critical { background: #FCEBEB; color: #A32D2D; }
+.sev-high { background: #FAEEDA; color: #854F0B; }
+.sev-medium { background: #E6F1FB; color: #185FA5; }
+.bug-title { font-size: 15px; font-weight: 500; color: var(--color-text-primary); line-height: 1.4; }
+.bug-body { font-size: 13px; color: var(--color-text-secondary); line-height: 1.6; }
+.bug-file {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  background: var(--color-background-secondary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: 4px;
+  padding: 2px 6px;
+  display: inline-block;
+  margin-top: 0.4rem;
+}
+.fix-hint {
+  font-size: 12px;
+  color: var(--color-text-success);
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 0.5px dashed var(--color-border-tertiary);
+}
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 1.5rem;
+}
+.stat-card {
+  background: var(--color-background-secondary);
+  border-radius: var(--border-radius-md);
+  padding: 1rem;
+  text-align: center;
+}
+.stat-num { font-size: 28px; font-weight: 500; }
+.stat-label { font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; }
+.num-red { color: #A32D2D; }
+.num-amber { color: #854F0B; }
+.num-blue { color: #185FA5; }
+</style>
+
+<div class="report">
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-num num-red">4</div>
+      <div class="stat-label">Kritik bug</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num num-amber">5</div>
+      <div class="stat-label">Yüksek öncelikli</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num num-blue">6</div>
+      <div class="stat-label">Orta öncelikli</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Kritik — Oyuncular birbirini görmüyor</div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-critical">Kritik</span>
+        <span class="bug-title">playerJoin hiçbir zaman emit edilmiyor (app.js)</span>
+      </div>
+      <div class="bug-body">
+        <code>src/app.js</code>'de socket useEffect mevcut ama <code>playerJoin</code> eventi hiç emit edilmiyor. Sunucu bir oyuncuyu <code>onlinePlayers</code> map'ine ancak <code>playerJoin</code> aldığında ekler. Giriş sonrası <code>playerJoin</code> gönderilmezse oyuncu presence listesine girmiyor; diğer oyuncular onu göremez. <code>AuthScreen._setupSocket</code> ve <code>index.html</code> bridge bunu gönderme denemesi yapıyor ama yarış koşuluna düşüyor.
+      </div>
+      <div class="bug-file">src/app.js • src/screens/AuthScreen.js • index.html:451</div>
+      <div class="fix-hint">Düzeltme: app.js'deki socket useEffect içinde, socket bağlandığında ve authed=true olduğunda playerJoin emit etmeli. AuthScreen ve bridge'deki 3 farklı yerden gönderim race condition yarattığı için tek bir yere toplanmalı.</div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-critical">Kritik</span>
+        <span class="bug-title">index.html'de 'connect' eventi çift dinleniyor</span>
+      </div>
+      <div class="bug-body">
+        <code>index.html</code>'de aynı socket'e <code>_socket.on('connect', ...)</code> iki kez bağlanıyor (satır 440 ve 515). İkincisi sadece <code>us_lastSocketId</code>'yi kaydediyor ama birincisindeki <code>playerJoin</code> emit'ini geçersiz kılmıyor. Her bağlanmada iki handler tetikleniyor, beklenmedik duplicate state oluşuyor.
+      </div>
+      <div class="bug-file">index.html:440 ve index.html:515</div>
+      <div class="fix-hint">Düzeltme: İki 'connect' listener tek bir handler'da birleştirilmeli.</div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-critical">Kritik</span>
+        <span class="bug-title">Stale presence temizleyici çok agresif (45s)</span>
+      </div>
+      <div class="bug-body">
+        <code>gameHandler.js</code>'de oyuncular 45 saniye heartbeat gelmezse silinir. Client 15 saniyede bir heartbeat atar — bu teorik olarak yeterli. Ama mobil uygulamada sekme arka plana alındığında, iOS/Android JavaScript'i dondurur. Oyuncu aktif olsa da silinip diğerlerinin listesinden düşer.
+      </div>
+      <div class="bug-file">server/socket/gameHandler.js:HEARTBEAT_TIMEOUT</div>
+      <div class="fix-hint">Düzeltme: HEARTBEAT_TIMEOUT 45s→120s yapılmalı. Client'ta visibilitychange event'inde anında heartbeat gönderiliyor (mevcut kod var), sunucu toleransı artırılmalı.</div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-critical">Kritik</span>
+        <span class="bug-title">socketClient.js ve index.html çift socket instance açıyor</span>
+      </div>
+      <div class="bug-body">
+        <code>socketClient.js</code> kendi socket'ini açıyor (<code>window._socket</code>), <code>index.html</code> bridge da bağımsız bağlantı kuruyor (<code>window._gameSocket</code>). Bazı durumlarda iki ayrı bağlantı sunucuya gidiyor; biri <code>playerJoin</code> gönderirken diğeri göndermez. Presence ikiye bölünüyor.
+      </div>
+      <div class="bug-file">src/socketClient.js + index.html bridge</div>
+      <div class="fix-hint">Düzeltme: socketClient.js kaldırılmalı veya tamamen bridge'e devredilmeli. Tek bir socket instance olmalı.</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Yüksek öncelikli — iOS ekrana sığmama & UI hataları</div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-high">Yüksek</span>
+        <span class="bug-title">iOS için Capacitor yapılandırması eksik — ios klasörü yok</span>
+      </div>
+      <div class="bug-body">
+        Projede <code>android/</code> klasörü mevcut ama <code>ios/</code> klasörü hiç yok. <code>capacitor.config.json</code>'da iOS için <code>contentInset</code>, <code>StatusBar</code> ayarları ve <code>KeyboardResize</code> gibi plugin konfigürasyonları tanımlanmamış. Safe area inset'leri yalnızca CSS <code>env(safe-area-inset-*)</code> ile çözülmeye çalışılıyor; native iOS desteği olmadan bu yetersiz.
+      </div>
+      <div class="bug-file">capacitor.config.json • ios/ klasörü mevcut değil</div>
+      <div class="fix-hint">Düzeltme: npx cap add ios çalıştırılmalı. capacitor.config.json'a iOS plugin'leri eklenmeli (StatusBar, Keyboard vb.).</div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-high">Yüksek</span>
+        <span class="bug-title">webDir "www" ama www klasörü mevcut değil</span>
+      </div>
+      <div class="bug-body">
+        <code>capacitor.config.json</code>'da <code>"webDir": "www"</code> tanımlı ama projede <code>www/</code> klasörü yok. Kaynak dosyalar doğrudan kök dizinde (<code>index.html</code>, <code>src/</code>, <code>css/</code>). Capacitor build'i bu yüzden başarısız olur, APK boş sayfa açar.
+      </div>
+      <div class="bug-file">capacitor.config.json + proje kök dizini</div>
+      <div class="fix-hint">Düzeltme: webDir "." olarak değiştirilmeli veya dosyalar www/ klasörüne taşınmalı/kopyalanmalı (build script ile).</div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-high">Yüksek</span>
+        <span class="bug-title">Alt navigasyon çubuğu iOS home indicator'ı kapatıyor</span>
+      </div>
+      <div class="bug-body">
+        CSS'de <code>.mobile-bottom-nav</code>'a <code>padding-bottom: env(safe-area-inset-bottom, 0px)</code> uygulanmış ama bu sadece belirli ekran boyutlarında çalışıyor. Bazı ekran koşullarında <code>bottom-nav</code> ve <code>mobile-bottom-nav</code>'a ayrı ayrı farklı değerler atanıyor (satır 730 ve 799). iPhone 14/15 Pro'nun Dynamic Island'ında buton üst üste biniyor.
+      </div>
+      <div class="bug-file">css/styles.css:722-799</div>
+      <div class="fix-hint">Düzeltme: Tüm bottom-nav kuralları tek bir blokta birleştirilmeli. padding-bottom: max(env(safe-area-inset-bottom), 8px) kullanılmalı.</div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-high">Yüksek</span>
+        <span class="bug-title">Modal'lar iOS'ta taşıyor — position:fixed iframe sorunu</span>
+      </div>
+      <div class="bug-body">
+        Uygulama genelinde modal'lar <code>position: fixed</code> ile tam ekrana yerleşiyor. iOS WKWebView'de <code>position:fixed</code> elementler sanal klavye açıldığında kayıyor veya soft keyboard arkasında kalıyor. Klavye içeren formlar (login, chat, mesaj) bu durumda içerik görmez hale geliyor.
+      </div>
+      <div class="bug-file">css/styles.css + tüm ekranlar</div>
+      <div class="fix-hint">Düzeltme: Capacitor Keyboard plugin'i eklenmeli ve KeyboardResize: 'body' yapılandırılmalı. Modal'lar için max-height: calc(100dvh - env(keyboard-inset-height, 0px)) kullanılmalı.</div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-high">Yüksek</span>
+        <span class="bug-title">electionUpdate çift kanal çakışması</span>
+      </div>
+      <div class="bug-body">
+        <code>gameHandler.js</code>'de hem <code>election:sync</code> hem de eski <code>electionUpdate</code> event'i dinleniyor. İki ayrı client tipi iki farklı event gönderdiğinde server broadcast yapıyor; alıcı taraf bazen iki kez güncelleme alıyor ve seçim state'i çakışıyor. Özellikle oy sayımında tutarsızlık oluşuyor.
+      </div>
+      <div class="bug-file">server/socket/gameHandler.js:485-510</div>
+      <div class="fix-hint">Düzeltme: Eski electionUpdate handler kaldırılmalı, tüm client'lar election:sync kullanmalı.</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Orta öncelikli — Özellik hataları</div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-medium">Orta</span>
+        <span class="bug-title">Auto-save her 30s'de çalışıyor ama profile null olabilir</span>
+      </div>
+      <div class="bug-body">
+        <code>app.js</code>'deki auto-save useEffect, <code>if (!p || !p.id) return</code> kontrolü yapıyor. Ama profile geçici olarak null olduğunda (auth yenileme sırasında) save interval çalışmaya devam ediyor ve gereksiz API çağrıları yapıyor. Ayrıca logout yapan kullanıcının son partial save'i sunucuya gönderiliyor.
+      </div>
+      <div class="bug-file">src/app.js (auto-save useEffect)</div>
+      <div class="fix-hint">Düzeltme: Logout sırasında interval clearInterval ile temizlenmeli. authed state false olduğunda save durdurulmalı.</div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-medium">Orta</span>
+        <span class="bug-title">rep_elections_multi anahtarı çift prefix ile kaydediliyor</span>
+      </div>
+      <div class="bug-body">
+        <code>app.js</code>'deki gameStateInit handler'ında <code>_syncLs('rep_elections_multi', ...)</code> çağrılıyor. Ancak <code>_syncLs</code> zaten <code>'rep_'</code> prefix'i ekliyor — sonuç olarak localStorage'da <code>rep_rep_elections_multi</code> anahtarına kaydediliyor. Seçim verileri hiç okunamıyor.
+      </div>
+      <div class="bug-file">src/app.js:gameStateInit handler</div>
+      <div class="fix-hint">Düzeltme: _syncLs('rep_elections_multi', ...) → _syncLs('elections_multi', ...) olarak değiştirilmeli.</div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-medium">Orta</span>
+        <span class="bug-title">DM iletimi getOnlineGamePlayers ile uyumsuz</span>
+      </div>
+      <div class="bug-body">
+        <code>socket/index.js</code>'deki <code>dm:send</code> handler, <code>getOnlineGamePlayers()</code> ile alıcıyı buluyor ve <code>p.id === result.receiverId</code> ile eşleştiriyor. Ama <code>onlinePlayers</code> map'indeki alanın adı <code>p.id</code> değil <code>p.userId</code>. İkinci kontrol (<code>p.userId === result.receiverId</code>) var ama önce gelen <code>p.id</code> yüzünden beklenmedik davranışlar oluşabiliyor.
+      </div>
+      <div class="bug-file">server/socket/index.js:dm:send handler</div>
+      <div class="fix-hint">Düzeltme: receiver araması yalnızca p.userId === result.receiverId olarak yapılmalı.</div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-medium">Orta</span>
+        <span class="bug-title">Çete/parti verisi object ve array karışıklığı</span>
+      </div>
+      <div class="bug-body">
+        <code>index.html</code> bridge'i gangs/parties verilerini obje olarak kaydediyor (<code>map[g.id] = g</code>). Ama <code>app.js</code> ve ekranlar bunları array olarak bekliyor (<code>Array.isArray(data.gangs)</code>). <code>gameStateInit</code>'te gelen veri array, REST API'den gelen veri obje. Bu uyumsuzluk bazı render hatalarına yol açıyor.
+      </div>
+      <div class="bug-file">index.html:~415 + server/socket/gameHandler.js</div>
+      <div class="fix-hint">Düzeltme: Bridge'deki map dönüşümü kaldırılmalı, doğrudan array olarak saklanmalı. Ya da her yerde normalize fonksiyonu kullanılmalı.</div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-medium">Orta</span>
+        <span class="bug-title">Kapasitör Android için androidScheme "https" ama CORS eksik</span>
+      </div>
+      <div class="bug-body">
+        <code>capacitor.config.json</code>'da <code>"androidScheme": "https"</code> ayarlı. Bu, WebView'in origin'ini <code>https://localhost</code> yapıyor. Server.js'de CORS <code>app.use(cors())</code> ile tamamen açık bırakılmış — iyi. Ama WebSocket bağlantıları için Socket.IO CORS ayarı yoksa WebSocket upgrade reddediliyor. Özellikle Render.com'da CORS kısıtlamaları devreye girebiliyor.
+      </div>
+      <div class="bug-file">server.js + server/index.js</div>
+      <div class="fix-hint">Düzeltme: Socket.IO init'e cors: { origin: "*" } veya belirli origin listesi eklenmeli.</div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-medium">Orta</span>
+        <span class="bug-title">Yatay scroll çakışması — iOS momentum scroll kesilmiyor</span>
+      </div>
+      <div class="bug-body">
+        <code>body</code>'e <code>position: fixed; overflow: hidden</code> uygulanmış (satır 75). Bu iOS'ta momentum scroll'u tamamen kesiyor. İçerik bölümlerindeki <code>-webkit-overflow-scrolling: touch</code> düzeltme denemesi var ama <code>position:fixed</code> üst container ile çakışıyor. Bazı ekranlarda scroll tamamen çalışmıyor.
+      </div>
+      <div class="bug-file">css/styles.css:74-75</div>
+      <div class="fix-hint">Düzeltme: body'deki position:fixed kaldırılmalı. Bunun yerine .app-wrap'e height:100dvh ve overflow:hidden uygulanmalı, içerik container'ları overflow-y:auto ile scroll yapmalı.</div>
+    </div>
+  </div>
+</div>

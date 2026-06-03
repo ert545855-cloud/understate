@@ -1,0 +1,187 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+.report { padding: 1rem 0; }
+.section { margin-bottom: 2rem; }
+.section-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+}
+.bug-card {
+  background: var(--color-background-primary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-lg);
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+}
+.bug-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 0.5rem; }
+.severity {
+  font-size: 11px; font-weight: 500; padding: 3px 8px;
+  border-radius: 20px; white-space: nowrap; flex-shrink: 0; margin-top: 1px;
+}
+.sev-critical { background: #FCEBEB; color: #A32D2D; }
+.sev-high     { background: #FAEEDA; color: #854F0B; }
+.sev-medium   { background: #E6F1FB; color: #185FA5; }
+.sev-low      { background: #EAF3DE; color: #3B6D11; }
+.bug-title { font-size: 15px; font-weight: 500; color: var(--color-text-primary); line-height: 1.4; }
+.bug-body  { font-size: 13px; color: var(--color-text-secondary); line-height: 1.6; }
+.bug-file {
+  font-family: var(--font-mono); font-size: 11px; color: var(--color-text-tertiary);
+  background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary);
+  border-radius: 4px; padding: 2px 6px; display: inline-block; margin-top: 0.4rem;
+}
+.fix-hint {
+  font-size: 12px; color: var(--color-text-success); margin-top: 0.5rem;
+  padding-top: 0.5rem; border-top: 0.5px dashed var(--color-border-tertiary);
+}
+</style>
+
+<div class="report">
+
+  <div class="section">
+    <div class="section-title">Güvenlik açıkları</div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-critical">Kritik</span>
+        <span class="bug-title">Tüm oyun ödülleri ve cooldown'lar sadece client-side (localStorage)</span>
+      </div>
+      <div class="bug-body">
+        İş yapma cooldown'ları (<code>jobCooldowns</code>), suç cooldown'ları (<code>sucCooldowns</code>) ve günlük görev ödülleri (<code>rep_dailyTaskProgress</code>) tamamen localStorage'da tutuluyor. Sunucuda hiçbir doğrulama yok. Kullanıcı localStorage'ı silip sayfayı yenilerse tüm cooldown'lar sıfırlanıyor. Günlük görev ödülü (<code>claimTask</code>) de direkt localStorage'a para yazıyor — sunucuya bildirilmiyor. Herhangi biri DevTools'dan istediği parayı profil objesine yazabilir.
+      </div>
+      <div class="bug-file">src/screens/JobsScreen.js:280-298 • src/screens/HomeScreen.js:70-82 • src/screens/CrimeScreen.js:67-83</div>
+      <div class="fix-hint">Düzeltme: Cooldown'lar sunucuda users tablosunda saklanmalı. Ödül claim işlemleri /api/tasks/claim gibi bir endpoint üzerinden yapılmalı ve server tarafında doğrulanmalı.</div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-critical">Kritik</span>
+        <span class="bug-title">/api/auth/test-email endpoint'i auth middleware olmadan açık</span>
+      </div>
+      <div class="bug-body">
+        <code>server/routes/auth.js</code>'deki <code>POST /api/auth/test-email</code> endpoint'i hiçbir auth kontrolü olmadan herkese açık. Herhangi biri istediği email adresine sınırsız mail gönderebilir. SMTP ücreti veya spam kaynağı olma riski mevcut. Rate limiter uygulanmış ama kimlik doğrulama yok.
+      </div>
+      <div class="bug-file">server/routes/auth.js:POST /test-email</div>
+      <div class="fix-hint">Düzeltme: authMiddleware ve adminMiddleware eklenmeli veya endpoint production'da tamamen kaldırılmalı.</div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-critical">Kritik</span>
+        <span class="bug-title">.env dosyası veritabanı şifresi ve JWT secret içeriyor — repoya commit edilmiş</span>
+      </div>
+      <div class="bug-body">
+        <code>.env</code> dosyası repoda mevcut ve içinde canlı Supabase veritabanı bağlantı şifresi (<code>4Z0erLZIWWT9Kpa2</code>), JWT secret ve veritabanı URL'si var. Bu bilgilere erişen herkes tüm kullanıcı verilerine doğrudan ulaşabilir.
+      </div>
+      <div class="bug-file">.env (commit edilmiş)</div>
+      <div class="fix-hint">Düzeltme: .env .gitignore'a eklenmeli, Supabase şifresi ve JWT secret derhal rotate edilmeli. Environment variable'lar hosting panelinden (Render) ayarlanmalı.</div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-high">Yüksek</span>
+        <span class="bug-title">Save endpoint para delta kontrolü yok — 10 trilyon ₺ gönderilebilir</span>
+      </div>
+      <div class="bug-body">
+        <code>saveValidator.js</code> dosyası var ama <code>server/routes/save.js</code>'de kullanılmıyor — dead code. Save route kendi <code>validateSavePayload</code> fonksiyonunu kullanıyor ve bu fonksiyon yalnızca <code>money > 1e13</code> kontrolü yapıyor. Kullanıcının mevcut parası ile gönderilen para arasındaki delta hiç kontrol edilmiyor. Biri 0₺'den direkt 9,999,999,999,999₺ gönderebilir ve kayıt edilir.
+      </div>
+      <div class="bug-file">server/routes/save.js + server/middleware/saveValidator.js (kullanılmıyor)</div>
+      <div class="fix-hint">Düzeltme: saveValidator.js import edilmeli ve validateSaveData(incoming, current, userId) kullanılmalı. MAX_MONEY_DELTA_PER_SAVE (50M₺) kontrolü aktifleştirilmeli.</div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-high">Yüksek</span>
+        <span class="bug-title">updateUser dinamik sütun adı — SQL injection riski (dbService)</span>
+      </div>
+      <div class="bug-body">
+        <code>dbService.updateUser(id, fields)</code> fonksiyonu gelen objenin key'lerini doğrudan SQL'e yazıyor: <code>SET ${col} = $${i+2}</code>. <code>saveUserGameData</code> içinde SAVEABLE whitelist ile korunan çağrılar güvenli, ama <code>updateUser</code> direkt çağrılan başka yerler de var (<code>socket/index.js</code>). Orada hardcoded field'lar kullanılıyor — şimdilik güvenli, ama ilerideki bir refactor SQL injection kapısını açabilir.
+      </div>
+      <div class="bug-file">server/services/dbService.js:updateUser</div>
+      <div class="fix-hint">Düzeltme: updateUser içinde de ALLOWED_COLUMNS whitelist kontrolü eklenmeli. Dinamik sütun adları hiçbir zaman kullanıcıdan gelmemeli.</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Veri tutarsızlıkları ve logic hataları</div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-high">Yüksek</span>
+        <span class="bug-title">jobCooldowns rep_ prefix olmadan kaydediliyor — app reload'da sıfırlanıyor</span>
+      </div>
+      <div class="bug-body">
+        İş cooldown'ları <code>localStorage.getItem('jobCooldowns')</code> ile kaydediliyor ama <code>useLs</code> hook'u tüm key'leri <code>rep_</code> prefix'iyle kullanıyor. Uygulama her yenilendiğinde state <code>rep_jobCooldowns</code>'a bakıyor, bulamıyor, boş obje dönüyor. Sonuç: tüm iş cooldown'ları sayfa yenilemede sıfırlanıyor. Bu kasıtlı olmayan bir cheat kaynağı.
+      </div>
+      <div class="bug-file">src/screens/JobsScreen.js:280,298</div>
+      <div class="fix-hint">Düzeltme: localStorage.getItem('jobCooldowns') → localStorage.getItem('rep_jobCooldowns') olmalı. Veya useLs('jobCooldowns', {}) hook'u kullanılmalı.</div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-high">Yüksek</span>
+        <span class="bug-title">stockMarket verisi tip uyumsuzluğu — fiyatlar NaN olabiliyor</span>
+      </div>
+      <div class="bug-body">
+        Bridge <code>applyStateUpdate('stockMarket', map)</code> ile market verisini obje olarak kaydediyor, değerler de fiyat objeleri. Ama <code>EconomyScreen</code>'deki <code>useLs('stockMarket', {...})</code> her key'in direkt sayı olmasını bekliyor (<code>stocks[sym]</code> → fiyat). Market snapshot socket üzerinden geldiğinde format farklı. <code>price * qty</code> hesaplamalarında NaN üretiliyor.
+      </div>
+      <div class="bug-file">src/screens/EconomyScreen.js:313,381 + index.html bridge</div>
+      <div class="fix-hint">Düzeltme: stockMarket normalize edilmeli — her zaman {SEM: fiyat} formatında tutulmalı. marketSnapshot event'i geldiğinde client normalize fonksiyonu çalıştırmalı.</div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-medium">Orta</span>
+        <span class="bug-title">Hisse satışı tüm pozisyonu satıyor, kısmi satış yok</span>
+      </div>
+      <div class="bug-body">
+        <code>EconomyScreen</code>'deki "sat" işlemi <code>portfolio[sym].qty</code> adetinin tamamını satıyor ve portföyden kaldırıyor. Kullanıcıya kaç adet satmak istediği sorulmuyor. Yanlışlıkla "Sat" butonuna tıklayan biri tüm pozisyonunu kaybediyor, geri alma yok.
+      </div>
+      <div class="bug-file">src/screens/EconomyScreen.js:393-396</div>
+      <div class="fix-hint">Düzeltme: Satış miktarı için input modal'ı eklenmeli. "Tümünü sat" ayrı bir onay gerektirmeli.</div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-medium">Orta</span>
+        <span class="bug-title">Parti/çete üyelik kontrolü userId vs username karışıklığı</span>
+      </div>
+      <div class="bug-body">
+        <code>PoliticsScreen</code>'de çete üyeliği kontrolü <code>g.members.includes(cu.username)</code> ile yapılıyor ama bazı yerlerde <code>g.members.includes(profile.uid)</code> kullanılıyor. Farklı screenlerde tutarsız — kimi zaman username, kimi zaman userId ile üyelik aranıyor. Bu, "üyesin ama göstermiyor" veya "değilsin ama engelliyor" durumlarına yol açıyor.
+      </div>
+      <div class="bug-file">src/screens/PoliticsScreen.js + src/screens/HomeScreen.js:earnedAch</div>
+      <div class="fix-hint">Düzeltme: Tüm üyelik array'leri userId kullanmalı ve bu tutarlı şekilde uygulanmalı. HomeScreen'deki achievement hesabında da username kullanılıyor — bu da yanlış.</div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-medium">Orta</span>
+        <span class="bug-title">Access token 1 saatte sürüyor ama refresh mekanizması belirsiz</span>
+      </div>
+      <div class="bug-body">
+        JWT access token <code>ACCESS_TOKEN_EXPIRES_IN: '1h'</code>. Oyun uzun oturumlar gerektiriyor. Client'ta token yenileme için <code>tokenRefreshed</code> socket eventi ve <code>/api/auth/refresh</code> var ama otomatik token yenileme tetikleyicisi <code>app.js</code>'de yok. 1 saat sonra tüm API istekleri 401 döner, oyuncu session'ı görünmez bir şekilde kopuyor. Kullanıcı bunu fark etmeden oyun kaydetmiyor.
+      </div>
+      <div class="bug-file">server/config/constants.js + src/app.js</div>
+      <div class="fix-hint">Düzeltme: app.js'de interval ile token remaining time kontrolü yapılmalı (örn. her 10 dakikada). Süre dolmadan önce /api/auth/refresh çağrılmalı.</div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="severity sev-low">Düşük</span>
+        <span class="bug-title">Casino / kumar: kazanç da localStorage'a yazılıyor</span>
+      </div>
+      <div class="bug-body">
+        <code>EconomyScreen</code>'deki casino (slot makinesi, zar) kazanç hesaplaması client-side yapılıp direkt localStorage'a yazılıyor. Sunucuda doğrulama yok. Kullanıcı browser konsolundan her zaman kazanacak şekilde manipüle edebilir.
+      </div>
+      <div class="bug-file">src/screens/EconomyScreen.js:813-851</div>
+      <div class="fix-hint">Düzeltme: Sonuç sunucuda üretilip döndürülmeli (provably fair). En azından kazanç miktarı /api/save üzerinden delta kontrolüne takılmalı (mevcut bug düzeltilinceye kadar kısmi koruma sağlar).</div>
+    </div>
+  </div>
+
+</div>

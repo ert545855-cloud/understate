@@ -439,6 +439,7 @@ function boot() {
 
     _socket.on('connect', function() {
       _socketReady = true;
+      localStorage.setItem('us_lastSocketId', _socket.id);
       console.log('[Socket Bridge] Bağlantı kuruldu ✓', _socket.id);
       flushPending();
       loadInitialStateFromServer();
@@ -511,10 +512,7 @@ function boot() {
       }
     });
 
-    // Her bağlantıda socket ID'yi sakla (disconnect sonrası reconnect için)
-    _socket.on('connect', function() {
-      localStorage.setItem('us_lastSocketId', _socket.id);
-    });
+    // (us_lastSocketId artık yukarıdaki tek 'connect' handler'ında kaydediliyor)
 
     // ── Sunucudan gelen eventler ─────────────────────────────────────
     _socket.on('stateUpdate', function(data) {

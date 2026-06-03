@@ -1,7 +1,7 @@
 {
   "appId": "com.understate.game",
   "appName": "UNDERSTATE",
-  "webDir": "www",
+  "webDir": ".",
   "server": {
     "androidScheme": "https"
   },

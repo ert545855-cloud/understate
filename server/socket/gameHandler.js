@@ -3,7 +3,7 @@ const monitoring = require('../services/monitoringService');
 const { SOCKET_EVENT_RATE_LIMIT, SOCKET_EVENT_RATE_WINDOW, MAX_SOCKET_PAYLOAD_BYTES } = require('../config/constants');
 const db = require('../services/dbService');
 const { onlinePlayers } = require('./onlineStore');
-const HEARTBEAT_TIMEOUT = 45 * 1000; // 45s yanıt gelmezse çevrimdışı say
+const HEARTBEAT_TIMEOUT = 120 * 1000; // 120s yanıt gelmezse çevrimdışı say (mobil arka plan toleransı)
 
 // ── Stale presence temizleyici — her 30 saniyede çalışır ─────────────────────
 let _io = null; // initSocket sonrası set edilecek
@@ -542,28 +542,7 @@ function registerGameHandlers(io, socket) {
     socket.broadcast.emit('electionUpdate', { ...data, updatedBy: socket.username, ts: Date.now() });
   });
 
-  socket.on('electionUpdate', (data) => {
-    if (!data || !checkEventRate(socket.id)) return;
-    if (db.isReady()) db.setElections(data).catch(() => {});
-    io.emit('electionUpdate', { ...data, ts: Date.now() });
-    if (data.phase === 'active') {
-      broadcastNotification(io, {
-        id: `notif_election_start_${Date.now()}`,
-        type: 'election',
-        icon: '🗳️',
-        title: 'Seçim Başladı!',
-        msg: 'Oy kullanmayı unutma! Seçimler başladı.',
-      });
-    } else if (data.phase === 'finished' && data.winner) {
-      broadcastNotification(io, {
-        id: `notif_election_end_${Date.now()}`,
-        type: 'election',
-        icon: '🏆',
-        title: 'Seçim Sonuçlandı!',
-        msg: `${data.winner.username} Devlet Başkanı seçildi!`,
-      });
-    }
-  });
+  // electionUpdate legacy handler kaldırıldı — tüm client'lar election:sync kullanmalı
 
   socket.on('electionResult', (data) => {
     if (!data || !checkEventRate(socket.id)) return;

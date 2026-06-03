@@ -106,11 +106,28 @@ async function createUser(fields) {
   }
 }
 
+const ALLOWED_UPDATE_COLUMNS = new Set([
+  'username', 'email', 'password_hash', 'role', 'banned', 'ban_reason',
+  'level', 'xp', 'money', 'bank_money', 'under_coin', 'hp', 'score',
+  'credit_score', 'merit_points', 'loyalty_points', 'city', 'position_tag',
+  'education_level', 'education_progress', 'inventory', 'equipped_items',
+  'holdings', 'game_data', 'push_subscriptions', 'email_verified',
+  'email_verify_token', 'email_verify_expiry', 'refresh_token',
+  'reset_token', 'reset_token_expiry', 'is_online', 'socket_id', 'last_login',
+]);
+
 async function updateUser(id, fields) {
   try {
     if (!fields || Object.keys(fields).length === 0) return true;
-    const entries = Object.entries(fields);
-    const sets = entries.map(([col], i) => `${col} = $${i + 2}`).join(', ');
+    const entries = Object.entries(fields).filter(([col]) => {
+      if (!ALLOWED_UPDATE_COLUMNS.has(col)) {
+        logger.warn(`[DB] updateUser: izinsiz sütun reddedildi: ${col}`);
+        return false;
+      }
+      return true;
+    });
+    if (entries.length === 0) return true;
+    const sets = entries.map(([col], i) => `"${col}" = $${i + 2}`).join(', ');
     const vals = [id, ...entries.map(([, v]) => v)];
     await query(`UPDATE users SET ${sets}, updated_at = NOW() WHERE id = $1`, vals);
     return true;

@@ -115,8 +115,11 @@ router.get('/verify', (req, res) => {
   }
 });
 
-// ── Test Email (Admin) ─────────────────────────────────────────────
-router.post('/test-email', async (req, res) => {
+// ── Test Email (Admin only) ────────────────────────────────────────
+router.post('/test-email', authMiddleware, (req, res, next) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ success: false, message: 'Yetkisiz' });
+  next();
+}, async (req, res) => {
   try {
     const { email, type = 'verification' } = req.body;
     if (!email) return res.status(400).json({ success: false, message: 'Email adresi gerekli' });

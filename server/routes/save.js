@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { saveUserFull } = require('../services/saveService');
+const { validateSaveData } = require('../middleware/saveValidator');
 const { generalLimiter } = require('../middleware/rateLimiter');
+const db = require('../services/dbService');
 const logger = require('../utils/logger');
 
 const ALLOWED_FIELDS = new Set([
@@ -65,7 +67,17 @@ router.post('/', authMiddleware, generalLimiter, throttleSave, async (req, res) 
     return res.status(400).json({ success: false, message: validationError });
   }
   try {
-    const saved = await saveUserFull(req.user.id, req.body);
+    // Delta kontrolü: mevcut DB değerlerini al ve anormal artışları engelle
+    let sanitized = req.body;
+    try {
+      const current = await db.findUserById(req.user.id);
+      if (current) {
+        sanitized = validateSaveData(req.body, current, req.user.id);
+      }
+    } catch (deltaErr) {
+      logger.warn(`[Save] Delta check hatası user=${req.user?.id}: ${deltaErr.message}`);
+    }
+    const saved = await saveUserFull(req.user.id, sanitized);
     if (!saved) return res.status(503).json({ success: false, message: 'Kayıt başarısız' });
     res.json({ success: true, message: 'Kaydedildi' });
   } catch (err) {

@@ -1123,6 +1123,36 @@ function App() {
   const [incomingDm, setIncomingDm] = useState(null);
   const [incomingTrade, setIncomingTrade] = useState(null);
 
+  // ── Token auto-refresh: her 10 dakikada kontrol, 5 dakika kalmışsa yenile ──
+  useEffect(() => {
+    if (!authed) return;
+    const checkAndRefresh = async () => {
+      try {
+        const jwt = localStorage.getItem('us_jwt');
+        if (!jwt) return;
+        const res = await fetch('/api/auth/verify', { headers: { Authorization: 'Bearer ' + jwt } });
+        const data = await res.json();
+        if (data.shouldRefresh || (data.expiresIn && data.expiresIn < 300)) {
+          const refreshToken = localStorage.getItem('us_refreshToken');
+          if (!refreshToken) return;
+          const r = await fetch('/api/auth/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken }),
+          });
+          const d = await r.json();
+          if (d.success && d.token) {
+            localStorage.setItem('us_jwt', d.token);
+            if (d.refreshToken) localStorage.setItem('us_refreshToken', d.refreshToken);
+          }
+        }
+      } catch(_) {}
+    };
+    checkAndRefresh();
+    const iv = setInterval(checkAndRefresh, 10 * 60 * 1000);
+    return () => clearInterval(iv);
+  }, [authed]);
+
   // Socket.IO real-time event listeners
   useEffect(() => {
     if (!authed) return;
@@ -1132,9 +1162,33 @@ function App() {
         window.dispatchEvent(new CustomEvent('fb-sync', {detail:{key, value}}));
       } catch(e){}
     };
+
+    const _emitPlayerJoin = (s) => {
+      const userId = profile?.id || profile?.uid || localStorage.getItem('rep_userId');
+      if (!userId || !s?.connected) return;
+      s.emit('playerJoin', {
+        userId,
+        username: profile?.username || localStorage.getItem('rep_username') || 'Oyuncu',
+        level: profile?.level || 1,
+        city: profile?.city || '',
+        gender: profile?.gender || 'erkek',
+        money: profile?.money || 0,
+        party: profile?.party || null,
+        gang: profile?.gang || null,
+        avatar: profile?.avatar || null,
+      });
+    };
+
     const attach = () => {
       const s = window._socket;
       if (!s) return false;
+
+      // Eğer zaten bağlıysa hemen playerJoin gönder; değilse connect event'ini dinle
+      if (s.connected) {
+        _emitPlayerJoin(s);
+      } else {
+        s.once('connect', () => _emitPlayerJoin(s));
+      }
 
       // ── Presence ────────────────────────────────────────────────
       s.on('onlinePlayers', (list) => {
@@ -1149,7 +1203,7 @@ function App() {
           if (Array.isArray(data.parties))       _syncLs('parties', data.parties);
           if (Array.isArray(data.alliances))     _syncLs('alliances', data.alliances);
           if (data.elections)                    _syncLs('elections', data.elections);
-          if (data.elections_multi)              _syncLs('rep_elections_multi', data.elections_multi);
+          if (data.elections_multi)              _syncLs('elections_multi', data.elections_multi);
           if (Array.isArray(data.laws))          _syncLs('laws', data.laws);
           if (Array.isArray(data.announcements)) _syncLs('announcements', data.announcements);
           if (data.cabinet)                      _syncLs('cabinet', data.cabinet);
@@ -1191,7 +1245,7 @@ function App() {
       s.on('electionUpdate', (data) => {
         try {
           if (data.elections !== undefined)       _syncLs('elections', data.elections);
-          if (data.elections_multi !== undefined) _syncLs('rep_elections_multi', data.elections_multi);
+          if (data.elections_multi !== undefined) _syncLs('elections_multi', data.elections_multi);
           if (data.phase === 'finished' && data.winner) showNotif(`🏆 Seçim bitti! ${data.winner.username} Devlet Başkanı seçildi!`, 'success', '🏆');
           else if (data.phase === 'active')             showNotif(`🗳️ Seçim başladı! Oy kullanmayı unutma.`, 'info', '🗳️');
         } catch(e){}

@@ -277,7 +277,7 @@ function JobsPage({ profile, setProfile, showNotif }) {
   const card = dark ? 'rgba(255,255,255,0.04)' : '#FFFFFF';
   const border = dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
   const [cooldowns, setCooldowns] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('jobCooldowns') || '{}'); } catch { return {}; }
+    try { return JSON.parse(localStorage.getItem('rep_jobCooldowns') || '{}'); } catch { return {}; }
   });
   const [tick, setTick] = useState(0);
   useEffect(() => { const t = setInterval(() => setTick(p=>p+1), 1000); return () => clearInterval(t); }, []);
@@ -295,7 +295,7 @@ function JobsPage({ profile, setProfile, showNotif }) {
     if (remaining > 0) { showNotif(`⏳ ${fmtCd(remaining)} bekle!`, 'error'); return; }
     const newCd = {...cooldowns, [job.id]: Date.now()};
     setCooldowns(newCd);
-    localStorage.setItem('jobCooldowns', JSON.stringify(newCd));
+    localStorage.setItem('rep_jobCooldowns', JSON.stringify(newCd));
     const xpGain = Math.max(5, Math.floor(job.earn / 200));
     const hasUCBoost = !!(profile?.packages?.ucBoost || profile?.ucBoost || profile?.ucMultiplier);
     const ucMulti = hasUCBoost ? 2 : 1;
