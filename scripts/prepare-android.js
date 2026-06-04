@@ -11,7 +11,7 @@
 const fs   = require('fs');
 const path = require('path');
 
-const PRODUCTION_URL = process.argv[2] || process.env.PUBLIC_URL || 'https://understate.onrender.com';
+const PRODUCTION_URL = process.argv[2] || process.env.PUBLIC_URL || 'https://yourdomain.com';
 const WWW_DIR        = path.join(__dirname, '../www');
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -76,7 +76,7 @@ fs.writeFileSync(path.join(WWW_DIR, 'index.html'), html);
 console.log('  ✓ index.html hazırlandı');
 
 // ── Copy static assets ────────────────────────────────────────────────────────
-const COPY_DIRS = ['css', 'js', 'audio', 'img', 'fonts'];
+const COPY_DIRS = ['css', 'js', 'src', 'public', 'assets', 'audio', 'img', 'fonts'];
 for (const dir of COPY_DIRS) {
   const src = path.join(__dirname, '..', dir);
   if (fs.existsSync(src)) {
