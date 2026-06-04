@@ -101,4 +101,82 @@ router.post('/referral/use', authMiddleware, async (req, res) => {
   }
 });
 
+
+// ── Avatar upload (POST /api/profile/avatar) ──────────────────────────────────
+// AWS S3 varsa S3'e, yoksa sunucuda /assets/avatars/ klasörüne kaydeder.
+const multer  = require('multer');
+const path_m  = require('path');
+const fs      = require('fs');
+
+let upload;
+let useS3 = false;
+
+if (process.env.AWS_S3_BUCKET && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+  try {
+    const multerS3 = require('multer-s3');
+    const { S3Client } = require('@aws-sdk/client-s3');
+    const s3 = new S3Client({
+      region: process.env.AWS_REGION || 'eu-central-1',
+      credentials: {
+        accessKeyId:     process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      },
+    });
+    upload = multer({
+      storage: multerS3({
+        s3,
+        bucket: process.env.AWS_S3_BUCKET,
+        acl: 'public-read',
+        contentType: multerS3.AUTO_CONTENT_TYPE,
+        key: (_req, file, cb) => cb(null, `avatars/${Date.now()}-${file.originalname}`),
+      }),
+      limits: { fileSize: 2 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype)) cb(null, true);
+        else cb(new Error('Sadece resim dosyası yüklenebilir'));
+      },
+    });
+    useS3 = true;
+  } catch (_) {
+    // multer-s3 veya aws-sdk yüklü değilse yerel depoya düş
+  }
+}
+
+if (!useS3) {
+  const avatarDir = path_m.join(__dirname, '../../assets/avatars');
+  if (!fs.existsSync(avatarDir)) fs.mkdirSync(avatarDir, { recursive: true });
+  const diskStorage = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, avatarDir),
+    filename:    (_req, file, cb) => cb(null, `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.]/g, '_')}`),
+  });
+  upload = multer({
+    storage: diskStorage,
+    limits: { fileSize: 2 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      if (/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype)) cb(null, true);
+      else cb(new Error('Sadece resim dosyası yüklenebilir'));
+    },
+  });
+}
+
+router.post('/avatar', authMiddleware, (req, res, next) => {
+  upload.single('avatar')(req, res, async (err) => {
+    if (err) return res.status(400).json({ success: false, message: err.message });
+    if (!req.file) return res.status(400).json({ success: false, message: 'Dosya seçilmedi' });
+
+    const avatarUrl = useS3
+      ? req.file.location
+      : `/assets/avatars/${req.file.filename}`;
+
+    try {
+      await db.query('UPDATE users SET avatar=$1, avatar_url=$2, updated_at=NOW() WHERE id=$3',
+        [avatarUrl, avatarUrl, req.user.id]);
+      res.json({ success: true, avatarUrl });
+    } catch (e) {
+      logger.error('Avatar update DB hatası:', e.message);
+      res.status(500).json({ success: false, message: 'Veritabanı hatası' });
+    }
+  });
+});
+
 module.exports = router;
