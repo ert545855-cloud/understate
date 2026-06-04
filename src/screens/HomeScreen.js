@@ -6,9 +6,50 @@ function HomePage({ profile, onNavigate }) {
   const [announcements] = useLs('announcements', []);
   const [annModal, setAnnModal] = useState(null);
   const [dailyState, setDailyState] = useLs('dailyTaskProgress', {});
+  const [streakData, setStreakData] = useState(null);
+  const [streakClaiming, setStreakClaiming] = useState(false);
+  const [notifCount, setNotifCount] = useState(0);
   const [supportOpen, setSupportOpen] = useState(false);
   const [supportText, setSupportText] = useState('');
   const [supportSent, setSupportSent] = useState(false);
+
+  const jwt = () => localStorage.getItem('us_jwt') || '';
+
+  React.useEffect(() => {
+    const fetchStreak = async () => {
+      try {
+        const r = await fetch('/api/streak', { headers: { Authorization: 'Bearer ' + jwt() } });
+        const d = await r.json();
+        if (d.success) setStreakData(d.streak);
+      } catch {}
+    };
+    const fetchNotifs = async () => {
+      try {
+        const r = await fetch('/api/notifications?unread=true', { headers: { Authorization: 'Bearer ' + jwt() } });
+        const d = await r.json();
+        if (d.success) setNotifCount(d.unreadCount || 0);
+      } catch {}
+    };
+    fetchStreak();
+    fetchNotifs();
+  }, [profile?.id]);
+
+  const claimStreakAPI = async () => {
+    if (streakClaiming) return;
+    setStreakClaiming(true);
+    try {
+      const r = await fetch('/api/streak/claim', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + jwt() },
+      });
+      const d = await r.json();
+      if (d.ok) {
+        setStreakData(s => ({ ...s, current_streak: d.streak, last_claim_date: new Date().toISOString().slice(0,10) }));
+        window.dispatchEvent(new CustomEvent('user-profile-updated'));
+      }
+    } catch {}
+    setStreakClaiming(false);
+  };
   const money = profile?.money || 0;
   const { dark } = useTheme();
   const playerLevel = profile?.level || 1;
@@ -140,7 +181,7 @@ function HomePage({ profile, onNavigate }) {
   const portfolioChange = portfolioVal > 0 ? `+${fmtShort(portfolioVal)}` : `+${fmtShort(money*0.02||150)}`;
 
   const unreadDMs = (() => { try { const msgs = JSON.parse(localStorage.getItem('rep_directMessages')||'[]'); return msgs.filter(m=>m.to===uid&&!m.read).length; } catch{ return 0; } })();
-  const unreadCount = unreadDMs + (news?.length||0);
+  const unreadCount = notifCount > 0 ? notifCount : (unreadDMs + (news?.length||0));
 
   return (
     <div style={{padding:'0 0.75rem 1rem',background:'#F0F2F5',minHeight:'100%'}}>
@@ -219,6 +260,47 @@ function HomePage({ profile, onNavigate }) {
           </div>
         ))}
       </div>
+
+      {/* ── Streak Card ── */}
+      {streakData !== null && (() => {
+        const streak = streakData?.current_streak || 0;
+        const today = new Date().toISOString().slice(0,10);
+        const claimed = streakData?.last_claim_date === today;
+        const REWARDS = [500,1000,2000,3000,5000,8000,15000];
+        const todayReward = REWARDS[Math.min(streak, REWARDS.length-1)];
+        const nextReward = REWARDS[Math.min(streak+1, REWARDS.length-1)];
+        return (
+          <div style={{background:'linear-gradient(135deg,#1A2744,#0F1C38)',borderRadius:'16px',padding:'1rem',marginBottom:'0.75rem',boxShadow:'0 4px 16px rgba(0,0,0,0.15)'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'0.65rem'}}>
+              <div style={{display:'flex',alignItems:'center',gap:'0.5rem'}}>
+                <span style={{fontSize:'1.4rem'}}>🔥</span>
+                <div>
+                  <div style={{fontFamily:"'Syne',sans-serif",fontSize:'0.95rem',fontWeight:800,color:'#FFFFFF'}}>{streak} Günlük Seri</div>
+                  <div style={{fontSize:'0.62rem',color:'rgba(255,255,255,0.45)'}}>En uzun: {streakData?.longest_streak || 0} gün</div>
+                </div>
+              </div>
+              {!claimed ? (
+                <button onClick={claimStreakAPI} disabled={streakClaiming}
+                  style={{background:'linear-gradient(135deg,#F59E0B,#EF4444)',border:'none',borderRadius:'10px',padding:'0.5rem 1rem',color:'#fff',fontFamily:"'DM Sans',sans-serif",fontWeight:800,fontSize:'0.78rem',cursor:'pointer'}}>
+                  {streakClaiming ? '⏳' : `🎁 +₺${todayReward.toLocaleString('tr-TR')}`}
+                </button>
+              ) : (
+                <div style={{fontSize:'0.72rem',color:'#10B981',fontWeight:700}}>✅ Bugün alındı</div>
+              )}
+            </div>
+            <div style={{display:'flex',gap:'4px'}}>
+              {[1,2,3,4,5,6,7].map(d=>{
+                const active = d <= streak;
+                const isToday = d === streak+1 && !claimed;
+                return (
+                  <div key={d} style={{flex:1,height:'6px',borderRadius:'100px',background:active?'#F59E0B':isToday?'rgba(245,158,11,0.3)':'rgba(255,255,255,0.08)',transition:'all 0.3s'}} />
+                );
+              })}
+            </div>
+            {!claimed && <div style={{fontSize:'0.62rem',color:'rgba(255,255,255,0.35)',marginTop:'0.4rem'}}>Yarın: +₺{nextReward.toLocaleString('tr-TR')} • Zinciri kırma!</div>}
+          </div>
+        );
+      })()}
 
       {/* ── Daily Tasks ── */}
       <div style={{background:'#FFFFFF',border:'1px solid rgba(0,0,0,0.06)',borderRadius:'16px',padding:'1rem',marginBottom:'0.75rem',boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}}>

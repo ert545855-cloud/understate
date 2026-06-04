@@ -883,56 +883,91 @@ function BankPage({ profile, setProfile, showNotif }) {
   const [sendTo, setSendTo] = useState('');
   const [sendAmt, setSendAmt] = useState('');
   const [sendSearch, setSendSearch] = useState('');
+  const [bankStatus, setBankStatus] = useState(null);
+  const [txBusy, setTxBusy] = useState(false);
 
   const inp = {width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'12px',padding:'0.7rem 1rem',color:'#E8EDF2',fontFamily:"'DM Sans',sans-serif",fontSize:'16px',outline:'none',boxSizing:'border-box'};
 
-  const doTransfer = () => {
-    const n = parseInt(amount);
-    if (!n || n <= 0) { showNotif('Geçerli tutar girin', 'error'); return; }
-    if (action==='deposit') {
-      if (n > (profile?.money||0)) { showNotif('Yetersiz nakit', 'error'); return; }
-      setProfile(p => { const np={...p, money:(p.money||0)-n, bank:(p.bank||0)+n}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
-      showNotif(`🏦 ${fmtM(n)} yatırıldı`, 'success');
-    } else {
-      if (n > (profile?.bank||0)) { showNotif('Yetersiz banka bakiyesi', 'error'); return; }
-      setProfile(p => { const np={...p, money:(p.money||0)+n, bank:(p.bank||0)-n}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
-      showNotif(`💰 ${fmtM(n)} çekildi`, 'success');
-    }
-    setAmount('');
+  const jwt = () => localStorage.getItem('us_jwt') || '';
+
+  const refreshStatus = async () => {
+    try {
+      const r = await fetch('/api/bank/status', { headers: { Authorization: 'Bearer ' + jwt() } });
+      const d = await r.json();
+      if (d.success) setBankStatus(d);
+    } catch {}
   };
 
-  const doSendMoney = () => {
+  useEffect(() => { refreshStatus(); }, [profile?.id]);
+
+  const doTransfer = async () => {
+    if (txBusy) return;
+    const n = parseInt(amount);
+    if (!n || n <= 0) { showNotif('Geçerli tutar girin', 'error'); return; }
+    setTxBusy(true);
+    try {
+      const endpoint = action === 'deposit' ? 'deposit' : 'withdraw';
+      const r = await fetch(`/api/bank/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + jwt() },
+        body: JSON.stringify({ amount: n }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        setProfile(p => ({ ...p, money: d.money, bank: d.bank }));
+        showNotif(action === 'deposit' ? `🏦 ${fmtM(n)} yatırıldı` : `💰 ${fmtM(n)} çekildi`, 'success');
+        setAmount('');
+        await refreshStatus();
+      } else {
+        showNotif(d.message || 'İşlem başarısız', 'error');
+      }
+    } catch { showNotif('Sunucu hatası', 'error'); }
+    setTxBusy(false);
+  };
+
+  const doSendMoney = async () => {
+    if (txBusy) return;
     const n = parseInt(sendAmt);
     if (!n || n <= 0) { showNotif('Geçerli tutar girin', 'error'); return; }
     if (!sendTo.trim()) { showNotif('Alıcı kullanıcı adı girin', 'error'); return; }
-    if (n > (profile?.money||0)) { showNotif('Yetersiz nakit', 'error'); return; }
-    if (sendTo.trim().toLowerCase() === (profile?.username||'').toLowerCase()) { showNotif('Kendinize para gönderemezsiniz', 'error'); return; }
+    setTxBusy(true);
     try {
-      const users = JSON.parse(localStorage.getItem('rep_users')||'[]');
-      const targetIdx = users.findIndex(u => u.username?.toLowerCase() === sendTo.trim().toLowerCase());
-      if (targetIdx === -1) { showNotif('Oyuncu bulunamadı: ' + sendTo.trim(), 'error'); return; }
-      const target = users[targetIdx];
-      const fee = Math.max(100, Math.floor(n * 0.01));
-      const totalCost = n + fee;
-      if (totalCost > (profile?.money||0)) { showNotif(`Yetersiz nakit (tutar + %1 komisyon = ${fmtM(totalCost)})`, 'error'); return; }
-      users[targetIdx] = { ...target, money: (target.money||0) + n };
-      localStorage.setItem('rep_users', JSON.stringify(users));
-      setProfile(p => { const np={...p, money:(p.money||0)-totalCost}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
-      try { window._socket?.emit('money:transfer', { fromId:profile?.id, toId:target.id, amount:n }); } catch(e){}
-      setSendAmt(''); setSendTo('');
-      showNotif(`💸 ${fmtM(n)} → ${target.username} gönderildi! (Komisyon: ${fmtM(fee)})`, 'success');
-    } catch(e) { showNotif('Hata oluştu', 'error'); }
+      const r = await fetch('/api/bank/transfer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + jwt() },
+        body: JSON.stringify({ toUsername: sendTo.trim(), amount: n }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        setProfile(p => ({ ...p, money: (p.money || 0) - n - d.fee }));
+        setSendAmt(''); setSendTo('');
+        showNotif(`💸 ${fmtM(n)} → ${d.toUsername} gönderildi! (Komisyon: ${fmtM(d.fee)})`, 'success');
+        await refreshStatus();
+      } else {
+        showNotif(d.message || 'Transfer başarısız', 'error');
+      }
+    } catch { showNotif('Sunucu hatası', 'error'); }
+    setTxBusy(false);
   };
 
-  const collectInterest = () => {
-    if ((profile?.bank||0) <= 0) { showNotif('Bankada para yok', 'error'); return; }
-    const lastCollect = profile?.lastBankInterest || 0;
-    const hoursPassed = (Date.now() - lastCollect) / 3600000;
-    if (hoursPassed < 24) { showNotif(`${Math.ceil(24-hoursPassed)} saat sonra tekrar toplayabilirsin`, 'error'); return; }
-    const rate = profile?.premium ? 0.02 : 0.005;
-    const interest = Math.floor((profile?.bank||0) * rate);
-    setProfile(p => { const np={...p, money:(p.money||0)+interest, lastBankInterest:Date.now()}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
-    showNotif(`💹 ${fmtM(interest)} faiz kazandın!`, 'success');
+  const collectInterest = async () => {
+    if (txBusy) return;
+    setTxBusy(true);
+    try {
+      const r = await fetch('/api/bank/interest', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + jwt() },
+      });
+      const d = await r.json();
+      if (d.success) {
+        setProfile(p => ({ ...p, money: d.money }));
+        showNotif(`💹 ${fmtM(d.interest)} faiz kazandın! (%${Math.round(d.rate * 100)})`, 'success');
+        await refreshStatus();
+      } else {
+        showNotif(d.message || 'Faiz toplanamadı', 'error');
+      }
+    } catch { showNotif('Sunucu hatası', 'error'); }
+    setTxBusy(false);
   };
 
   const takeLoan = (tier) => {
@@ -972,11 +1007,20 @@ function BankPage({ profile, setProfile, showNotif }) {
       </div>
 
       {/* Faiz topla butonu */}
-      {(profile?.bank||0) > 0 && (
-        <button onClick={collectInterest} style={{width:'100%',marginBottom:'0.65rem',padding:'0.65rem',borderRadius:'12px',border:'1px solid rgba(16,185,129,0.3)',background:'rgba(16,185,129,0.08)',color:'#10B981',fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:'0.82rem',cursor:'pointer'}}>
-          💹 Günlük Faiz Topla ({profile?.premium?'%2':'%0.5'} • {fmtM(Math.floor((profile?.bank||0)*(profile?.premium?0.02:0.005)))})
-        </button>
-      )}
+      {(bankStatus?.bank || profile?.bank || 0) > 0 && (() => {
+        const canCollect = bankStatus ? bankStatus.canCollect : true;
+        const proj = bankStatus ? bankStatus.projectedInterest : Math.floor((profile?.bank||0)*(profile?.premium?0.02:0.005));
+        const rate  = bankStatus ? `%${Math.round((bankStatus.rate||0.005)*100)}` : (profile?.premium ? '%2' : '%0.5');
+        const msLeft = bankStatus?.msUntil || 0;
+        const hLeft  = msLeft > 0 ? Math.ceil(msLeft / 3600000) : 0;
+        return (
+          <button onClick={canCollect ? collectInterest : undefined}
+            disabled={txBusy || !canCollect}
+            style={{width:'100%',marginBottom:'0.65rem',padding:'0.65rem',borderRadius:'12px',border:`1px solid ${canCollect?'rgba(16,185,129,0.3)':'rgba(255,255,255,0.08)'}`,background:canCollect?'rgba(16,185,129,0.08)':'rgba(255,255,255,0.03)',color:canCollect?'#10B981':'#5A7089',fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:'0.82rem',cursor:canCollect?'pointer':'default',transition:'all 0.2s'}}>
+            {txBusy ? '⏳ İşleniyor...' : canCollect ? `💹 Günlük Faiz Topla (${rate} • ${fmtM(proj)})` : `⏰ ${hLeft} saat sonra tekrar toplanabilir`}
+          </button>
+        );
+      })()}
 
       {/* Tab */}
       <div style={{display:'flex',gap:'4px',marginBottom:'0.75rem'}}>
