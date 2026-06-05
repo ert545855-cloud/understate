@@ -1,0 +1,137 @@
+7
+Kritik bug
+10
+Yüksek öncelikli
+8
+Orta/Düşük
+~45%
+Genel hazırlık durumu
+Online canlı oyun için yeterli değil — kritik eksikler giderilmeden yayına alınamaz
+Bileşen bazında hazırlık
+Backend altyapısı (Express + DB)
+80%
+Veritabanı şeması (38 tablo)
+75%
+JWT kimlik doğrulama
+70%
+Mobil (Android / iOS)
+60%
+Üretim & deployment
+50%
+Socket.IO çok oyunculu
+55%
+Gerçek zamanlı senkronizasyon
+40%
+Sunucu tarafı doğrulama
+20%
+Anti-cheat / güvenlik
+25%
+🔴 Kritik — Oyuncular birbirini görmüyor (Multiplayer çöküşü)
+Kritik
+playerJoin hiçbir zaman emit edilmiyor
+app.js'deki socket useEffect var ama playerJoin eventi emit edilmiyor. Giriş yapan oyuncu online listesine girmiyor, diğerleri göremez. 3 farklı yerde gönderim denemesi var — race condition oluşuyor.
+src/app.js • AuthScreen.js • index.html:451
+Kritik
+index.html'de 'connect' eventi çift dinleniyor
+socket.on('connect') satır 440 ve 515'te iki kez bağlanmış. Her bağlanmada duplicate state oluşuyor.
+index.html:440 ve 515
+Kritik
+Stale presence temizleyici çok agresif (45s)
+Mobilde arka plana alındığında JS donduğunda oyuncu aktifken presence listesinden silinir. 45s → 120s yapılmalı.
+server/socket/gameHandler.js:HEARTBEAT_TIMEOUT
+Kritik
+Çift socket instance (socketClient.js + index.html bridge)
+İki bağımsız socket açılıyor; presence ikiye bölünüyor. socketClient.js tamamen bridge'e devredilmeli.
+src/socketClient.js + index.html bridge
+🔴 Kritik — Güvenlik açıkları
+Kritik
+.env dosyası repoya commit edilmiş — canlı şifreler açıkta
+Supabase DB şifresi, JWT secret ve DB URL'si .env'de ve repoda. Erişen herkes tüm kullanıcı verilerine ulaşabilir. Hemen rotate edilmeli!
+.env (commit edilmiş)
+Kritik
+Tüm cooldown'lar ve ödüller sadece client-side localStorage'da
+İş/suç cooldown'ları ve günlük görev ödülleri sunucuda doğrulanmıyor. Herkes DevTools'dan para yazabilir, cooldown'ları sıfırlayabilir.
+JobsScreen.js • HomeScreen.js • CrimeScreen.js
+Kritik
+/api/auth/test-email auth olmadan herkese açık
+Herhangi biri sınırsız mail gönderebilir. SMTP maliyeti ve spam kaynağı riski var.
+server/routes/auth.js:POST /test-email
+🟠 Yüksek — iOS / Mobil sorunları
+Yüksek
+iOS klasörü yok — Capacitor iOS build çalışmaz
+android/ var ama ios/ klasörü hiç yok. npx cap add ios çalıştırılmalı, StatusBar/Keyboard plugin'leri eklenmeli.
+capacitor.config.json
+Yüksek
+webDir "www" ama www/ klasörü yok — APK boş açılır
+capacitor.config.json'da webDir: "www" ama dosyalar kök dizinde. webDir: "." yapılmalı veya build script ile kopyalanmalı.
+capacitor.config.json
+Yüksek
+Alt nav iPhone Dynamic Island'ı kapatıyor
+bottom-nav padding-bottom kuralları çakışıyor. max(env(safe-area-inset-bottom), 8px) kullanılmalı.
+css/styles.css:722-799
+Yüksek
+Modal'lar iOS klavye açılınca kayıyor
+position:fixed WKWebView'de sanal klavyeyle çakışıyor. Capacitor Keyboard plugin + KeyboardResize:'body' gerekli.
+css/styles.css + tüm ekranlar
+Yüksek
+Save endpoint para delta kontrolü yok
+saveValidator.js import edilmiyor (dead code). 0₺'den direkt 9.9T₺ gönderilebilir ve kayıt edilir. MAX_MONEY_DELTA_PER_SAVE aktifleştirilmeli.
+server/routes/save.js + saveValidator.js
+Yüksek
+jobCooldowns yanlış localStorage key'iyle kaydediliyor
+'jobCooldowns' olarak kaydediliyor ama useLs hook 'rep_jobCooldowns' arıyor. Her sayfa yenilemede cooldown sıfırlanıyor.
+src/screens/JobsScreen.js:280,298
+Yüksek
+electionUpdate çift kanal çakışması
+election:sync ve eski electionUpdate aynı anda dinleniyor. Seçim state'i çakışıyor, oy sayımında tutarsızlık var.
+server/socket/gameHandler.js:485-510
+Yüksek
+stockMarket veri tipi uyumsuzluğu — fiyatlar NaN oluyor
+Bridge obje olarak kaydediyor, EconomyScreen sayı bekliyor. marketSnapshot geldiğinde format farklı; hesaplamalarda NaN çıkıyor.
+src/screens/EconomyScreen.js + index.html bridge
+🔵 Orta — Logic ve sync hataları
+Orta
+rep_elections_multi çift prefix ile kaydediliyor
+_syncLs('rep_elections_multi') → rep_rep_elections_multi olarak kaydediliyor. Seçim verisi hiç okunamıyor.
+src/app.js:gameStateInit
+Orta
+DM iletimi p.id vs p.userId karışıklığı
+dm:send handler'da alıcı arama p.id ile yapılıyor ama map'teki alan p.userId. DM'ler bazen iletilmiyor.
+server/socket/index.js:dm:send
+Orta
+Çete/parti üyelik kontrolü userId vs username karışıklığı
+Kimi yerde username, kimi yerde userId ile üyelik kontrol ediliyor. "Üyesin ama göstermiyor" durumları çıkıyor.
+PoliticsScreen.js + HomeScreen.js
+Orta
+Auto-save logout sırasında durmuyor
+authed=false olduğunda save interval hâlâ çalışıyor. Logout yapan kullanıcının partial save'i sunucuya gönderiliyor.
+src/app.js (auto-save useEffect)
+Orta
+Access token 1 saatte sürüyor, otomatik refresh yok
+1 saat sonra tüm API istekleri 401 döner. Oyuncu session'ı fark etmeden kopuyor, oyun kaydedilmiyor.
+server/config/constants.js + src/app.js
+Orta
+Hisse satışı kısmi değil, tümünü satıyor
+Sat butonuna yanlışlıkla basılırsa tüm pozisyon gidiyor, geri alma yok. Miktar girişi ve onay modalı eklenmeli.
+src/screens/EconomyScreen.js:393-396
+Orta
+iOS scroll tamamen çalışmıyor — body position:fixed çakışması
+body'e position:fixed uygulanmış, iOS momentum scroll kesiliyor. .app-wrap'e height:100dvh + overflow:hidden yapılmalı.
+css/styles.css:74-75
+Orta
+Casino kazancı da client-side — manipüle edilebilir
+Slot/zar sonucu browser'da üretiliyor. Console'dan her zaman kazanacak şekilde manipüle edilebilir.
+src/screens/EconomyScreen.js:813-851
+⚙️ Build / Altyapı eksikleri
+Yüksek
+Build sistemi yok — 2.2 MB JSX tarayıcıda parse ediliyor
+Babel standalone ile tarayıcıda transpile ediliyor. Production'da ciddi performans sorunu. Webpack/Vite build pipeline kurulmalı.
+index.html + public/js/babel.min.js
+Yüksek
+Socket.IO CORS konfigürasyonu eksik
+androidScheme "https" ama Socket.IO CORS ayarı yok. Render.com'da WebSocket upgrade reddedilebilir.
+server.js + server/index.js
+Orta
+updateUser dinamik sütun — SQL injection riski
+dbService.updateUser key'leri doğrudan SQL'e yazıyor. ALLOWED_COLUMNS whitelist kontrolü eklenmeli.
+server/services/dbService.js:updateUser

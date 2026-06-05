@@ -625,7 +625,9 @@ function boot() {
       try {
         var market = {};
         try { market = JSON.parse(localStorage.getItem('rep_stockMarket') || '{}'); } catch(e) {}
-        if (data.companyId) market[data.companyId] = data;
+        if (data.companyId) {
+          market[data.companyId] = typeof data.price !== 'undefined' ? Number(data.price) : market[data.companyId];
+        }
         localStorage.setItem('rep_stockMarket', JSON.stringify(market));
         window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: 'stockMarket', value: market } }));
       } catch(e) {}
@@ -635,7 +637,9 @@ function boot() {
       try {
         if (!Array.isArray(companies)) return;
         var map = {};
-        companies.forEach(function(c) { if (c.companyId) map[c.companyId] = c; });
+        companies.forEach(function(c) {
+          if (c.companyId) map[c.companyId] = typeof c.price !== 'undefined' ? Number(c.price) : 0;
+        });
         if (Object.keys(map).length) {
           localStorage.setItem('rep_stockMarket', JSON.stringify(map));
           window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: 'stockMarket', value: map } }));
@@ -645,11 +649,10 @@ function boot() {
 
     _socket.on('partyUpdate', function(data) {
       try {
-        var parties = {};
-        try { parties = JSON.parse(localStorage.getItem('rep_parties') || '{}'); } catch(e) {}
-        if (data.id) parties[data.id] = data;
-        localStorage.setItem('rep_parties', JSON.stringify(parties));
-        window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: 'parties', value: parties } }));
+        if (Array.isArray(data.parties)) {
+          localStorage.setItem('rep_parties', JSON.stringify(data.parties));
+          window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: 'parties', value: data.parties } }));
+        }
       } catch(e) {}
     });
 
@@ -671,7 +674,16 @@ function boot() {
     });
 
     _socket.on('electionUpdate', function(data) {
-      applyStateUpdate('electionState', data);
+      try {
+        if (data.elections !== undefined) {
+          localStorage.setItem('rep_elections', JSON.stringify(data.elections));
+          window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: 'elections', value: data.elections } }));
+        }
+        if (data.elections_multi !== undefined) {
+          localStorage.setItem('rep_elections_multi', JSON.stringify(data.elections_multi));
+          window.dispatchEvent(new CustomEvent('fb-sync', { detail: { key: 'elections_multi', value: data.elections_multi } }));
+        }
+      } catch(e) {}
     });
 
     // ── Meclis decision banner ─────────────────────────────────────────────

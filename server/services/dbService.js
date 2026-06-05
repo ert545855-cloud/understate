@@ -263,11 +263,11 @@ async function getGangs() {
     const { rows } = await query('SELECT * FROM gangs ORDER BY power DESC, created_at ASC');
     return rows.map(r => ({
       id: r.id, name: r.name,
-      leader: r.leader_id, leaderId: r.leader_id, leaderName: r.leader_name,
-      members: r.members || [], color: r.color, icon: r.icon,
-      territory: r.territory || {}, power: r.power || 0,
-      money: Number(r.money) || 0, level: r.level || 1, type: r.type || 'gang',
-      ...(r.data || {}),
+      leader: r.leader_id, leaderId: r.leader_id, leaderName: r.leader || r.leader_id,
+      members: r.members || [], color: r.color || '#DC2626',
+      territory: r.territories || r.territory || {}, power: r.power || 0,
+      treasury: Number(r.treasury) || 0, rank: r.rank || 0,
+      logo: r.logo || null, weapons: r.weapons || 0,
       createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
       updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : Date.now(),
     }));
@@ -284,22 +284,23 @@ async function setGangs(gangs) {
 
 async function upsertGang(gang) {
   if (!gang?.id) return false;
-  const { id, name, leader, leaderId, leaderName, members, color, icon, territory, power, money, level, type, ...rest } = gang;
-  const extraKeys = ['createdAt','updatedAt'];
-  const data = Object.fromEntries(Object.entries(rest).filter(([k]) => !extraKeys.includes(k)));
+  const { id, name, leader, leaderId, members, color, territory, territories, power, treasury, weapons, logo, rank } = gang;
   try {
     await query(
-      `INSERT INTO gangs (id, name, leader_id, leader_name, members, color, icon, territory, power, money, level, type, data, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW())
+      `INSERT INTO gangs (id, name, leader_id, members, color, territory, territories, power, treasury, weapons, logo, rank, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW())
        ON CONFLICT (id) DO UPDATE SET
-         name=EXCLUDED.name, leader_id=EXCLUDED.leader_id, leader_name=EXCLUDED.leader_name,
-         members=EXCLUDED.members, color=EXCLUDED.color, icon=EXCLUDED.icon,
-         territory=EXCLUDED.territory, power=EXCLUDED.power, money=EXCLUDED.money,
-         level=EXCLUDED.level, type=EXCLUDED.type, data=EXCLUDED.data, updated_at=NOW()`,
-      [id, name||'', leaderId||leader||null, leaderName||null,
-       JSON.stringify(members||[]), color||'#8B5CF6', icon||'🔱',
-       JSON.stringify(territory||{}), power||0, money||0, level||1, type||'gang',
-       JSON.stringify(data)]
+         name=EXCLUDED.name, leader_id=EXCLUDED.leader_id,
+         members=EXCLUDED.members, color=EXCLUDED.color,
+         territory=EXCLUDED.territory, territories=EXCLUDED.territories,
+         power=EXCLUDED.power, treasury=EXCLUDED.treasury,
+         weapons=EXCLUDED.weapons, logo=EXCLUDED.logo, rank=EXCLUDED.rank,
+         updated_at=NOW()`,
+      [id, name||'', leaderId||leader||null,
+       JSON.stringify(members||[]), color||'#DC2626',
+       typeof territory === 'string' ? territory : (territory ? JSON.stringify(territory) : ''),
+       JSON.stringify(territories||territory||{}),
+       power||0, treasury||0, weapons||0, logo||null, rank||0]
     );
     return true;
   } catch (err) { logger.warn('[DB] upsertGang:', err.message); return false; }
@@ -341,21 +342,19 @@ async function setParties(parties) {
 
 async function upsertParty(party) {
   if (!party?.id) return false;
-  const { id, name, ideology, leader, leaderId, leaderName, members, color, influencePoints, treasury, ...rest } = party;
-  const extraKeys = ['createdAt','updatedAt'];
-  const data = Object.fromEntries(Object.entries(rest).filter(([k]) => !extraKeys.includes(k)));
+  const { id, name, ideology, leader, leaderId, leaderName, members, color, influencePoints, treasury } = party;
   try {
     await query(
-      `INSERT INTO parties (id, name, ideology, leader_id, leader_name, members, color, influence_points, treasury, data, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
+      `INSERT INTO parties (id, name, ideology, leader_id, leader_name, members, color, influence_points, treasury, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
        ON CONFLICT (id) DO UPDATE SET
          name=EXCLUDED.name, ideology=EXCLUDED.ideology, leader_id=EXCLUDED.leader_id,
          leader_name=EXCLUDED.leader_name, members=EXCLUDED.members, color=EXCLUDED.color,
          influence_points=EXCLUDED.influence_points, treasury=EXCLUDED.treasury,
-         data=EXCLUDED.data, updated_at=NOW()`,
+         updated_at=NOW()`,
       [id, name||'', ideology||'merkez', leaderId||leader||null, leaderName||null,
        JSON.stringify(members||[]), color||'#8B5CF6',
-       influencePoints||0, treasury||0, JSON.stringify(data)]
+       influencePoints||0, treasury||0]
     );
     return true;
   } catch (err) { logger.warn('[DB] upsertParty:', err.message); return false; }
@@ -369,42 +368,16 @@ async function deleteParty(partyId) {
 }
 
 // ── ALLIANCES ─────────────────────────────────────────────────────────────────
-// Proper SQL table — visible in Supabase dashboard
+// Stored in game_state KV (no dedicated table)
 
 async function getAlliances() {
-  try {
-    const { rows } = await query('SELECT * FROM alliances ORDER BY level DESC, created_at ASC');
-    return rows.map(r => ({
-      id: r.id, name: r.name,
-      leader: r.leader_id, leaderId: r.leader_id,
-      members: r.members || [], level: r.level || 1, power: r.power || 10,
-      ...(r.data || {}),
-      createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
-      updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : Date.now(),
-    }));
-  } catch (err) { logger.warn('[DB] getAlliances:', err.message); return []; }
+  const data = await getGameState('alliances');
+  return Array.isArray(data) ? data : [];
 }
 
 async function setAlliances(alliances) {
   if (!Array.isArray(alliances)) return false;
-  try {
-    for (const alliance of alliances) {
-      if (!alliance?.id) continue;
-      const { id, name, leader, leaderId, members, level, power, ...rest } = alliance;
-      const extraKeys = ['createdAt','updatedAt'];
-      const data = Object.fromEntries(Object.entries(rest).filter(([k]) => !extraKeys.includes(k)));
-      await query(
-        `INSERT INTO alliances (id, name, leader_id, members, level, power, data, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())
-         ON CONFLICT (id) DO UPDATE SET
-           name=EXCLUDED.name, leader_id=EXCLUDED.leader_id, members=EXCLUDED.members,
-           level=EXCLUDED.level, power=EXCLUDED.power, data=EXCLUDED.data, updated_at=NOW()`,
-        [id, name||'', leaderId||leader||null,
-         JSON.stringify(members||[]), level||1, power||10, JSON.stringify(data)]
-      );
-    }
-    return true;
-  } catch (err) { logger.warn('[DB] setAlliances:', err.message); return false; }
+  return setGameState('alliances', alliances);
 }
 
 // ── ELECTIONS ────────────────────────────────────────────────────────────────
