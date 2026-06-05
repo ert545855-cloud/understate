@@ -12,7 +12,7 @@ const { getPublicAdConfig } = require('./config/admob');
 const logger             = require('./utils/logger');
 
 const app  = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8080;
 const root = path.join(__dirname, '..');
 
 // ── Güvenlik & gövde parse ────────────────────────────────────────────────────
@@ -30,6 +30,7 @@ function isOriginAllowed(origin) {
   if (ALLOWED_ORIGINS.includes(origin)) return true;
   if (REPLIT_DEV_DOMAIN && origin.endsWith(REPLIT_DEV_DOMAIN)) return true;
   if (origin.endsWith('.replit.dev') || origin.endsWith('.repl.co') || origin.endsWith('.pike.replit.dev')) return true;
+  if (origin === 'capacitor://localhost' || origin.startsWith('capacitor://')) return true;
   return false;
 }
 

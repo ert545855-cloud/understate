@@ -138,7 +138,6 @@ window.PartyCenterScreen = function PartyCenterScreen({ cu, parties, allUsers, f
       <div style={{display:"flex",gap:"0.4rem",overflowX:"auto",paddingBottom:"0.5rem",marginBottom:"0.75rem",scrollbarWidth:"none"}}>
         {tabBtn("overview","Genel","🏛️")}
         {tabBtn("laws","Yasalar","📜")}
-        {tabBtn("cabinet","Kabine","👑")}
         {tabBtn("sponsors","Sponsorlar","💰")}
         {tabBtn("members","Üyeler","👥")}
       </div>
@@ -218,30 +217,6 @@ window.PartyCenterScreen = function PartyCenterScreen({ cu, parties, allUsers, f
                     <button className="btn btn-primary" style={{flex:1,fontSize:"0.78rem",padding:"0.4rem"}} onClick={()=>voteProposal(p.id,"for")}>👍 Kabul</button>
                     <button className="btn btn-red" style={{flex:1,fontSize:"0.78rem",padding:"0.4rem"}} onClick={()=>voteProposal(p.id,"against")}>👎 Ret</button>
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* KABİNE */}
-      {tab==="cabinet"&&(
-        <div style={card}>
-          <div className="card-title">👑 Kabine Atamalar</div>
-          {CABINET_POSITIONS.map(pos=>{
-            const assigned = myCabinet[pos];
-            return (
-              <div key={pos} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"0.55rem 0",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
-                <div>
-                  <div style={{fontWeight:700,fontSize:"0.85rem",color:"#FFD700"}}>{pos}</div>
-                  <div style={{fontSize:"0.72rem",color:assigned?"#10B981":"#5E7390"}}>{assigned||"Atanmadı"}</div>
-                </div>
-                {isLeader&&(
-                  <button className="btn btn-primary" style={{fontSize:"0.72rem",padding:"0.3rem 0.65rem",minHeight:28}} onClick={()=>{
-                    const name = prompt(`${pos} için kullanıcı adı:`);
-                    if(name) assignCabinet(pos,name);
-                  }}>Ata</button>
                 )}
               </div>
             );

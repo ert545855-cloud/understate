@@ -661,10 +661,14 @@ function boot() {
         var gangs = [];
         try {
           var raw = JSON.parse(localStorage.getItem('rep_gangs') || '[]');
-          // Eski format object ise array'e çevir
           gangs = Array.isArray(raw) ? raw : Object.values(raw);
         } catch(e) {}
-        if (data.id) {
+        if (Array.isArray(data.gangs)) {
+          gangs = data.gangs;
+        } else if (data.gang && data.gang.id) {
+          var gi = gangs.findIndex(function(g) { return g.id === data.gang.id; });
+          if (gi >= 0) { gangs[gi] = data.gang; } else { gangs.push(data.gang); }
+        } else if (data.id) {
           var idx = gangs.findIndex(function(g) { return g.id === data.id; });
           if (idx >= 0) { gangs[idx] = data; } else { gangs.push(data); }
         }

@@ -735,7 +735,9 @@ function App() {
   // ── Auto-save: sync game state to PostgreSQL every 30 seconds ──────────────
   useEffect(() => {
     if (!authed) return;
+    let cancelled = false;
     const doAutoSave = async () => {
+      if (cancelled) return;
       try {
         const jwt = localStorage.getItem('us_jwt');
         if (!jwt) return;
@@ -767,7 +769,7 @@ function App() {
       } catch(_) {}
     };
     const iv = setInterval(doAutoSave, 30000);
-    return () => clearInterval(iv);
+    return () => { cancelled = true; clearInterval(iv); };
   }, [authed, profile]);
 
   const [onlinePlayers, setOnlinePlayers] = useState([]);

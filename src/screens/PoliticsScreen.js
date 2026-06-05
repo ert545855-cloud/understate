@@ -11,9 +11,6 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
   const [lawModal, setLawModal] = useState(false);
   const [lawForm, setLawForm] = useState({ title:'', desc:'', category:'vergi' });
   const [managePartyModal, setManagePartyModal] = useState(false);
-  const [cabinetModal, setCabinetModal] = useState(false);
-  const [cabinetRole, setCabinetRole] = useState('');
-  const [cabinetTarget, setCabinetTarget] = useState('');
   const [donateModal, setDonateModal] = useState(false);
   const [donateAmount, setDonateAmount] = useState('');
   const [govCooldowns, setGovCooldowns] = useLs('govCooldowns', {});
@@ -233,13 +230,6 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
     showNotif(`🗳️ Oyunuz kullanıldı! (${voteWeight}x katsayı${bonusInfo?` — ${bonusInfo}`:''})`, 'success');
   };
 
-  const appointCabinet = () => {
-    if (!cabinetRole||!cabinetTarget.trim()) { showNotif('Rol ve kullanıcı adı girin','error'); return; }
-    if (!isPresident&&!isLeader) { showNotif('Bu yetkiye sahip değilsiniz','error'); return; }
-    setCabinet(prev => { const np={...prev,[cabinetRole]:cabinetTarget.trim()}; localStorage.setItem('rep_cabinet',JSON.stringify(np)); return np; });
-    setCabinetModal(false); setCabinetRole(''); setCabinetTarget('');
-    showNotif(`✅ ${cabinetTarget} → ${cabinetRole} olarak atandı`, 'success');
-  };
 
   const sortedCandidates = [...(elections.candidates||[])].sort((a,b)=>(b.votes||0)-(a.votes||0));
   const userVoted = !!(elections.votes||{})[profile?.uid];
@@ -612,10 +602,6 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
                     </div>
                     <div style={{display:'flex',gap:'0.3rem',alignItems:'center',flexShrink:0}}>
                       {isMyRole&&<Tag color='gold'>⭐</Tag>}
-                      {assigned&&(isPresident||isLeader)&&!isMyRole&&(
-                        <button onClick={()=>removeFromCabinet(role)} style={{background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.2)',borderRadius:'6px',padding:'2px 7px',color:'#FCA5A5',cursor:'pointer',fontSize:'0.65rem',fontWeight:700}}>Al</button>
-                      )}
-                      {!assigned&&(isPresident||isLeader)&&<Btn variant='ghost' size='sm' onClick={()=>{setCabinetRole(role);setCabinetModal(true);}}>Ata</Btn>}
                     </div>
                   </div>
                 </Card>
@@ -801,7 +787,6 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
                     {pos.openTo === 'atama' && !isActive && (
                       <div style={{fontSize:'0.7rem',color:'#5A7089',background:'rgba(255,255,255,0.03)',borderRadius:'8px',padding:'0.4rem 0.6rem'}}>
                         🏛️ Bu makam Devlet Başkanı tarafından atanır.
-                        {isPresident && !cabinet[pos.title] && <button onClick={()=>{setCabinetRole(pos.title);setCabinetModal(true);}} style={{marginLeft:'0.5rem',background:'rgba(245,158,11,0.12)',border:'1px solid rgba(245,158,11,0.3)',borderRadius:'6px',padding:'2px 8px',color:'#F59E0B',cursor:'pointer',fontSize:'0.65rem',fontWeight:700}}>Ata</button>}
                       </div>
                     )}
 
@@ -940,23 +925,6 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
             </select>
           </div>
           <Btn variant='primary' size='full' onClick={proposeLaw}>⚖️ Yasayı Öner</Btn>
-        </Modal>
-      )}
-
-      {cabinetModal&&(
-        <Modal title="👔 Bakanlık Ata" onClose={()=>{setCabinetModal(false);setCabinetRole('');setCabinetTarget('');}}>
-          <div style={{marginBottom:'0.85rem'}}>
-            <div style={{fontSize:'0.72rem',color:'#5A7089',marginBottom:'0.4rem',fontWeight:700}}>Bakanlık</div>
-            <select value={cabinetRole} onChange={e=>setCabinetRole(e.target.value)} style={inputSt}>
-              <option value="" style={{background:'#0B1527'}}>-- Seçin --</option>
-              {CABINET_ROLES.map(r=><option key={r} value={r} style={{background:'#0B1527'}}>{r}</option>)}
-            </select>
-          </div>
-          <div style={{marginBottom:'1rem'}}>
-            <div style={{fontSize:'0.72rem',color:'#5A7089',marginBottom:'0.4rem',fontWeight:700}}>Kullanıcı Adı</div>
-            <input value={cabinetTarget} onChange={e=>setCabinetTarget(e.target.value)} placeholder="Atanacak kullanıcı adı" style={inputSt} />
-          </div>
-          <Btn variant='primary' size='full' onClick={appointCabinet}>👔 Ata</Btn>
         </Modal>
       )}
 

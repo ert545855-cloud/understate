@@ -378,7 +378,8 @@ function EconomyPage({ profile, setProfile, showNotif, initialSub }) {
   ];
 
   const buyStock = (sym) => {
-    const price = stocks[sym];
+    const price = Number(stocks[sym]) || 0;
+    if (price <= 0) { showNotif('Fiyat bilgisi alınamadı, lütfen bekleyin', 'error'); return; }
     const cost = price * 10;
     if ((profile?.money||0) < cost) { showNotif('Yeterli paran yok!', 'error'); return; }
     const upd = { ...portfolio, [sym]: { qty: ((portfolio[sym]?.qty)||0)+10, avgCost: price } };
@@ -391,7 +392,7 @@ function EconomyPage({ profile, setProfile, showNotif, initialSub }) {
 
   const sellStock = (sym) => {
     if (!portfolio[sym]?.qty) { showNotif('Elinde bu hisse yok', 'error'); return; }
-    const price = stocks[sym];
+    const price = Number(stocks[sym]) || Number(portfolio[sym]?.avgCost) || 0;
     const earned = price * portfolio[sym].qty;
     const upd = { ...portfolio };
     delete upd[sym];
