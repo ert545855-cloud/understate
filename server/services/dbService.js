@@ -5,9 +5,20 @@
 const { Pool } = require('pg');
 const logger = require('../utils/logger');
 
-// DATABASE_URL'deki şifreyi ayrı ayrı parse et (özel karakter sorunu için)
+// DATABASE_URL veya AWS EB RDS_* env var'larından bağlantı konfigürasyonu oluştur
 function buildPoolConfig() {
-  const url = process.env.DATABASE_URL || '';
+  let url = process.env.DATABASE_URL || '';
+
+  // AWS Elastic Beanstalk RDS_* env var'larını destekle
+  if (!url) {
+    const { RDS_HOSTNAME, RDS_PORT, RDS_DB_NAME, RDS_USERNAME, RDS_PASSWORD } = process.env;
+    if (RDS_HOSTNAME && RDS_USERNAME && RDS_PASSWORD) {
+      const port = RDS_PORT || 5432;
+      const db   = RDS_DB_NAME || 'understate';
+      url = `postgres://${RDS_USERNAME}:${encodeURIComponent(RDS_PASSWORD)}@${RDS_HOSTNAME}:${port}/${db}`;
+    }
+  }
+
   if (!url) return {};
 
   const isLocal = /localhost|127\.0\.0\.1|helium|\.internal/.test(url);
