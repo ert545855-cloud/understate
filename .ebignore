@@ -1,0 +1,8 @@
+.git
+.replit
+replit.nix
+.local
+.agents
+node_modules
+*.log
+.env.local
