@@ -177,11 +177,14 @@
 })();
 </script>
 
+<!-- Dinamik backend URL (sunucu tarafından PUBLIC_URL env var ile inject edilir) -->
+<script src="/config.js"></script>
+
 <!-- Boot Script -->
 <script>
 // ── APK / Capacitor — Socket URL ayarı ────────────────────────────────────
 // Capacitor'da window.location.origin "capacitor://localhost" döner, sunucuya ulaşamaz.
-// Bu satır APK içinden doğrudan Render sunucusuna bağlanmayı sağlar.
+// AWS EB / deploy için PUBLIC_URL env var set edilmeli (sunucu /config.js ile inject eder).
 (function() {
   var isCapacitor = (
     typeof window !== 'undefined' &&
@@ -190,9 +193,18 @@
      navigator.userAgent.indexOf('wv') !== -1 || // Android WebView
      (typeof Capacitor !== 'undefined'))
   );
-  // Capacitor/APK builds must point to the production server explicitly.
-  // In a normal browser (Replit preview, deployment, etc.) use the current origin.
-  var backendUrl = isCapacitor ? 'https://understate.onrender.com' : window.location.origin;
+  // Öncelik sırası:
+  // 1. /config.js ile sunucudan gelen __BACKEND_URL__ (AWS EB PUBLIC_URL env var)
+  // 2. Normal tarayıcıda mevcut origin
+  // 3. Capacitor + __BACKEND_URL__ yoksa fallback (geliştirme için)
+  var injected = (typeof window.__BACKEND_URL__ !== 'undefined' && window.__BACKEND_URL__)
+    ? window.__BACKEND_URL__ : null;
+  var backendUrl = injected || (isCapacitor ? '' : window.location.origin);
+  if (!backendUrl && isCapacitor) {
+    // Capacitor + PUBLIC_URL set edilmemişse uyarı ver
+    console.warn('[Socket] UYARI: Capacitor modunda __BACKEND_URL__ tanımsız! PUBLIC_URL env var set edin.');
+    backendUrl = window.location.origin;
+  }
   window._SOCKET_URL = backendUrl;
   window.__ENV__ = window.__ENV__ || {};
   window.__ENV__.SOCKET_URL = backendUrl;
