@@ -948,35 +948,8 @@ function boot() {
 })();
 </script>
 
-<!-- CDN fallback helpers -->
+<!-- Kütüphane yükleme yardımcıları (CDN öncelikli, local fallback) -->
 <script>
-function loadBabelFromCDN() {
-  var s = document.createElement('script');
-  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js';
-  s.crossOrigin = 'anonymous';
-  s.onload = function() { _advanceBar(25, 'Babel ✓ (CDN)'); };
-  s.onerror = function() { console.warn('[Boot] Babel CDN de başarısız, JSX olmadan devam ediliyor'); };
-  document.head.appendChild(s);
-}
-function loadReactFromCDN() {
-  var s = document.createElement('script');
-  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js';
-  s.crossOrigin = 'anonymous';
-  s.onload = function() { _advanceBar(40, 'React ✓ (CDN)'); };
-  s.onerror = function() { _showError('React yüklenemedi. Lütfen sayfayı yenileyin.'); };
-  document.head.appendChild(s);
-}
-function loadReactDOMFromCDN() {
-  var s = document.createElement('script');
-  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js';
-  s.crossOrigin = 'anonymous';
-  s.onload = function() {
-    _advanceBar(55, 'ReactDOM ✓ (CDN)');
-    tryBoot();
-  };
-  s.onerror = function() { _showError('ReactDOM yüklenemedi. Lütfen sayfayı yenileyin.'); };
-  document.head.appendChild(s);
-}
 function tryBoot() {
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
     boot();
@@ -984,25 +957,40 @@ function tryBoot() {
     document.addEventListener('DOMContentLoaded', boot);
   }
 }
+
+// local fallback — CDN başarısız olursa dener
+function _loadLocal(path, onok, onfail) {
+  var s = document.createElement('script');
+  s.src = path;
+  s.onload = onok;
+  s.onerror = onfail || function() { console.warn('[Boot] Local da yüklenemedi: ' + path); };
+  document.head.appendChild(s);
+}
 </script>
 
-<!-- Babel (JSX transform) -->
-<script src="/public/js/babel.min.js"
+<!-- Babel (JSX transform) — CDN birincil, local yedek -->
+<script
+  src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"
   crossorigin="anonymous"
-  onerror="loadBabelFromCDN()"
-  onload="_advanceBar(25,'Babel ✓')"></script>
+  onload="_advanceBar(25,'Babel ✓')"
+  onerror="_loadLocal('/public/js/babel.min.js', function(){ _advanceBar(25,'Babel ✓'); }, function(){ console.warn('Babel yüklenemedi'); })">
+</script>
 
-<!-- React 18 -->
-<script src="/public/js/react.min.js"
+<!-- React 18 — CDN birincil, local yedek -->
+<script
+  src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"
   crossorigin="anonymous"
-  onerror="loadReactFromCDN()"
-  onload="_advanceBar(40,'React ✓')"></script>
+  onload="_advanceBar(40,'React ✓')"
+  onerror="_loadLocal('/public/js/react.min.js', function(){ _advanceBar(40,'React ✓'); }, function(){ _showError('React yüklenemedi.'); })">
+</script>
 
-<!-- ReactDOM 18 -->
-<script src="/public/js/react-dom.min.js"
+<!-- ReactDOM 18 — CDN birincil, local yedek -->
+<script
+  src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"
   crossorigin="anonymous"
-  onerror="loadReactDOMFromCDN()"
-  onload="_advanceBar(55,'ReactDOM ✓'); tryBoot();"></script>
+  onload="_advanceBar(55,'ReactDOM ✓'); tryBoot();"
+  onerror="_loadLocal('/public/js/react-dom.min.js', function(){ _advanceBar(55,'ReactDOM ✓'); tryBoot(); }, function(){ _showError('ReactDOM yüklenemedi.'); })">
+</script>
 
 <!-- Background Music -->
 <script>

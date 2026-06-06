@@ -32,6 +32,7 @@ function isOriginAllowed(origin) {
   if (origin.endsWith('.replit.dev') || origin.endsWith('.repl.co') || origin.endsWith('.pike.replit.dev')) return true;
   if (origin === 'capacitor://localhost' || origin.startsWith('capacitor://')) return true;
   if (origin.endsWith('.elasticbeanstalk.com') || origin.endsWith('.amazonaws.com')) return true;
+  if (origin.endsWith('.cloudfront.net')) return true;
   return false;
 }
 
@@ -57,16 +58,22 @@ app.get('/config.js', (req, res) => {
 });
 
 // ── Statik dosyalar ───────────────────────────────────────────────────────────
-app.use('/public',  express.static(path.join(root, 'public')));
-app.use('/css',     express.static(path.join(root, 'css')));
-app.use('/js',      express.static(path.join(root, 'js')));
-app.use('/src',     express.static(path.join(root, 'src'), {
+const staticOpts = {
   setHeaders: (res, fp) => {
-    if (fp.endsWith('.js') || fp.endsWith('.jsx'))
+    // Büyük kütüphane dosyaları uzun süre cache'lenebilir
+    if (fp.endsWith('.min.js') || fp.endsWith('.min.css')) {
+      res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=3600');
+    } else if (fp.endsWith('.js') || fp.endsWith('.jsx')) {
       res.setHeader('Content-Type', 'application/javascript');
+      res.setHeader('Cache-Control', 'no-cache');
+    }
   },
-}));
-app.use('/assets',  express.static(path.join(root, 'assets')));
+};
+app.use('/public',  express.static(path.join(root, 'public'), staticOpts));
+app.use('/css',     express.static(path.join(root, 'css'), staticOpts));
+app.use('/js',      express.static(path.join(root, 'js'), staticOpts));
+app.use('/src',     express.static(path.join(root, 'src'), staticOpts));
+app.use('/assets',  express.static(path.join(root, 'assets'), staticOpts));
 
 // ── API rotaları ──────────────────────────────────────────────────────────────
 const adminRoute    = require('./routes/admin');
@@ -165,6 +172,16 @@ app.use(express.static(root, { index: false }));
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
   res.sendFile(path.join(root, 'index.html'));
+});
+
+// ── Global hata yakalayıcı (CloudFront 500 cache'lemesini önler) ───────────────
+app.use((err, req, res, _next) => {
+  logger.error('[Express]', err.message);
+  if (req.path.startsWith('/api/')) {
+    return res.status(err.status || 500).json({ error: err.message || 'Sunucu hatası' });
+  }
+  // Statik dosya veya SPA hataları için index.html döndür (CloudFront 500 cache'lemez)
+  res.status(200).sendFile(path.join(root, 'index.html'));
 });
 
 // ── HTTP sunucusu + Socket.IO ─────────────────────────────────────────────────
