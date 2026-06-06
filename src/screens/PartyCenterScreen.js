@@ -14,6 +14,8 @@ window.PartyCenterScreen = function PartyCenterScreen({ cu, parties, allUsers, f
   const [sponsors, setSponsors]   = React.useState(()=>S.load("sponsors",{}));
   const [msg, setMsg]             = React.useState(null);
   const [cabinet, setCabinet]     = React.useState(()=>S.load("cabinet",{}));
+  const [kampCooldowns, setKampCooldowns] = React.useState(()=>S.load("kampCooldowns",{}));
+  const [paySource, setPaySource] = React.useState("treasury");
 
   const showMsg = (text, type="info") => { setMsg({text,type}); setTimeout(()=>setMsg(null),3000); };
 
@@ -137,6 +139,7 @@ window.PartyCenterScreen = function PartyCenterScreen({ cu, parties, allUsers, f
       )}
       <div style={{display:"flex",gap:"0.4rem",overflowX:"auto",paddingBottom:"0.5rem",marginBottom:"0.75rem",scrollbarWidth:"none"}}>
         {tabBtn("overview","Genel","🏛️")}
+        {tabBtn("kampanya","Kampanya","📣")}
         {tabBtn("laws","Yasalar","📜")}
         {tabBtn("sponsors","Sponsorlar","💰")}
         {tabBtn("members","Üyeler","👥")}
@@ -160,7 +163,7 @@ window.PartyCenterScreen = function PartyCenterScreen({ cu, parties, allUsers, f
               {[
                 {l:"Üyeler",v:(myParty.members||[]).length,c:"#60A5FA"},
                 {l:"Kasa",v:fmtMoney(myParty.treasury||0),c:"#10B981"},
-                {l:"Sponsorlar",v:mySponsors.length,c:"#FFB800"},
+                {l:"Etki Puanı",v:myParty.influencePoints||myParty.support||0,c:"#A78BFA"},
                 {l:"Teklifler",v:proposals.filter(p=>p.party===myParty.name).length,c:"#EF4444"},
               ].map(s=>(
                 <div key={s.l} style={{background:"rgba(255,255,255,0.04)",borderRadius:8,padding:"0.4rem",textAlign:"center"}}>
@@ -174,6 +177,111 @@ window.PartyCenterScreen = function PartyCenterScreen({ cu, parties, allUsers, f
           <button className="btn" style={{width:"100%",border:"1px solid rgba(167,139,250,0.4)",color:"#A78BFA"}} onClick={()=>setCurrentPage("election_events")}>🗳️ Seçimlere Git</button>
         </div>
       )}
+
+      {/* KAMPANYA */}
+      {tab==="kampanya"&&(()=>{
+        const now = Date.now();
+        const ACTIVITIES = [
+          {id:"miting",     icon:"📣", label:"Parti Mitingi",          desc:"Büyük kalabalık toplantısı. En yüksek etki.",         partyCost:100000, personalCost:60000, pts:20, cooldownMs:6*60*60*1000, cooldownLabel:"6 saat"},
+          {id:"reklam",     icon:"📺", label:"Reklam Kampanyası",       desc:"TV, radyo ve dijital reklam yayını.",                  partyCost:30000,  personalCost:20000, pts:8,  cooldownMs:2*60*60*1000, cooldownLabel:"2 saat"},
+          {id:"basin",      icon:"🎙️", label:"Basın Toplantısı",       desc:"Medyaya açıklama. Orta düzey görünürlük.",             partyCost:15000,  personalCost:10000, pts:5,  cooldownMs:60*60*1000,   cooldownLabel:"1 saat"},
+          {id:"sosyal",     icon:"📱", label:"Sosyal Medya Paylaşımı",  desc:"Online kampanya. Düşük maliyet, hızlı puan.",          partyCost:5000,   personalCost:3000,  pts:2,  cooldownMs:30*60*1000,   cooldownLabel:"30 dk"},
+          {id:"bagis",      icon:"🤝", label:"Bağış Kampanyası",        desc:"Vatandaşlardan destek topla. Kasa geliri de artar.",   partyCost:0,      personalCost:50000, pts:15, cooldownMs:4*60*60*1000,  cooldownLabel:"4 saat"},
+          {id:"kongre",     icon:"🏛️", label:"Parti Kongresi",          desc:"Tüm üyelerin katıldığı büyük kongre. Lider gerekli.", partyCost:200000, personalCost:120000,pts:40, cooldownMs:24*60*60*1000, cooldownLabel:"24 saat"},
+        ];
+
+        const doActivity = (act) => {
+          const cd = kampCooldowns[act.id];
+          if(cd && now - cd < act.cooldownMs) return showMsg(`${act.label} için bekleme süresi dolmadı.`,"error");
+          if(act.id==="kongre"&&!isLeader) return showMsg("Kongre için Parti Lideri olmalısınız","error");
+
+          // Ödeme kaynağı
+          const profile = (()=>{try{return JSON.parse(localStorage.getItem('rep_userProfile')||'{}');}catch{return {};}})();
+          const allParties = (()=>{try{return JSON.parse(localStorage.getItem('rep_parties')||'[]');}catch{return [];}})();
+          const cost = paySource==="treasury" ? act.partyCost : act.personalCost;
+
+          if(paySource==="treasury") {
+            if(!isLeader) return showMsg("Kasadan harcama için Parti Lideri yetkisi gerekli","error");
+            if((myParty.treasury||0)<cost) return showMsg(`Parti kasasında yeterli para yok (${fmtMoney(cost)} gerekli)`,"error");
+            const updParties = allParties.map(p=>p.id===myParty.id?{...p, treasury:(p.treasury||0)-cost, influencePoints:(p.influencePoints||p.support||0)+act.pts}:p);
+            localStorage.setItem('rep_parties',JSON.stringify(updParties));
+            try{window._socket?.emit('party:sync',{parties:updParties});}catch(e){}
+          } else {
+            if((profile.money||0)<cost) return showMsg(`Yetersiz bakiye (${fmtMoney(cost)} gerekli)`,"error");
+            const np = {...profile, money:(profile.money||0)-cost};
+            localStorage.setItem('rep_userProfile',JSON.stringify(np));
+            const updParties = allParties.map(p=>p.id===myParty.id?{...p, influencePoints:(p.influencePoints||p.support||0)+act.pts}:p);
+            localStorage.setItem('rep_parties',JSON.stringify(updParties));
+            try{window._socket?.emit('party:sync',{parties:updParties});}catch(e){}
+          }
+
+          const newCd = {...kampCooldowns,[act.id]:now};
+          setKampCooldowns(newCd); S.save("kampCooldowns",newCd);
+          try{window._socket?.emit('gameEvent',{type:'meclisBanner',payload:{icon:act.icon,title:`${myParty.name} — ${act.label}`,by:cu?.username,party:myParty.name}});}catch(e){}
+          showMsg(`${act.icon} ${act.label} başarılı! +${act.pts} etki puanı kazanıldı.`,"success");
+        };
+
+        const currentPoints = (()=>{try{const p=(JSON.parse(localStorage.getItem('rep_parties')||'[]')).find(p=>p.id===myParty.id);return p?.influencePoints||p?.support||0;}catch{return myParty.influencePoints||myParty.support||0;}})();
+
+        return (
+          <div>
+            {/* Mevcut etki puanı */}
+            <div style={{...card,background:"linear-gradient(135deg,rgba(167,139,250,0.08),rgba(0,0,0,0))",textAlign:"center",padding:"1.25rem"}}>
+              <div style={{fontFamily:"JetBrains Mono,monospace",fontWeight:900,fontSize:"2rem",color:"#A78BFA"}}>{currentPoints}</div>
+              <div style={{fontSize:"0.72rem",color:"#5E7390",marginBottom:"0.75rem"}}>ETKİ PUANI</div>
+              <div style={{fontSize:"0.78rem",color:"#8899AA"}}>Etki puanı seçimlerde destek oranını, yasalarda oy ağırlığını belirler.</div>
+            </div>
+
+            {/* Ödeme kaynağı seçimi */}
+            <div style={{...card,padding:"0.75rem"}}>
+              <div style={{fontSize:"0.75rem",color:"#8899AA",marginBottom:"0.4rem",fontWeight:700}}>Ödeme Kaynağı:</div>
+              <div style={{display:"flex",gap:"0.4rem"}}>
+                {[{id:"treasury",lbl:"💰 Parti Kasası",note:"Lider yetkisi"},
+                  {id:"personal",lbl:"👤 Kendi Cebim",note:"Herkes"}].map(src=>(
+                  <button key={src.id} onClick={()=>setPaySource(src.id)} style={{flex:1,padding:"0.5rem",borderRadius:8,border:"none",background:paySource===src.id?"var(--accent)":"rgba(255,255,255,0.06)",color:paySource===src.id?"#000":"#8899AA",fontSize:"0.78rem",fontWeight:700,cursor:"pointer",textAlign:"center"}}>
+                    <div>{src.lbl}</div>
+                    <div style={{fontSize:"0.62rem",opacity:0.7}}>{src.note}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Aktiviteler */}
+            {ACTIVITIES.map(act=>{
+              const lastUsed = kampCooldowns[act.id]||0;
+              const elapsed  = now - lastUsed;
+              const ready    = elapsed >= act.cooldownMs;
+              const remaining= act.cooldownMs - elapsed;
+              const hh = Math.floor(remaining/3600000);
+              const mm = Math.floor((remaining%3600000)/60000);
+              const cost = paySource==="treasury" ? act.partyCost : act.personalCost;
+              return (
+                <div key={act.id} style={{...card,opacity:ready?1:0.65}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"0.35rem"}}>
+                    <div>
+                      <span style={{fontSize:"1.2rem",marginRight:"0.4rem"}}>{act.icon}</span>
+                      <span style={{fontWeight:700,color:"#E8EDF2",fontSize:"0.9rem"}}>{act.label}</span>
+                    </div>
+                    <span style={{background:"rgba(167,139,250,0.15)",border:"1px solid rgba(167,139,250,0.3)",borderRadius:6,padding:"0.15rem 0.5rem",fontSize:"0.72rem",fontWeight:700,color:"#A78BFA",flexShrink:0}}>+{act.pts} puan</span>
+                  </div>
+                  <div style={{fontSize:"0.75rem",color:"#5E7390",marginBottom:"0.45rem"}}>{act.desc}</div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{fontSize:"0.72rem",color:"#10B981",fontFamily:"JetBrains Mono,monospace"}}>
+                      {cost===0?"Ücretsiz":`${fmtMoney(cost)}`}
+                      <span style={{color:"#5E7390",marginLeft:4}}>· CD: {act.cooldownLabel}</span>
+                    </span>
+                    {ready ? (
+                      <button className="btn btn-primary" style={{fontSize:"0.78rem",padding:"0.35rem 0.8rem"}} onClick={()=>doActivity(act)}>Başlat</button>
+                    ) : (
+                      <span style={{fontSize:"0.72rem",color:"#F59E0B",fontFamily:"JetBrains Mono,monospace"}}>{hh>0?`${hh}s `:""}{mm}dk bekle</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* YASALAR */}
       {tab==="laws"&&(

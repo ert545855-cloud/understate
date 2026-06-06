@@ -47,8 +47,8 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
     const eduDiploma = profile?.education?.diploma || profile?.diplomaLevel || 'ilkokul';
     const eduCycles = profile?.education?.educationCycles || 0;
     const eduOrder = ['ilkokul','ortaokul','lise','universite','yukseklisans','doktora','profesor'];
-    const hasLise = eduOrder.indexOf(eduDiploma) >= eduOrder.indexOf('lise') || eduCycles > 0;
-    if (!hasLise) { showNotif('Parti kurmak için en az Lise diploması gerekli', 'error'); return; }
+    const hasUniversite = eduOrder.indexOf(eduDiploma) >= eduOrder.indexOf('universite');
+    if (!hasUniversite) { showNotif('Parti başkanı olmak için Üniversite diploması gerekli', 'error'); return; }
     const party = {
       id:genId(), name:pForm.name.trim(), ideology:pForm.ideology, desc:pForm.desc,
       color:pForm.color, leaderId:profile?.uid, leaderName:profile?.username,
@@ -326,7 +326,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
                 </div>
               </div>
             ) : (
-              <Btn variant='ghost' size='sm' onClick={()=>setCreateModal(true)} style={{marginBottom:'0.75rem',width:'100%'}}>🏛️ Yeni Parti Kur (₺500.000)</Btn>
+              <Btn variant='ghost' size='sm' onClick={()=>setCreateModal(true)} style={{marginBottom:'0.75rem',width:'100%'}}>🏛️ Yeni Parti Kur (₺100.000 + Üniversite)</Btn>
             )}
             {parties.map(party => (
               <Card key={party.id} style={{marginBottom:'0.5rem',padding:'0.85rem',border:`1px solid ${party.id===myParty?.id?'rgba(139,92,246,0.3)':'rgba(255,255,255,0.05)'}`}}>
@@ -872,7 +872,7 @@ function PoliticsPage({ profile, setProfile, showNotif }) {
             </div>
           </div>
           <div style={{background:'rgba(245,158,11,0.08)',border:'1px solid rgba(245,158,11,0.2)',borderRadius:'10px',padding:'0.65rem',fontSize:'0.78rem',color:'#F59E0B',marginBottom:'1rem'}}>
-            💡 Parti kurmak ₺500.000 ve Lise diploması gerektirir. Bakiye: {fmtWord(profile?.money||0)}
+            💡 Parti kurmak için ₺100.000 ve Üniversite diploması gerektirir. Bakiye: {fmtWord(profile?.money||0)}
           </div>
           <Btn variant='primary' size='full' onClick={createParty}>🏛️ Partiyi Kur</Btn>
         </Modal>
