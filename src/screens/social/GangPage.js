@@ -12,6 +12,9 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
   const [disbandConfirm, setDisbandConfirm] = useState(false);
   const [donateModal, setDonateModal] = useState(false);
   const [donateAmt, setDonateAmt] = useState('');
+  const [halefModal, setHalefModal] = useState(false);
+  const [halefTarget, setHalefTarget] = useState('');
+  const [rankMenuUid, setRankMenuUid] = useState(null);
 
   const uid = profile?.uid || profile?.id;
   const filteredGangs = typeFilter ? gangs.filter(g=>g.type===typeFilter) : gangs;
@@ -49,10 +52,42 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
   };
 
   const leaveGang = () => {
-    if (!myGang||isGangLeader) { if(isGangLeader) showNotif('Lider ayrılamaz. Önce liderliği devret.','error'); return; }
+    if (!myGang) return;
+    if (isGangLeader) {
+      if (!myGang.successorId) { showNotif('Lider ayrılamaz. Önce "Halef Belirle" ile bir halef seç veya liderliği devret.','error'); return; }
+      setGangs(prev => { const next=prev.map(g => g.id===myGang.id ? {...g, leaderId:g.successorId, leaderName:g.successorName, successorId:null, successorName:null, members:(g.members||[]).filter(m=>m!==uid), memberCount:Math.max(0,(g.memberCount||1)-1), power:Math.max(10,(g.power||10)-50)} : g); try{window._socket?.emit('gang:sync',{gangs:next});}catch(e){}; return next; });
+      setProfile(p => { const field=myGang.type==='family'?'family':'gang'; const np={...p,[field]:null}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
+      showNotif(`👑 Liderlik ${myGang.successorName}'e otomatik devredildi. Çeteden ayrıldın.`,'success');
+      return;
+    }
     setGangs(prev => { const next=prev.map(g => g.id===myGang.id ? {...g,members:(g.members||[]).filter(m=>m!==uid),memberCount:Math.max(0,(g.memberCount||1)-1),power:Math.max(10,(g.power||10)-50)} : g); try{window._socket?.emit('gang:leave',{gangId:myGang.id});window._socket?.emit('gang:sync',{gangs:next});}catch(e){}; return next; });
     setProfile(p => { const field=myGang.type==='family'?'family':'gang'; const np={...p,[field]:null}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
     showNotif('Çeteden ayrıldın. -50 güç.','info');
+  };
+
+  const setGangSuccessor = () => {
+    if (!isGangLeader || !halefTarget.trim()) { showNotif('Kullanıcı adı girin','error'); return; }
+    const users = (()=>{ try{return JSON.parse(localStorage.getItem('rep_users')||'[]');}catch{return[];} })();
+    const tgt = users.find(u => u.username===halefTarget.trim());
+    if (!tgt) { showNotif('Kullanıcı bulunamadı','error'); return; }
+    const tgtId = tgt.id||tgt.uid;
+    if (!(myGang.members||[]).includes(tgtId)) { showNotif('Bu kişi çetede değil','error'); return; }
+    if (tgtId===uid) { showNotif('Kendinizi halef seçemezsiniz','error'); return; }
+    setGangs(prev => prev.map(g => g.id===myGang.id ? {...g, successorId:tgtId, successorName:tgt.username} : g));
+    setHalefModal(false); setHalefTarget('');
+    showNotif(`👑 ${tgt.username} halef olarak belirlendi. Ayrıldığında liderlik otomatik devrolur.`,'success');
+  };
+
+  const clearSuccessor = () => {
+    setGangs(prev => prev.map(g => g.id===myGang.id ? {...g, successorId:null, successorName:null} : g));
+    showNotif('Halef seçimi iptal edildi','info');
+  };
+
+  const changeMemberRank = (muid, rank) => {
+    if (!isGangLeader) return;
+    setGangs(prev => prev.map(g => g.id===myGang.id ? {...g, ranks:{...(g.ranks||{}), [muid]:rank}} : g));
+    setRankMenuUid(null);
+    showNotif(`Rütbe güncellendi ✓`,'success');
   };
 
   const kickMember = (muid) => {
@@ -219,27 +254,80 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
                       })}
                     </div>
                     <div style={{display:'flex',gap:'0.4rem',flexWrap:'wrap',borderTop:'1px solid rgba(255,255,255,0.05)',paddingTop:'0.5rem'}}>
+                      <Btn variant='ghost' size='sm' onClick={()=>setHalefModal(true)}>🎖️ Halef Belirle</Btn>
                       <Btn variant='ghost' size='sm' onClick={()=>setTransferModal(true)}>🔄 Liderliği Devret</Btn>
+                      <Btn variant='danger' size='sm' onClick={leaveGang}>🚪 Ayrıl</Btn>
                       <Btn variant='danger' size='sm' onClick={()=>setDisbandConfirm(true)}>🗑️ Dağıt</Btn>
                     </div>
                   </Card>
                 )}
 
+                {/* HALEF KARTI */}
+                {isGangLeader && (
+                  <Card style={{marginBottom:'0.65rem',background:'rgba(245,158,11,0.06)',border:'1px solid rgba(245,158,11,0.2)'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.35rem'}}>
+                      <div style={{fontWeight:700,color:'#FCD34D',fontSize:'0.82rem'}}>🎖️ Halef (Vasiyet)</div>
+                      <button onClick={()=>setHalefModal(true)} style={{background:'rgba(245,158,11,0.12)',border:'1px solid rgba(245,158,11,0.3)',borderRadius:'6px',padding:'2px 8px',color:'#FCD34D',cursor:'pointer',fontSize:'0.68rem',fontWeight:700}}>Değiştir</button>
+                    </div>
+                    {myGang.successorId ? (
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                        <div style={{fontSize:'0.82rem',color:'#E8EDF2'}}>
+                          <span style={{marginRight:'0.4rem'}}>👑</span>
+                          <strong>{myGang.successorName}</strong>
+                          <span style={{color:'#5A7089',fontSize:'0.7rem',marginLeft:'0.4rem'}}>— Ayrıldığında otomatik lider olur</span>
+                        </div>
+                        <button onClick={clearSuccessor} style={{background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.2)',borderRadius:'6px',padding:'2px 8px',color:'#FCA5A5',cursor:'pointer',fontSize:'0.65rem',fontWeight:700}}>İptal</button>
+                      </div>
+                    ) : (
+                      <div style={{fontSize:'0.78rem',color:'#5A7089'}}>Henüz halef belirlenmedi. Liderin ayrılmak için halef belirlemesi gerekir.</div>
+                    )}
+                  </Card>
+                )}
+
                 <Card>
                   <div style={{fontWeight:700,color:'#E8EDF2',marginBottom:'0.65rem',fontSize:'0.85rem'}}>👥 Üyeler ({myGang.memberCount||1})</div>
-                  {(myGang.members||[]).map((muid,i)=>(
-                    <div key={muid} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0.45rem 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
-                      <div style={{display:'flex',alignItems:'center',gap:'0.5rem'}}>
-                        <div style={{width:'28px',height:'28px',borderRadius:'50%',background:'rgba(239,68,68,0.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.85rem'}}>{muid===myGang.leaderId?'👑':'👤'}</div>
-                        <div style={{fontSize:'0.82rem',fontWeight:700,color:muid===uid?'#FCA5A5':'#E8EDF2'}}>
-                          {muid===uid?profile?.username:`Üye #${i+1}`}{muid===myGang.leaderId&&<span style={{marginLeft:'0.3rem'}}><Tag color='red'>Lider</Tag></span>}
+                  {(()=>{
+                    const RANKS = ['👤 Çaylak','🔫 Asker','⚡ Kapodecima','💀 Underboss'];
+                    return (myGang.members||[]).map((muid,i)=>{
+                      const isLeaderRow = muid===myGang.leaderId;
+                      const memberRank = isLeaderRow ? '👑 Lider' : ((myGang.ranks||{})[muid] || '👤 Çaylak');
+                      const isSuccessor = muid===myGang.successorId;
+                      return (
+                        <div key={muid} style={{borderBottom:'1px solid rgba(255,255,255,0.04)',paddingBottom:'0.35rem',marginBottom:'0.35rem'}}>
+                          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                            <div style={{display:'flex',alignItems:'center',gap:'0.5rem'}}>
+                              <div style={{width:'28px',height:'28px',borderRadius:'50%',background:isLeaderRow?'rgba(239,68,68,0.15)':isSuccessor?'rgba(245,158,11,0.15)':'rgba(255,255,255,0.06)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.85rem'}}>
+                                {isLeaderRow?'👑':isSuccessor?'🎖️':'👤'}
+                              </div>
+                              <div>
+                                <div style={{fontSize:'0.82rem',fontWeight:700,color:muid===uid?'#FCA5A5':'#E8EDF2'}}>
+                                  {muid===uid?profile?.username:`Üye #${i+1}`}
+                                  {isSuccessor&&<span style={{marginLeft:'0.3rem',fontSize:'0.65rem',color:'#FCD34D',fontWeight:700}}>HALEF</span>}
+                                </div>
+                                <div style={{fontSize:'0.65rem',color:'#5A7089'}}>{memberRank}</div>
+                              </div>
+                            </div>
+                            {isGangLeader&&!isLeaderRow&&(
+                              <div style={{display:'flex',gap:'0.3rem'}}>
+                                <button onClick={()=>setRankMenuUid(rankMenuUid===muid?null:muid)} style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'6px',padding:'2px 7px',color:'#8BA0B5',cursor:'pointer',fontSize:'0.65rem',fontWeight:700}}>Rütbe</button>
+                                <button onClick={()=>kickMember(muid)} style={{background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.2)',borderRadius:'6px',padding:'2px 8px',color:'#FCA5A5',cursor:'pointer',fontSize:'0.65rem',fontWeight:700}}>Çıkar</button>
+                              </div>
+                            )}
+                          </div>
+                          {rankMenuUid===muid&&(
+                            <div style={{display:'flex',gap:'0.3rem',flexWrap:'wrap',marginTop:'0.35rem',paddingLeft:'2.2rem'}}>
+                              {RANKS.map(r=>(
+                                <button key={r} onClick={()=>changeMemberRank(muid,r)}
+                                  style={{background:memberRank===r?'rgba(239,68,68,0.15)':'rgba(255,255,255,0.05)',border:`1px solid ${memberRank===r?'rgba(239,68,68,0.35)':'rgba(255,255,255,0.08)'}`,borderRadius:'6px',padding:'2px 7px',color:memberRank===r?'#FCA5A5':'#8BA0B5',cursor:'pointer',fontSize:'0.65rem',fontWeight:700}}>
+                                  {r}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                      {isGangLeader&&muid!==myGang.leaderId&&(
-                        <button onClick={()=>kickMember(muid)} style={{background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.2)',borderRadius:'6px',padding:'2px 8px',color:'#FCA5A5',cursor:'pointer',fontSize:'0.68rem',fontWeight:700}}>Çıkar</button>
-                      )}
-                    </div>
-                  ))}
+                      );
+                    });
+                  })()}
                 </Card>
               </div>
             )}
@@ -334,6 +422,28 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.5rem'}}>
             <Btn variant='ghost' size='md' onClick={()=>setDisbandConfirm(false)}>İptal</Btn>
             <Btn variant='red' size='md' onClick={disbandGang}>🗑️ Dağıt</Btn>
+          </div>
+        </Modal>
+      )}
+
+      {halefModal&&(
+        <Modal title="🎖️ Halef Belirle" onClose={()=>{setHalefModal(false);setHalefTarget('');}}>
+          <div style={{background:'rgba(245,158,11,0.08)',border:'1px solid rgba(245,158,11,0.25)',borderRadius:'10px',padding:'0.65rem',fontSize:'0.78rem',color:'#FCD34D',marginBottom:'1rem'}}>
+            👑 Ayrıldığında liderlik otomatik bu kişiye devredilir. İstediğinde iptal edebilirsin.
+          </div>
+          {myGang?.successorId && (
+            <div style={{background:'rgba(255,255,255,0.04)',borderRadius:'8px',padding:'0.5rem 0.75rem',marginBottom:'0.75rem',fontSize:'0.78rem',color:'#8BA0B5'}}>
+              Mevcut halef: <strong style={{color:'#FCD34D'}}>{myGang.successorName}</strong>
+            </div>
+          )}
+          <div style={{marginBottom:'1rem'}}>
+            <div style={{fontSize:'0.72rem',color:'#5A7089',marginBottom:'0.4rem',fontWeight:700}}>Yeni Halef Kullanıcı Adı</div>
+            <input value={halefTarget} onChange={e=>setHalefTarget(e.target.value)} placeholder="Çete üyesinin kullanıcı adı"
+              style={{width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'10px',padding:'0.65rem 0.9rem',color:'#E8EDF2',fontFamily:"'DM Sans',sans-serif",fontSize:'16px',outline:'none',boxSizing:'border-box'}} />
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.5rem'}}>
+            <Btn variant='ghost' size='md' onClick={()=>{setHalefModal(false);setHalefTarget('');}}>İptal</Btn>
+            <Btn variant='ghost' size='md' onClick={setGangSuccessor} style={{background:'rgba(245,158,11,0.12)',border:'1px solid rgba(245,158,11,0.3)',color:'#FCD34D'}}>🎖️ Halef Belirle</Btn>
           </div>
         </Modal>
       )}
