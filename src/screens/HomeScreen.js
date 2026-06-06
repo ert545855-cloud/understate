@@ -18,14 +18,18 @@ function HomePage({ profile, onNavigate }) {
   React.useEffect(() => {
     const fetchStreak = async () => {
       try {
-        const r = await fetch('/api/streak', { headers: { Authorization: 'Bearer ' + jwt() } });
+        const token = jwt();
+        if (!token) return;
+        const r = await fetch('/api/streak', { headers: { Authorization: 'Bearer ' + token } });
         const d = await r.json();
         if (d.success) setStreakData(d.streak);
       } catch {}
     };
     const fetchNotifs = async () => {
       try {
-        const r = await fetch('/api/notifications?unread=true', { headers: { Authorization: 'Bearer ' + jwt() } });
+        const token = jwt();
+        if (!token) return;
+        const r = await fetch('/api/notifications?unread=true', { headers: { Authorization: 'Bearer ' + token } });
         const d = await r.json();
         if (d.success) setNotifCount(d.unreadCount || 0);
       } catch {}
