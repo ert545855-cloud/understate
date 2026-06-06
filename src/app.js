@@ -775,6 +775,7 @@ function App() {
   const [onlinePlayers, setOnlinePlayers] = useState([]);
   const [incomingDm, setIncomingDm] = useState(null);
   const [incomingTrade, setIncomingTrade] = useState(null);
+  const [parties, setParties] = useState(() => { try { return JSON.parse(localStorage.getItem('rep_parties') || '[]'); } catch { return []; } });
 
   // ── Token auto-refresh: her 10 dakikada kontrol, 5 dakika kalmışsa yenile ──
   useEffect(() => {
@@ -853,7 +854,7 @@ function App() {
       s.on('gameStateInit', (data) => {
         try {
           if (Array.isArray(data.gangs))         _syncLs('gangs', data.gangs);
-          if (Array.isArray(data.parties))       _syncLs('parties', data.parties);
+          if (Array.isArray(data.parties))       { _syncLs('parties', data.parties); setParties(data.parties); }
           if (Array.isArray(data.alliances))     _syncLs('alliances', data.alliances);
           if (data.elections)                    _syncLs('elections', data.elections);
           if (data.elections_multi)              _syncLs('elections_multi', data.elections_multi);
@@ -882,7 +883,7 @@ function App() {
       // ── Parti güncellemeleri ─────────────────────────────────────
       s.on('partyUpdate', (data) => {
         try {
-          if (Array.isArray(data.parties)) _syncLs('parties', data.parties);
+          if (Array.isArray(data.parties)) { _syncLs('parties', data.parties); setParties(data.parties); }
           if (data.action === 'create' && data.party) showNotif(`🏛️ ${data.party.name} partisi kuruldu!`, 'info', '🏛️');
         } catch(e){}
       });
