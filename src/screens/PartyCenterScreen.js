@@ -32,8 +32,16 @@ window.PartyCenterScreen = function PartyCenterScreen({ cu, parties, allUsers, f
 
   const partyArr = Array.isArray(parties)?parties:[];
   const fams = Array.isArray(families)?families:[];
-  const myParty = partyArr.find(p=>p.leader===cu?.username||(Array.isArray(p.members)&&p.members.includes(cu?.username)));
-  const isLeader = myParty?.leader===cu?.username;
+  // Üyelik kontrolü: members dizisi userId (uid/id) içerir
+  const cuId = cu?.uid || cu?.id;
+  const myParty = partyArr.find(p => {
+    const isLeaderByUsername = p.leader === cu?.username;
+    const isLeaderById       = p.leaderId === cuId;
+    const isMemberById       = Array.isArray(p.members) && cuId && p.members.includes(cuId);
+    const isMemberByUsername = Array.isArray(p.members) && p.members.includes(cu?.username);
+    return isLeaderByUsername || isLeaderById || isMemberById || isMemberByUsername;
+  });
+  const isLeader = myParty?.leader === cu?.username || myParty?.leaderId === cuId;
 
   const LAW_TYPES = [
     {id:"economy",   label:"Ekonomi Yasası",   icon:"💰",color:"#10B981"},
