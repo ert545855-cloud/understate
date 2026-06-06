@@ -51,7 +51,18 @@ app.use(express.urlencoded({ extended: true }));
 
 // ── Dinamik config (Capacitor/APK için backend URL inject) ────────────────────
 app.get('/config.js', (req, res) => {
-  const publicUrl = process.env.PUBLIC_URL || process.env.BACKEND_URL || '';
+  let publicUrl = process.env.PUBLIC_URL || process.env.BACKEND_URL || '';
+  // Eğer PUBLIC_URL set edilmemişse, isteğin geldiği origin'i kullan
+  // Bu Mixed Content hatasını önler (http:// → https://)
+  if (!publicUrl) {
+    const proto = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    publicUrl = `${proto}://${host}`;
+  }
+  // http:// ile başlıyorsa ve X-Forwarded-Proto https ise düzelt
+  if (publicUrl.startsWith('http://') && req.headers['x-forwarded-proto'] === 'https') {
+    publicUrl = publicUrl.replace('http://', 'https://');
+  }
   res.set('Content-Type', 'application/javascript');
   res.set('Cache-Control', 'no-cache');
   res.send(`window.__BACKEND_URL__ = ${JSON.stringify(publicUrl)};`);
