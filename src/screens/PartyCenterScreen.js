@@ -117,10 +117,13 @@ window.PartyCenterScreen = function PartyCenterScreen({ cu, parties, allUsers, f
   if(!myParty) return (
     <div>
       <div className="ministry-header">🏛️ Parti Merkezi</div>
-      <div style={{...card,textAlign:"center",padding:"2rem"}}>
-        <div style={{fontSize:"2rem",marginBottom:"0.5rem"}}>⚑</div>
-        <div style={{color:"#5E7390",fontSize:"0.85rem",marginBottom:"1rem"}}>Parti merkezine erişmek için bir partiye üye veya lider olmanız gerekiyor.</div>
-        <button className="btn btn-primary" onClick={()=>setCurrentPage("politics")}>⚑ Parti Sistemine Git</button>
+      <div style={{...card,textAlign:"center",padding:"2.5rem 1.5rem"}}>
+        <div style={{fontSize:"2.5rem",marginBottom:"0.75rem"}}>🏛️</div>
+        <div style={{fontWeight:800,color:"#E8EDF2",fontSize:"0.95rem",marginBottom:"0.4rem"}}>Şu an bir partiye üye değilsiniz</div>
+        <div style={{color:"#5E7390",fontSize:"0.8rem",marginBottom:"1.25rem",lineHeight:1.5}}>
+          Parti merkezini kullanabilmek için önce bir partiye katılın veya kendi partinizi kurun.
+        </div>
+        <button className="btn btn-primary" style={{width:"100%",maxWidth:"260px"}} onClick={()=>setCurrentPage("politics")}>⚑ Parti Sistemine Git</button>
       </div>
     </div>
   );
