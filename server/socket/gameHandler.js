@@ -511,7 +511,8 @@ function registerGameHandlers(io, socket) {
         : p
       );
       await db.setParties(updated).catch(() => {});
-      socket.broadcast.emit('partyUpdate', { parties: updated, action: 'join', partyId: data.partyId, userId: socket.userId, username: socket.username, ts: Date.now() });
+      // io.emit yerine socket.broadcast: join yapan kişiye de gönder (join yapan zaten local günceller)
+      io.emit('partyUpdate', { parties: updated, action: 'join', partyId: data.partyId, userId: socket.userId, username: socket.username, ts: Date.now() });
     }
   });
 
@@ -525,7 +526,7 @@ function registerGameHandlers(io, socket) {
         : p
       );
       await db.setParties(updated).catch(() => {});
-      socket.broadcast.emit('partyUpdate', { parties: updated, action: 'leave', partyId: data.partyId, userId: socket.userId, ts: Date.now() });
+      io.emit('partyUpdate', { parties: updated, action: 'leave', partyId: data.partyId, userId: socket.userId, ts: Date.now() });
     }
   });
 
