@@ -2,7 +2,7 @@ const { socketAuthMiddleware } = require('../middleware/authMiddleware');
 const { registerChatHandlers, registerSupportHandler, cleanupChatRates } = require('./chatHandler');
 const { registerPlayerHandlers, removePlayer, getOnlinePlayers } = require('./playerHandler');
 const { registerRoomHandlers } = require('./roomHandler');
-const { registerGameHandlers, removeGamePlayer } = require('./gameHandler');
+const { registerGameHandlers, removeGamePlayer, startPeriodicBroadcast } = require('./gameHandler');
 const { createSocketRateLimitMiddleware, cleanupSocket: cleanupSocketRL, checkSocketRate } = require('../middleware/socketRateLimiter');
 const roomManager = require('../rooms/roomManager');
 const { saveUser, startAutosave } = require('../services/saveService');
@@ -143,6 +143,7 @@ function initSocket(io) {
 
   startAutosave(io, getOnlinePlayers);
   startMonitoringLog(io, () => roomManager.getAllRooms().length);
+  startPeriodicBroadcast(io); // 30s'de bir gang/party güncellemesi
   logger.success('Socket.IO başlatıldı');
   return io;
 }

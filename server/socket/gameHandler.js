@@ -68,20 +68,24 @@ function sanitizeStateUpdate(data) {
 
 // ── Server-side party influence cooldown (userId → lastTs) ───────────────────
 const _partyCdMap = new Map(); // key: `${userId}_${partyId}` → timestamp
-const PARTY_INFLUENCE_CD_MS = 60 * 1000; // 60 saniye
+const PARTY_INFLUENCE_CD_MS = 3000; // 3 saniye (client ile aynı)
 
 // ── Initial state push (on connect) ──────────────────────────────────────────
 async function pushInitialState(socket) {
   try {
-    const state = await db.getFullGameState();
+    // Gangs, parties, alliances are now in proper SQL tables — fetch separately
+    const [state, gangs, parties, alliances, lobiler] = await Promise.all([
+      db.getFullGameState(),
+      db.isReady() ? db.getGangs().catch(() => [])       : [],
+      db.isReady() ? db.getParties().catch(() => [])     : [],
+      db.isReady() ? db.getAlliances().catch(() => [])   : [],
+      db.isReady() ? db.getGameState('lobiler').catch(() => null).then(v => v || []) : [],
+    ]);
     const onlineList = Array.from(onlinePlayers.values());
-    const lobiler = db.isReady()
-      ? (await db.getGameState('lobiler').catch(() => null)) || []
-      : [];
     const payload = {
-      gangs:            state.gangs           || [],
-      parties:          state.parties         || [],
-      alliances:        state.alliances       || [],
+      gangs,
+      parties,
+      alliances,
       elections:        state.elections       || { phase:'idle', candidates:[], votes:{} },
       elections_multi:  state.elections_multi || {},
       laws:             state.laws            || [],
@@ -93,6 +97,7 @@ async function pushInitialState(socket) {
       onlineCount:      onlineList.length,
     };
     socket.emit('gameStateInit', payload);
+    logger.debug(`[Init] pushed to ${socket.username}: ${gangs.length} çete, ${parties.length} parti, ${alliances.length} ittifak`);
   } catch (err) {
     logger.warn('[GameHandler] pushInitialState:', err.message);
   }
@@ -156,10 +161,14 @@ function registerGameHandlers(io, socket) {
     socket.userId   = data.userId;
     socket.username = player.username;
 
-    // ── Oyuncuyu şehir bazlı odaya ekle ──────────────────────────────────
+    // ── Oyuncuyu global odaya + şehir bazlı odaya ekle ──────────────────
+    // Global socket room — io.to('global_room').emit() ile herkese ulaşılabilir
+    socket.join('global_room');
+
     try {
       const { rooms, createRoom, joinRoom, leaveRoom, getPlayerRoom } = require('../rooms/roomManager');
-      const cityName  = player.city ? String(player.city).slice(0, 30) : 'Ana Dünya';
+      // Tüm oyuncular Ana Dünya odasında buluşur, şehir boşsa da buraya atanır
+      const cityName  = 'Ana Dünya';
       const roomLabel = `${cityName} - Şehir`;
 
       // Önce oyuncunun başka bir odada olup olmadığını kontrol et ve çıkar
@@ -1019,6 +1028,25 @@ function registerGameHandlers(io, socket) {
   });
 }
 
+// ── Periyodik tam oyun state rebroadcast'i (30s'de bir) ───────────────────────
+// Yeni bağlanan oyuncular kaçırdıkları güncellemeyi bir sonraki cycle'da alır
+let _broadcastInterval = null;
+function startPeriodicBroadcast(io) {
+  if (_broadcastInterval) return;
+  _broadcastInterval = setInterval(async () => {
+    try {
+      if (onlinePlayers.size === 0) return;
+      const [gangs, parties] = await Promise.all([
+        db.isReady() ? db.getGangs().catch(() => []) : [],
+        db.isReady() ? db.getParties().catch(() => []) : [],
+      ]);
+      // Sadece değişiklik varsa broadcast et (basic check)
+      io.emit('gangUpdate',  { gangs,   ts: Date.now() });
+      io.emit('partyUpdate', { parties, ts: Date.now() });
+    } catch (e) {}
+  }, 30000);
+}
+
 // ── Cleanup ───────────────────────────────────────────────────────────────────
 function removeGamePlayer(socketId, io) {
   onlinePlayers.delete(socketId);
@@ -1030,4 +1058,4 @@ function removeGamePlayer(socketId, io) {
 
 function getOnlineGamePlayers() { return Array.from(onlinePlayers.values()); }
 
-module.exports = { registerGameHandlers, removeGamePlayer, getOnlineGamePlayers, sendNotification, broadcastNotification };
+module.exports = { registerGameHandlers, removeGamePlayer, getOnlineGamePlayers, sendNotification, broadcastNotification, startPeriodicBroadcast };

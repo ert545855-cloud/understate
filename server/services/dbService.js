@@ -274,11 +274,14 @@ async function getGangs() {
     const { rows } = await query('SELECT * FROM gangs ORDER BY power DESC, created_at ASC');
     return rows.map(r => ({
       id: r.id, name: r.name,
-      leader: r.leader_id, leaderId: r.leader_id, leaderName: r.leader || r.leader_id,
+      type: r.type || 'gang',
+      leader: r.leader_id, leaderId: r.leader_id,
+      leaderName: r.leader_name || r.leader || r.leader_id || '',
       members: r.members || [], color: r.color || '#DC2626',
       territory: r.territories || r.territory || {}, power: r.power || 0,
       treasury: Number(r.treasury) || 0, rank: r.rank || 0,
       logo: r.logo || null, weapons: r.weapons || 0,
+      allianceId: r.alliance_id || null,
       createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
       updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : Date.now(),
     }));
@@ -295,23 +298,24 @@ async function setGangs(gangs) {
 
 async function upsertGang(gang) {
   if (!gang?.id) return false;
-  const { id, name, leader, leaderId, members, color, territory, territories, power, treasury, weapons, logo, rank } = gang;
+  const { id, name, type, leader, leaderId, leaderName, members, color, territory, territories, power, treasury, weapons, logo, rank, allianceId } = gang;
   try {
     await query(
-      `INSERT INTO gangs (id, name, leader_id, members, color, territory, territories, power, treasury, weapons, logo, rank, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW())
+      `INSERT INTO gangs (id, name, type, leader_id, leader_name, members, color, territory, territories, power, treasury, weapons, logo, rank, alliance_id, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,NOW())
        ON CONFLICT (id) DO UPDATE SET
-         name=EXCLUDED.name, leader_id=EXCLUDED.leader_id,
+         name=EXCLUDED.name, type=EXCLUDED.type,
+         leader_id=EXCLUDED.leader_id, leader_name=EXCLUDED.leader_name,
          members=EXCLUDED.members, color=EXCLUDED.color,
          territory=EXCLUDED.territory, territories=EXCLUDED.territories,
          power=EXCLUDED.power, treasury=EXCLUDED.treasury,
          weapons=EXCLUDED.weapons, logo=EXCLUDED.logo, rank=EXCLUDED.rank,
-         updated_at=NOW()`,
-      [id, name||'', leaderId||leader||null,
+         alliance_id=EXCLUDED.alliance_id, updated_at=NOW()`,
+      [id, name||'', type||'gang', leaderId||leader||null, leaderName||'',
        JSON.stringify(members||[]), color||'#DC2626',
        typeof territory === 'string' ? territory : (territory ? JSON.stringify(territory) : ''),
        JSON.stringify(territories||territory||{}),
-       power||0, treasury||0, weapons||0, logo||null, rank||0]
+       power||0, treasury||0, weapons||0, logo||null, rank||0, allianceId||null]
     );
     return true;
   } catch (err) { logger.warn('[DB] upsertGang:', err.message); return false; }

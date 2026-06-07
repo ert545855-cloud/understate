@@ -776,6 +776,7 @@ function App() {
   const [incomingDm, setIncomingDm] = useState(null);
   const [incomingTrade, setIncomingTrade] = useState(null);
   const [parties, setParties] = useState(() => { try { return JSON.parse(localStorage.getItem('rep_parties') || '[]'); } catch { return []; } });
+  const [gangs,   setGangs]   = useState(() => { try { return JSON.parse(localStorage.getItem('rep_gangs')   || '[]'); } catch { return []; } });
 
   // ── Token auto-refresh: her 10 dakikada kontrol, 5 dakika kalmışsa yenile ──
   useEffect(() => {
@@ -853,7 +854,7 @@ function App() {
       // ── İlk tam oyun state'i (bağlanınca sunucu gönderir) ────────
       s.on('gameStateInit', (data) => {
         try {
-          if (Array.isArray(data.gangs))         _syncLs('gangs', data.gangs);
+          if (Array.isArray(data.gangs))         { _syncLs('gangs', data.gangs);     setGangs(data.gangs);   }
           if (Array.isArray(data.parties))       { _syncLs('parties', data.parties); setParties(data.parties); }
           if (Array.isArray(data.alliances))     _syncLs('alliances', data.alliances);
           if (data.elections)                    _syncLs('elections', data.elections);
@@ -875,7 +876,7 @@ function App() {
       // ── Gang güncellemeleri ──────────────────────────────────────
       s.on('gangUpdate', (data) => {
         try {
-          if (Array.isArray(data.gangs)) _syncLs('gangs', data.gangs);
+          if (Array.isArray(data.gangs)) { _syncLs('gangs', data.gangs); setGangs(data.gangs); }
           if (data.action === 'create' && data.gang) showNotif(`${data.gang.type==='family'?'👨‍👩‍👧‍👦':'⚔️'} ${data.gang.name} kuruldu!`, 'info', data.gang.type==='family'?'👨‍👩‍👧‍👦':'⚔️');
         } catch(e){}
       });
@@ -1211,7 +1212,7 @@ function App() {
             {page==='duyurular'    && <DuyurularPage   profile={profile} />}
             {page==='leaderboard'  && <LeaderboardPage {...pageProps} />}
             {page==='education'    && <EducationPage   {...pageProps} />}
-            {page==='parti_etki'   && <PartiEtkiPage  profile={profile} setProfile={setProfile} parties={parties} setParties={setParties} showNotif={showNotif} />}
+            {page==='parti_etki'   && <PartiEtkiPage  profile={profile} setProfile={setProfile} parties={parties} setParties={setParties} showNotif={showNotif} gangs={gangs} />}
             {page==='citygov'        && <CityGovPage       {...pageProps} />}
             {page==='crime'          && <CrimePage         profile={profile} setProfile={setProfile} showNotif={showNotif} />}
             {page==='daily'          && <DailyTasksPage    {...pageProps} />}
@@ -1219,16 +1220,16 @@ function App() {
             {page==='yetkilerim'     && <YetkilerimPage    {...pageProps} />}
             {page==='election_events'&& <EventsPage        {...pageProps} />}
             {page==='teamwar'        && <TeamWarPage       {...pageProps} />}
-            {page==='power_triangle' && window.PowerTriangleScreen && React.createElement(window.PowerTriangleScreen, {cu:profile||{},setCurrentPage:setPage,families:(()=>{try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return [];}})(),gangs:(()=>{try{return JSON.parse(localStorage.getItem('rep_gangs')||'[]');}catch{return [];}})(),parties:(()=>{try{return JSON.parse(localStorage.getItem('rep_parties')||'[]');}catch{return [];}})(),allUsers:onlinePlayers||[]})}
+            {page==='power_triangle' && window.PowerTriangleScreen && React.createElement(window.PowerTriangleScreen, {cu:profile||{},setCurrentPage:setPage,families:(()=>{try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return [];}})(),gangs:gangs,parties:parties,allUsers:onlinePlayers||[]})}
             {page==='tenders' && window.TenderScreen && React.createElement(window.TenderScreen, {cu:profile||{},setCurrentPage:setPage,families:(()=>{try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return [];}})(),allUsers:onlinePlayers||[]})}
             {page==='unions' && window.UnionScreen && React.createElement(window.UnionScreen, {cu:profile||{},setCurrentPage:setPage,allUsers:onlinePlayers||[],families:(()=>{try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return [];}})()})}
-            {page==='gang_treasury' && window.GangTreasuryScreen && React.createElement(window.GangTreasuryScreen, {cu:profile||{},setCurrentPage:setPage,gangs:(()=>{try{return JSON.parse(localStorage.getItem('rep_gangs')||'[]');}catch{return [];}})(),allUsers:onlinePlayers||[]})}
-            {page==='party_center' && window.PartyCenterScreen && React.createElement(window.PartyCenterScreen, {cu:profile||{},setCurrentPage:setPage,parties:(()=>{try{return JSON.parse(localStorage.getItem('rep_parties')||'[]');}catch{return [];}})(),allUsers:onlinePlayers||[],families:(()=>{try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return [];}})()})}
+            {page==='gang_treasury' && window.GangTreasuryScreen && React.createElement(window.GangTreasuryScreen, {cu:profile||{},setCurrentPage:setPage,gangs:gangs,allUsers:onlinePlayers||[]})}
+            {page==='party_center' && window.PartyCenterScreen && React.createElement(window.PartyCenterScreen, {cu:profile||{},setCurrentPage:setPage,parties:parties,allUsers:onlinePlayers||[],families:(()=>{try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return [];}})()})}
             {page==='army_system' && window.ArmyScreen && React.createElement(window.ArmyScreen, {cu:profile||{},setCurrentPage:setPage,allUsers:onlinePlayers||[]})}
-            {page==='independent_army' && window.IndependentArmyScreen && React.createElement(window.IndependentArmyScreen, {cu:profile||{},setCurrentPage:setPage,allUsers:onlinePlayers||[],families:(()=>{try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return [];}})(),gangs:(()=>{try{return JSON.parse(localStorage.getItem('rep_gangs')||'[]');}catch{return [];}})(),parties:(()=>{try{return JSON.parse(localStorage.getItem('rep_parties')||'[]');}catch{return [];}})()})}
-            {page==='economic_empire' && window.EconomicEmpireScreen && React.createElement(window.EconomicEmpireScreen, {cu:profile||{},setCurrentPage:setPage,families:(()=>{try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return [];}})(),gangs:(()=>{try{return JSON.parse(localStorage.getItem('rep_gangs')||'[]');}catch{return [];}})(),parties:(()=>{try{return JSON.parse(localStorage.getItem('rep_parties')||'[]');}catch{return [];}})(),allUsers:onlinePlayers||[]})}
-            {page==='family_center' && window.FamilyCenterScreen && React.createElement(window.FamilyCenterScreen, {cu:profile||{},setCurrentPage:setPage,families:(()=>{try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return [];}})(),gangs:(()=>{try{return JSON.parse(localStorage.getItem('rep_gangs')||'[]');}catch{return [];}})(),parties:(()=>{try{return JSON.parse(localStorage.getItem('rep_parties')||'[]');}catch{return [];}})(),allUsers:onlinePlayers||[]})}
-            {page==='protection_deals' && window.ProtectionDealsScreen && React.createElement(window.ProtectionDealsScreen, {cu:profile||{},setCurrentPage:setPage,gangs:(()=>{try{return JSON.parse(localStorage.getItem('rep_gangs')||'[]');}catch{return [];}})(),families:(()=>{try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return [];}})(),allUsers:onlinePlayers||[]})}
+            {page==='independent_army' && window.IndependentArmyScreen && React.createElement(window.IndependentArmyScreen, {cu:profile||{},setCurrentPage:setPage,allUsers:onlinePlayers||[],families:(()=>{try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return [];}})(),gangs:gangs,parties:parties})}
+            {page==='economic_empire' && window.EconomicEmpireScreen && React.createElement(window.EconomicEmpireScreen, {cu:profile||{},setCurrentPage:setPage,families:(()=>{try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return [];}})(),gangs:gangs,parties:parties,allUsers:onlinePlayers||[]})}
+            {page==='family_center' && window.FamilyCenterScreen && React.createElement(window.FamilyCenterScreen, {cu:profile||{},setCurrentPage:setPage,families:(()=>{try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return [];}})(),gangs:gangs,parties:parties,allUsers:onlinePlayers||[]})}
+            {page==='protection_deals' && window.ProtectionDealsScreen && React.createElement(window.ProtectionDealsScreen, {cu:profile||{},setCurrentPage:setPage,gangs:gangs,families:(()=>{try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return [];}})(),allUsers:onlinePlayers||[]})}
           </div>
 
           <BottomNav page={page} onChange={setPage} items={navItems} notifMap={{ chat: notifications.filter(n=>n.type==='message'&&Date.now()-n.ts<300000).length }} />

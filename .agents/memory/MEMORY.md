@@ -7,6 +7,7 @@
 - [PoliticsPage Meclis](politics-meclis.md) — meclis sub-tab REMOVED from PoliticsScreen; standalone PartyCenterScreen.js loaded via index.html, routed as party_center in Devlet nav.
 - [Score Calculation](score-calc.md) — calcScore(p) in app.js before App(); useEffect auto-updates profile.score on level/xp/money/merits/edu changes; autosave uses calcScore(p) directly.
 - [DB Proper Tables](db-proper-tables.md) — gangs/parties/alliances now use proper SQL tables (not game_state KV); getFullGameState wantedKeys excludes these three.
+- [Gangs React State](gangs-react-state.md) — app.js has top-level [gangs,setGangs] state; gameStateInit+gangUpdate both call setGangs(); pass gangs/parties state (not localStorage reads) to all external screens.
 - [Babel Global Scope Hook Clash](babel-hook-clash.md) — app.js declares useState/useEffect globally; new component files MUST NOT redeclare them. Use React.useState directly or omit the destructuring.
 - [Screen File Splits](screen-splits.md) — SocialScreen/GamesScreen bölündü; index.html SCREEN_FILES listesi güncellendi; orijinal dosyalar 1-satır stub'a döndü.
 - [Server Routes Added](server-routes-added.md) — bank.js (deposit/withdraw/interest/transfer), chat.js (history+save) eklendi; ana.js'de register edildi.

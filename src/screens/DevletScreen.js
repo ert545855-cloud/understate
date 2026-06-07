@@ -90,7 +90,7 @@ function useLobiStore() {
   return [lobiler, setLobiler];
 }
 
-function PartiEtkiPage({ profile, setProfile, parties, setParties, showNotif }) {
+function PartiEtkiPage({ profile, setProfile, parties, setParties, showNotif, gangs: gangsFromProps }) {
   const { dark } = useTheme();
   const bg   = dark ? '#0B1527' : '#F0F4FF';
   const card = dark ? 'rgba(255,255,255,0.04)' : '#fff';
@@ -112,7 +112,9 @@ function PartiEtkiPage({ profile, setProfile, parties, setParties, showNotif }) 
   const myParty = parties.find(p=>p.id===myPartyId) || null;
   const isPartyLeader = myParty && (myParty.leaderId===uid);
 
-  const allGangs = (() => { try { return JSON.parse(localStorage.getItem('rep_gangs')||'[]'); } catch{ return []; } })();
+  const allGangs = Array.isArray(gangsFromProps) && gangsFromProps.length > 0
+    ? gangsFromProps
+    : (() => { try { return JSON.parse(localStorage.getItem('rep_gangs')||'[]'); } catch{ return []; } })();
   const allFamilies = allGangs.filter(g=>g.type==='family');
   const myFamily = allFamilies.find(f=>f.leaderId===uid || (f.members||[]).includes(uid));
   const isFamilyLeader = myFamily && myFamily.leaderId===uid;
