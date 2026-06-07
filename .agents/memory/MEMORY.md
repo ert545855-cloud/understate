@@ -10,3 +10,5 @@
 - [Babel Global Scope Hook Clash](babel-hook-clash.md) — app.js declares useState/useEffect globally; new component files MUST NOT redeclare them. Use React.useState directly or omit the destructuring.
 - [Screen File Splits](screen-splits.md) — SocialScreen/GamesScreen bölündü; index.html SCREEN_FILES listesi güncellendi; orijinal dosyalar 1-satır stub'a döndü.
 - [Server Routes Added](server-routes-added.md) — bank.js (deposit/withdraw/interest/transfer), chat.js (history+save) eklendi; ana.js'de register edildi.
+- [PvP/Mining/Spy/Gang Server Handlers](game-action-handlers.md) — pvp:attack, mining:mine/sell, spy:op, gang:buyWeapon/getWeapons, empire:sync/get all in gameHandler.js; updateUser whitelist includes money/hp/merit_points/game_data.
+- [GangTreasury bank→treasury bug](gang-treasury-fix.md) — GangTreasuryScreen used myGang.bank but DB/server stores myGang.treasury; fixed + weapons now load via gang:getWeapons socket event.

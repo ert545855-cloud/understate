@@ -1,50 +1,87 @@
 // ═══════════════════════════════════════════════════════
-// PVP DÖVÜŞ SAYFASI
+// PVP DÖVÜŞ SAYFASI — server-side doğrulama + DB persist
 // ═══════════════════════════════════════════════════════
 function PvpPage({ profile, setProfile, showNotif }) {
   const [battles, setBattles] = useLs('pvpBattles', []);
   const [pvpCooldown, setPvpCooldown] = useLs('pvpCooldown', {});
+  const [targets, setTargets] = useState([]);
+  const [loadingTargets, setLoadingTargets] = useState(false);
   const { dark } = useTheme();
   const bg = dark ? '#0F172A' : '#F8FAFC';
   const cu = profile || {};
   const now = Date.now();
-  const updateUser = (upd) => {
-    const next = {...cu,...upd};
-    setProfile(next);
-    localStorage.setItem('rep_userProfile', JSON.stringify(next));
-    try { const u2 = JSON.parse(localStorage.getItem('rep_users')||'[]'); localStorage.setItem('rep_users', JSON.stringify(u2.map(u => u.id===next.id ? next : u))); } catch{}
-  };
 
-  const allUsers = (() => { try { return JSON.parse(localStorage.getItem('rep_users')||'[]'); } catch{return [];} })();
-  const targets = allUsers.filter(u => u.id!==cu.id && !u.banned);
+  // Leaderboard'dan gerçek oyuncuları çek
+  useEffect(() => {
+    const load = async () => {
+      setLoadingTargets(true);
+      try {
+        const r = await fetch('/api/leaderboard/all');
+        const d = await r.json();
+        if (d.success && d.leaderboard) {
+          const all = d.leaderboard.level || d.leaderboard.score || [];
+          setTargets(all.filter(u => u.username !== cu.username).slice(0, 20));
+        }
+      } catch(e) {
+        // Fallback: online players from socket
+        const sock = window._socket;
+        if (sock) {
+          sock.emit('requestOnlinePlayers');
+          sock.once('onlinePlayers', (list) => {
+            setTargets((list||[]).filter(u => u.username !== cu.username).slice(0,20));
+          });
+        }
+      } finally {
+        setLoadingTargets(false);
+      }
+    };
+    load();
+  }, [cu.username]);
+
+  // Socket: server'dan gelen PvP sonuçlarını dinle
+  useEffect(() => {
+    const sock = window._socket;
+    if (!sock) return;
+    const onResult = (data) => {
+      if (!data.ok) { showNotif(data.msg || 'Hata', 'error'); return; }
+      const { won, stolen, hpLost, targetUsername, newMoney, newHp, newMerits } = data;
+      const battle = { id:Date.now(), attacker:cu.username, defender:targetUsername, result:won?'win':'loss', stolen, date:new Date().toLocaleDateString('tr-TR') };
+      setBattles(prev => [battle, ...prev].slice(0, 50));
+      setProfile(prev => ({ ...prev, money:newMoney, hp:newHp, meritPoints:newMerits, merit_points:newMerits }));
+      localStorage.setItem('rep_userProfile', JSON.stringify({ ...cu, money:newMoney, hp:newHp, meritPoints:newMerits }));
+      try { const today=new Date().toDateString(); const dk=`day_${today}`; const s=JSON.parse(localStorage.getItem('rep_dailyTaskState')||'{}'); s[dk]={...(s[dk]||{}),dailyPvpCount:((s[dk]?.dailyPvpCount)||0)+1}; localStorage.setItem('rep_dailyTaskState',JSON.stringify(s)); } catch(e){}
+      if (won) {
+        showNotif(`⚔️ Saldırı başarılı! +₺${stolen.toLocaleString()} +10🏅 -${hpLost}❤️`, 'success');
+        if (stolen > 50000) window._pushGameEvent?.('pvp_galibiyet', `⚔️ ${cu.username} → ${targetUsername} kazandı!`, `₺${stolen.toLocaleString()} ganimet.`, '⚔️', 'savaş');
+      } else {
+        showNotif(`💔 Saldırı başarısız! -${hpLost}❤️`, 'error');
+      }
+    };
+    const onAttacked = (data) => {
+      showNotif(`🛡️ ${data.attacker} sana saldırdı! ${data.won ? `₺${data.stolen?.toLocaleString()} çalındı!` : 'Saldırıyı püskürttün!'}`, data.won ? 'error' : 'info');
+      if (data.won) {
+        setProfile(prev => ({ ...prev, money: data.newMoney }));
+        localStorage.setItem('rep_userProfile', JSON.stringify({ ...cu, money: data.newMoney }));
+      }
+    };
+    sock.on('pvp:result', onResult);
+    sock.on('pvp:attacked', onAttacked);
+    return () => { sock.off('pvp:result', onResult); sock.off('pvp:attacked', onAttacked); };
+  }, [cu.username, cu.money, cu.hp]);
 
   const attack = (target) => {
-    const lastBattle = pvpCooldown[cu.id]||0;
-    if (now-lastBattle < 5*60*1000) { showNotif('⏳ PvP cooldown: 5 dakika!','error'); return; }
-    if ((cu.hp||100) < 20) { showNotif('❌ Canın çok az! İyileş önce.','error'); return; }
-    const myStr = (cu.level||1)*10 + (cu.meritPoints||0)/10;
-    const oppStr = (target.level||1)*10 + (target.meritPoints||0)/10;
-    const won = Math.random()*100 < Math.min(80,Math.max(20,(myStr/(myStr+oppStr))*100));
-    const stolen = won ? Math.floor(Math.min(target.money||0, (target.money||0)*0.05)) : 0;
-    const hpLost = won ? 5 : 15;
-    const battle = {id:Date.now(),attacker:cu.username,defender:target.username,result:won?'win':'loss',stolen,date:new Date().toLocaleDateString('tr-TR')};
-    setBattles(prev=>[battle,...prev].slice(0,50));
-    setPvpCooldown(prev=>({...prev,[cu.id]:now}));
-    try { const today=new Date().toDateString(); const dk=`day_${today}`; const s=JSON.parse(localStorage.getItem('rep_dailyTaskState')||'{}'); s[dk]={...(s[dk]||{}),dailyPvpCount:((s[dk]?.dailyPvpCount)||0)+1}; localStorage.setItem('rep_dailyTaskState',JSON.stringify(s)); } catch(e){}
-    if (won) {
-      updateUser({money:(cu.money||0)+stolen, hp:Math.max(0,(cu.hp||100)-hpLost), meritPoints:(cu.meritPoints||0)+10});
-      const newUsers = allUsers.map(u => u.id===target.id ? {...u,money:Math.max(0,(u.money||0)-stolen)} : u);
-      localStorage.setItem('rep_users', JSON.stringify(newUsers));
-      showNotif(`⚔️ Saldırı başarılı! +₺${stolen.toLocaleString()} +10🏅 -${hpLost}❤️`,'success');
-      try { if (stolen > 50000) window._pushGameEvent?.('pvp_galibiyet', `⚔️ ${cu.username} → ${target.username} savaşı kazandı!`, `₺${stolen.toLocaleString()} ganimet alındı.`, '⚔️', 'savaş'); } catch(e){}
-    } else {
-      updateUser({hp:Math.max(0,(cu.hp||100)-hpLost)});
-      showNotif(`💔 Saldırı başarısız! -${hpLost}❤️`,'error');
-    }
+    const lastBattle = pvpCooldown[cu.id || cu.uid] || 0;
+    if (now - lastBattle < 5 * 60 * 1000) { showNotif('⏳ PvP cooldown: 5 dakika!', 'error'); return; }
+    if ((cu.hp || 100) < 20) { showNotif('❌ Canın çok az! İyileş önce.', 'error'); return; }
+    const sock = window._socket;
+    if (!sock?.connected) { showNotif('❌ Sunucuya bağlı değilsiniz', 'error'); return; }
+    setPvpCooldown(prev => ({ ...prev, [cu.id || cu.uid]: now }));
+    // Server-side attack — targetId is the leaderboard user id
+    sock.emit('pvp:attack', { targetId: target.id || target.userId || target.username, targetUsername: target.username });
   };
 
-  const myBattles = battles.filter(b=>b.attacker===cu.username||b.defender===cu.username);
-  const wins = myBattles.filter(b=>b.attacker===cu.username&&b.result==='win').length;
+  const myBattles = battles.filter(b => b.attacker === cu.username || b.defender === cu.username);
+  const wins = myBattles.filter(b => b.attacker === cu.username && b.result === 'win').length;
 
   return (
     <div style={{padding:'1rem',background:bg,minHeight:'100%'}}>
@@ -57,13 +94,13 @@ function PvpPage({ profile, setProfile, showNotif }) {
         </div>
       </div>
       <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:'12px',padding:'1rem',marginBottom:'1rem'}}>
-        <div style={{fontWeight:700,color:'#aaa',marginBottom:'0.75rem',fontSize:'0.9rem'}}>🎯 Saldırı Hedefleri</div>
-        {targets.length===0&&<div style={{color:'#555',textAlign:'center',padding:'1rem'}}>Başka oyuncu bulunamadı.</div>}
+        <div style={{fontWeight:700,color:'#aaa',marginBottom:'0.75rem',fontSize:'0.9rem'}}>🎯 Saldırı Hedefleri {loadingTargets && <span style={{fontSize:'0.7rem',color:'#666'}}>yükleniyor…</span>}</div>
+        {targets.length===0 && !loadingTargets && <div style={{color:'#555',textAlign:'center',padding:'1rem'}}>Başka oyuncu bulunamadı.</div>}
         {targets.slice(0,15).map(t=>(
-          <div key={t.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'0.5rem 0.6rem',background:'rgba(255,255,255,0.03)',borderRadius:'8px',marginBottom:'0.3rem',border:'1px solid rgba(255,255,255,0.06)'}}>
+          <div key={t.id||t.username} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'0.5rem 0.6rem',background:'rgba(255,255,255,0.03)',borderRadius:'8px',marginBottom:'0.3rem',border:'1px solid rgba(255,255,255,0.06)'}}>
             <div>
               <div style={{fontWeight:600,fontSize:'0.85rem'}}>{t.username}</div>
-              <div style={{fontSize:'0.7rem',color:'#999'}}>Lv.{t.level||1} · ❤️{t.hp||100} · ₺{((t.money||0)/1000).toFixed(0)}K</div>
+              <div style={{fontSize:'0.7rem',color:'#999'}}>Lv.{t.level||1} · ₺{(((t.money||0))/1000).toFixed(0)}K</div>
             </div>
             <button onClick={()=>attack(t)} style={{padding:'0.35rem 0.8rem',background:'rgba(239,68,68,0.12)',border:'1px solid rgba(239,68,68,0.3)',borderRadius:'6px',color:'#EF4444',cursor:'pointer',fontWeight:700,fontSize:'0.78rem',fontFamily:'inherit'}}>⚔️ Saldır</button>
           </div>
@@ -81,4 +118,3 @@ function PvpPage({ profile, setProfile, showNotif }) {
     </div>
   );
 }
-

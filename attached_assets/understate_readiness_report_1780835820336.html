@@ -1,0 +1,144 @@
+
+<style>
+.section { margin-bottom: 1.5rem; }
+.section-title { font-size: 14px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.meter-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 13px; }
+.meter-label { min-width: 180px; color: var(--color-text-secondary); }
+.meter-bar { flex: 1; height: 6px; background: var(--color-border-tertiary); border-radius: 3px; overflow: hidden; }
+.meter-fill { height: 100%; border-radius: 3px; transition: width .5s ease; }
+.meter-pct { min-width: 36px; text-align: right; font-weight: 500; color: var(--color-text-primary); }
+.green  { background: #1D9E75; }
+.amber  { background: #EF9F27; }
+.red    { background: #E24B4A; }
+.tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500; margin-right: 4px; margin-bottom: 4px; }
+.tag-done  { background: var(--color-background-success); color: var(--color-text-success); }
+.tag-warn  { background: var(--color-background-warning); color: var(--color-text-warning); }
+.tag-miss  { background: var(--color-background-danger); color: var(--color-text-danger); }
+.tag-info  { background: var(--color-background-info); color: var(--color-text-info); }
+.issue-row { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 13px; }
+.issue-row:last-child { border-bottom: none; }
+.issue-sev { min-width: 70px; }
+.issue-body { color: var(--color-text-secondary); line-height: 1.5; }
+.issue-title { font-weight: 500; color: var(--color-text-primary); }
+.hero { display: flex; align-items: center; gap: 20px; padding: 1.25rem 1.5rem; background: var(--color-background-secondary); border-radius: var(--border-radius-lg); border: 0.5px solid var(--color-border-tertiary); margin-bottom: 1.5rem; }
+.big-score { font-size: 48px; font-weight: 500; color: var(--color-text-primary); line-height: 1; }
+.big-score span { font-size: 20px; color: var(--color-text-secondary); }
+.score-desc { font-size: 13px; color: var(--color-text-secondary); margin-top: 4px; }
+.score-label { font-size: 15px; font-weight: 500; color: var(--color-text-primary); }
+</style>
+
+<div style="padding: 1rem 0;">
+
+<div class="hero">
+  <div>
+    <div class="big-score">62<span>/100</span></div>
+    <div class="score-label" style="margin-top:6px">Beta / Erken Erişim Hazır</div>
+    <div class="score-desc">Çekirdek altyapı çalışıyor, ama kritik multiplayer özellikler sunucuya taşınmamış</div>
+  </div>
+  <div style="flex:1">
+    <div class="meter-row" style="margin-bottom:10px">
+      <div class="meter-label">Genel hazırlık</div>
+      <div class="meter-bar"><div class="meter-fill amber" style="width:62%"></div></div>
+      <div class="meter-pct">62%</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Alan bazlı durum</div>
+  <div class="meter-row"><div class="meter-label">Sunucu altyapısı</div><div class="meter-bar"><div class="meter-fill green" style="width:88%"></div></div><div class="meter-pct">88%</div></div>
+  <div class="meter-row"><div class="meter-label">Auth / Güvenlik</div><div class="meter-bar"><div class="meter-fill green" style="width:85%"></div></div><div class="meter-pct">85%</div></div>
+  <div class="meter-row"><div class="meter-label">Veritabanı & SQL</div><div class="meter-bar"><div class="meter-fill amber" style="width:70%"></div></div><div class="meter-pct">70%</div></div>
+  <div class="meter-row"><div class="meter-label">Oyun mekanikleri</div><div class="meter-bar"><div class="meter-fill amber" style="width:65%"></div></div><div class="meter-pct">65%</div></div>
+  <div class="meter-row"><div class="meter-label">Multiplayer entegrasyonu</div><div class="meter-bar"><div class="meter-fill red" style="width:40%"></div></div><div class="meter-pct">40%</div></div>
+  <div class="meter-row"><div class="meter-label">Frontend ekranları</div><div class="meter-bar"><div class="meter-fill amber" style="width:72%"></div></div><div class="meter-pct">72%</div></div>
+  <div class="meter-row"><div class="meter-label">Mobil / Deploy</div><div class="meter-bar"><div class="meter-fill amber" style="width:60%"></div></div><div class="meter-pct">60%</div></div>
+</div>
+
+<div class="section">
+  <div class="section-title">Kritik eksiklikler</div>
+
+  <div class="issue-row">
+    <div class="issue-sev"><span class="tag tag-miss">Kritik</span></div>
+    <div class="issue-body">
+      <div class="issue-title">Çok sayıda ekran hâlâ sadece localStorage kullanıyor</div>
+      GangPage, AlliancePage, TeamWarPage, EconomicEmpireScreen, GangTreasuryScreen, PoliticsScreen, FamilyCenterScreen, IndependentArmyScreen, UnionScreen — bu ekranlar sunucu ile konuşmuyor. Farklı cihazlardan oynayan kullanıcıların verileri birbirine görünmez.
+    </div>
+  </div>
+
+  <div class="issue-row">
+    <div class="issue-sev"><span class="tag tag-miss">Kritik</span></div>
+    <div class="issue-body">
+      <div class="issue-title">missing_tables.sql ve migration_features.sql henüz uygulanmamış olabilir</div>
+      players, stock_market, elections, push_subscriptions, daily_streaks, timed_events, user_sessions gibi tablolar ayrı bir dosyada bekliyor. Uygulama başlattığında bunlar DB'de yoksa sunucu hata verir.
+    </div>
+  </div>
+
+  <div class="issue-row">
+    <div class="issue-sev"><span class="tag tag-warn">Önemli</span></div>
+    <div class="issue-body">
+      <div class="issue-title">PvP ve Spy sistemleri sunucu tarafında yok</div>
+      SpyPage ve PvpPage tüm state'i localStorage'da tutuyor. Oyuncular savaşa giriyor ama rakip bunu görmüyor. server/routes/ altında bu iki modül için route yok.
+    </div>
+  </div>
+
+  <div class="issue-row">
+    <div class="issue-sev"><span class="tag tag-warn">Önemli</span></div>
+    <div class="issue-body">
+      <div class="issue-title">Mining ve NpcPlayers da localStorage-only</div>
+      MiningPage ve NpcPlayersPage gerçek veritabanı bağlantısı yok. Leaderboard'da madencilik kaynakları görünmüyor.
+    </div>
+  </div>
+
+  <div class="issue-row">
+    <div class="issue-sev"><span class="tag tag-warn">Önemli</span></div>
+    <div class="issue-body">
+      <div class="issue-title">MongoDB URI de var, PostgreSQL de — ikisi birden kullanılıyor</div>
+      .env ve package.json'da hem mongoose hem pg bağımlılığı var. Bu mimari karmaşıklığı artırıyor; hangi veri nerede tutuluyor net değil.
+    </div>
+  </div>
+
+  <div class="issue-row">
+    <div class="issue-sev"><span class="tag tag-warn">Önemli</span></div>
+    <div class="issue-body">
+      <div class="issue-title">Firebase V7 implementasyonu dokümanda var ama kodda yok</div>
+      docs/FIREBASE_V7_IMPLEMENTATION.md gerçek zamanlı senkronizasyon için bir plan sunuyor ancak bu kod src/ içine entegre edilmemiş. Borsa fiyatları ve bakiyeler hâlâ gecikebilir.
+    </div>
+  </div>
+
+  <div class="issue-row">
+    <div class="issue-sev"><span class="tag tag-info">Orta</span></div>
+    <div class="issue-body">
+      <div class="issue-title">app.js artık 1421 satır (başlangıç dosyası)</div>
+      Memory notlarında ~12800 satır olduğundan söz ediliyor; büyük ihtimalle refactor edilerek bölünmüş. Ama tek monolitik app.js'in Babel-standalone ile transpile edilmesi yük altında yavaşlatabilir.
+    </div>
+  </div>
+
+  <div class="issue-row">
+    <div class="issue-sev"><span class="tag tag-info">Orta</span></div>
+    <div class="issue-body">
+      <div class="issue-title">Android Capacitor build tam test edilmemiş görünüyor</div>
+      capacitor.config.json ve Android klasörü mevcut ama wrangler.jsonc'de de deploy config var. Cloudflare Workers vs Express/Node aynı anda kullanılıyor; hangi ortamda ne çalışıyor belirsiz.
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Tamamlananlar</div>
+  <span class="tag tag-done">Auth + JWT</span>
+  <span class="tag tag-done">Socket.IO altyapısı</span>
+  <span class="tag tag-done">Bank API (deposit/withdraw/interest)</span>
+  <span class="tag tag-done">Chat API</span>
+  <span class="tag tag-done">30+ server route</span>
+  <span class="tag tag-done">TürkiyeHaritası (81 il)</span>
+  <span class="tag tag-done">Ekran bölme (Social/Games)</span>
+  <span class="tag tag-done">Score hesaplama</span>
+  <span class="tag tag-done">Push bildirimleri</span>
+  <span class="tag tag-done">2FA desteği</span>
+  <span class="tag tag-done">Render.yaml deploy config</span>
+  <span class="tag tag-done">Football, Casino, Factory ekranları</span>
+  <span class="tag tag-done">Leaderboard servisi</span>
+  <span class="tag tag-done">PWA manifest + service worker</span>
+</div>
+
+</div>

@@ -861,6 +861,142 @@ function registerGameHandlers(io, socket) {
     logger.debug(`[Transfer] ${socket.username} → userId:${data.toId} ₺${amount}`);
   });
 
+  // ── PVP attack (server-side validation + DB persist) ──────────────────────
+  socket.on('pvp:attack', async (data) => {
+    if (!socket.userId || !data?.targetId) return;
+    const [attacker, defender] = await Promise.all([
+      db.findUserById(socket.userId).catch(() => null),
+      db.findUserById(data.targetId).catch(() => null),
+    ]);
+    if (!attacker || !defender) return socket.emit('pvp:result', { ok: false, msg: 'Oyuncu bulunamadı' });
+    const myStr  = (attacker.level||1)*10 + (attacker.merit_points||0)/10;
+    const oppStr = (defender.level||1)*10 + (defender.merit_points||0)/10;
+    const won    = Math.random()*100 < Math.min(80, Math.max(20, (myStr/(myStr+oppStr))*100));
+    const stolen  = won ? Math.floor(Math.min(defender.money||0, (defender.money||0)*0.05)) : 0;
+    const atkHpLost = won ? 5 : 15;
+    const defHpLost = won ? 15 : 5;
+    const newAtkMoney  = (attacker.money||0) + (won ? stolen : 0);
+    const newDefMoney  = Math.max(0, (defender.money||0) - stolen);
+    const newAtkHp     = Math.max(0, (attacker.hp||100) - atkHpLost);
+    const newAtkMerits = (attacker.merit_points||0) + (won ? 10 : 0);
+    await Promise.all([
+      db.updateUser(socket.userId, { money: newAtkMoney, hp: newAtkHp, merit_points: newAtkMerits }),
+      won ? db.updateUser(data.targetId, { money: newDefMoney, hp: Math.max(0,(defender.hp||100)-defHpLost) }) : Promise.resolve(),
+    ]).catch(() => {});
+    db.query(
+      `INSERT INTO combat_logs (attacker_id, defender_id, result, damage, metadata) VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,
+      [socket.userId, data.targetId, won?'win':'loss', stolen, JSON.stringify({ atkHpLost, defHpLost, ts: Date.now() })]
+    ).catch(() => {});
+    socket.emit('pvp:result', { ok:true, won, stolen, hpLost:atkHpLost, targetUsername:defender.username, newMoney:newAtkMoney, newHp:newAtkHp, newMerits:newAtkMerits });
+    const defOnline = Array.from(onlinePlayers.values()).find(p => p.userId === data.targetId);
+    if (defOnline) {
+      io.to(defOnline.socketId).emit('pvp:attacked', { attacker:socket.username, won, stolen, newMoney:newDefMoney });
+    }
+    if (won && stolen > 100000) {
+      broadcastNotification(io, { id:`notif_pvp_${Date.now()}`, type:'pvp', icon:'⚔️', title:'Büyük Savaş!', msg:`${socket.username}, ${defender.username}'a saldırdı ve ₺${stolen.toLocaleString()} aldı!` });
+    }
+    logger.debug(`[PvP] ${socket.username} vs ${defender.username} → ${won?'WIN':'LOSS'} stolen=${stolen}`);
+  });
+
+  // ── MINING ────────────────────────────────────────────────────────────────
+  const MINING_RESOURCES = { coal:{yield:[5,15],price:500}, iron:{yield:[3,10],price:1200}, gold:{yield:[1,5],price:5000}, oil:{yield:[2,8],price:3000}, diamond:{yield:[1,3],price:20000} };
+
+  socket.on('mining:mine', async (data) => {
+    if (!socket.userId || !data?.resourceId) return;
+    const res = MINING_RESOURCES[data.resourceId];
+    if (!res) return;
+    const user = await db.findUserById(socket.userId).catch(() => null);
+    if (!user) return;
+    const amount = res.yield[0] + Math.floor(Math.random()*(res.yield[1]-res.yield[0]+1));
+    const gd = user.game_data || {};
+    const mining = gd.mining || {};
+    const cooldowns = { ...(mining.cooldowns||{}), [data.resourceId]: Date.now() };
+    const resources  = { ...(mining.resources||{}),  [data.resourceId]: ((mining.resources||{})[data.resourceId]||0) + amount };
+    await db.updateUser(socket.userId, { game_data: JSON.stringify({ ...gd, mining: { cooldowns, resources } }) }).catch(() => {});
+    socket.emit('mining:result', { ok:true, resourceId:data.resourceId, amount, resources, cooldowns });
+    logger.debug(`[Mining] ${socket.username} mined ${amount}x ${data.resourceId}`);
+  });
+
+  socket.on('mining:sell', async (data) => {
+    if (!socket.userId) return;
+    const user = await db.findUserById(socket.userId).catch(() => null);
+    if (!user) return;
+    const gd = user.game_data || {};
+    const mining = gd.mining || {};
+    const resources = { ...(mining.resources||{}) };
+    let total = 0;
+    Object.entries(MINING_RESOURCES).forEach(([id, r]) => { total += (resources[id]||0)*r.price; resources[id] = 0; });
+    if (total === 0) return socket.emit('mining:sold', { ok:false, msg:'Satılacak kaynak yok' });
+    const newMoney = (user.money||0) + total;
+    await db.updateUser(socket.userId, { money:newMoney, game_data: JSON.stringify({ ...gd, mining: { ...mining, resources } }) }).catch(() => {});
+    socket.emit('mining:sold', { ok:true, total, newMoney, resources });
+    logger.debug(`[Mining] ${socket.username} sold ₺${total}`);
+  });
+
+  // ── SPY operations ────────────────────────────────────────────────────────
+  const SPY_OPS = { recon:{cost:10000,successRate:0.85,reward:{money:25000,merit:5}}, sabotage:{cost:50000,successRate:0.60,reward:{money:100000,merit:15}}, intel:{cost:25000,successRate:0.75,reward:{money:60000,merit:10}}, infiltrate:{cost:100000,successRate:0.50,reward:{money:250000,merit:25}}, cyber:{cost:200000,successRate:0.65,reward:{money:500000,merit:30}} };
+
+  socket.on('spy:op', async (data) => {
+    if (!socket.userId || !data?.opId) return;
+    const op = SPY_OPS[data.opId];
+    if (!op) return;
+    const user = await db.findUserById(socket.userId).catch(() => null);
+    if (!user) return;
+    if ((user.money||0) < op.cost) return socket.emit('spy:result', { ok:false, msg:'Yetersiz bakiye' });
+    const success    = Math.random() < op.successRate;
+    const moneyDelta = success ? (op.reward.money - op.cost) : -op.cost;
+    const newMoney   = Math.max(0, (user.money||0) + moneyDelta);
+    const newMerits  = (user.merit_points||0) + (success ? op.reward.merit : 0);
+    await db.updateUser(socket.userId, { money:newMoney, merit_points:newMerits }).catch(() => {});
+    socket.emit('spy:result', { ok:true, success, opId:data.opId, moneyDelta, merit:success?op.reward.merit:0, newMoney, newMerits });
+    logger.debug(`[Spy] ${socket.username}: ${data.opId} → ${success?'SUCCESS':'FAIL'}`);
+  });
+
+  // ── GANG buy weapon (server-side treasury deduction) ──────────────────────
+  socket.on('gang:buyWeapon', async (data) => {
+    if (!socket.userId || !data?.gangId || !data?.weaponId) return;
+    const WEAPONS = { knife:{price:5000,power:2}, pistol:{price:25000,power:8}, rifle:{price:80000,power:20}, shotgun:{price:60000,power:15}, smg:{price:120000,power:30}, vehicle:{price:500000,power:60} };
+    const weapon = WEAPONS[data.weaponId];
+    if (!weapon) return;
+    const gangs = db.isReady() ? await db.getGangs().catch(() => []) : [];
+    const gang  = gangs.find(g => g.id === data.gangId);
+    if (!gang) return socket.emit('gang:weaponResult', { ok:false, msg:'Çete bulunamadı' });
+    if (gang.leaderName !== socket.username && gang.leader !== socket.username) return socket.emit('gang:weaponResult', { ok:false, msg:'Sadece lider silah alabilir' });
+    if ((gang.treasury||0) < weapon.price) return socket.emit('gang:weaponResult', { ok:false, msg:'Yetersiz kasa bakiyesi' });
+    const weaponKey      = `gangWeapons_${data.gangId}`;
+    const currentWeapons = (await db.getGameState(weaponKey).catch(() => null)) || {};
+    currentWeapons[data.weaponId] = (currentWeapons[data.weaponId]||0) + 1;
+    const newTreasury = (gang.treasury||0) - weapon.price;
+    await Promise.all([
+      db.upsertGang({ ...gang, treasury:newTreasury }),
+      db.setGameState(weaponKey, currentWeapons),
+    ]).catch(() => {});
+    const updatedGangs = await db.getGangs().catch(() => gangs);
+    io.emit('gangUpdate', { gangs:updatedGangs, ts:Date.now() });
+    socket.emit('gang:weaponResult', { ok:true, gangId:data.gangId, weaponId:data.weaponId, weapons:currentWeapons, newTreasury });
+    logger.debug(`[Gang] ${socket.username} bought ${data.weaponId} for gang ${data.gangId}`);
+  });
+
+  socket.on('gang:getWeapons', async (data) => {
+    if (!data?.gangId) return;
+    const weapons = (await db.getGameState(`gangWeapons_${data.gangId}`).catch(() => null)) || {};
+    socket.emit('gang:weapons', { gangId:data.gangId, weapons });
+  });
+
+  // ── ECONOMIC EMPIRE asset sync ─────────────────────────────────────────────
+  socket.on('empire:sync', async (data) => {
+    if (!socket.userId || !data?.familyId || !isPayloadSafe(data)) return;
+    const key = `empire_${data.familyId}`;
+    await db.setGameState(key, { holdings:data.holdings||[], factories:data.factories||[], companies:data.companies||[], ts:Date.now() }).catch(() => {});
+    socket.broadcast.emit('empire:update', { familyId:data.familyId, holdings:data.holdings, factories:data.factories, companies:data.companies, ts:Date.now() });
+  });
+
+  socket.on('empire:get', async (data) => {
+    if (!data?.familyId) return;
+    const emp = (await db.getGameState(`empire_${data.familyId}`).catch(() => null)) || {};
+    socket.emit('empire:data', { familyId:data.familyId, ...emp });
+  });
+
   // ── PARTNERSHIP OFFER relay ───────────────────────────────────────────────
   socket.on('partnershipOffer', (data) => {
     if (!data || !data.targetUserId || !checkEventRate(socket.id) || !isPayloadSafe(data)) return;
