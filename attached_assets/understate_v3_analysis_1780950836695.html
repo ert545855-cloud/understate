@@ -1,0 +1,257 @@
+
+<h2 class="sr-only">Understate v3 — Hata ve eksik analiz raporu</h2>
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); }
+.section { margin-bottom: 2rem; }
+.section-title {
+  font-size: 13px; font-weight: 500; color: var(--color-text-secondary);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  margin-bottom: 0.75rem; padding-bottom: 0.5rem;
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+}
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+.metric { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 0.75rem 1rem; }
+.metric-label { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; }
+.metric-value { font-size: 22px; font-weight: 500; color: var(--color-text-primary); }
+.metric-value.danger { color: var(--color-text-danger); }
+.metric-value.warning { color: var(--color-text-warning); }
+.metric-value.success { color: var(--color-text-success); }
+
+.issue-list { display: flex; flex-direction: column; gap: 8px; }
+.issue {
+  background: var(--color-background-primary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md);
+  padding: 0.75rem 1rem;
+  display: flex; gap: 10px; align-items: flex-start;
+}
+.issue.critical { border-left: 3px solid var(--color-border-danger); }
+.issue.warning { border-left: 3px solid var(--color-border-warning); }
+.issue.info { border-left: 3px solid var(--color-border-info); }
+.issue-badge {
+  font-size: 11px; font-weight: 500; padding: 2px 7px;
+  border-radius: var(--border-radius-md); white-space: nowrap; flex-shrink: 0;
+}
+.badge-critical { background: var(--color-background-danger); color: var(--color-text-danger); }
+.badge-warning { background: var(--color-background-warning); color: var(--color-text-warning); }
+.badge-info { background: var(--color-background-info); color: var(--color-text-info); }
+.issue-body { flex: 1; min-width: 0; }
+.issue-title { font-size: 14px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 3px; }
+.issue-desc { font-size: 13px; color: var(--color-text-secondary); line-height: 1.5; }
+code { font-family: var(--font-mono); font-size: 12px; background: var(--color-background-secondary); padding: 1px 5px; border-radius: 4px; }
+
+.progress-bar-bg { background: var(--color-background-secondary); border-radius: 99px; height: 10px; overflow: hidden; margin-top: 4px; }
+.progress-bar-fill { height: 100%; border-radius: 99px; background: var(--color-text-success); }
+.progress-bar-fill.mid { background: var(--color-text-warning); }
+.progress-bar-fill.low { background: var(--color-text-danger); }
+
+.progress-item { margin-bottom: 10px; }
+.progress-label { display: flex; justify-content: space-between; font-size: 13px; color: var(--color-text-primary); margin-bottom: 3px; }
+.progress-sub { font-size: 12px; color: var(--color-text-secondary); }
+</style>
+
+<div style="padding: 1rem 0">
+
+<div class="cards">
+  <div class="metric"><div class="metric-label">Genel hazırlık</div><div class="metric-value warning">~55%</div></div>
+  <div class="metric"><div class="metric-label">Kritik hatalar</div><div class="metric-value danger">5</div></div>
+  <div class="metric"><div class="metric-label">Eksik özellikler</div><div class="metric-value warning">8</div></div>
+  <div class="metric"><div class="metric-label">Uyarılar</div><div class="metric-value" style="color:var(--color-text-secondary)">7</div></div>
+</div>
+
+<div class="section">
+  <div class="section-title">Modüllere göre hazırlık</div>
+  <div class="progress-item">
+    <div class="progress-label"><span>Backend (Express + Socket.IO)</span><span>85%</span></div>
+    <div class="progress-sub">Route'lar tam, middleware tamam, DB bağlantısı çalışıyor</div>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:85%"></div></div>
+  </div>
+  <div class="progress-item">
+    <div class="progress-label"><span>Veritabanı şeması</span><span>60%</span></div>
+    <div class="progress-sub">5 farklı SQL dosyası var, hangisi kullanılacak belirsiz; tablolar çakışıyor</div>
+    <div class="progress-bar-bg"><div class="progress-bar-fill mid" style="width:60%"></div></div>
+  </div>
+  <div class="progress-item">
+    <div class="progress-label"><span>Frontend (React / app.jsx)</span><span>70%</span></div>
+    <div class="progress-sub">Ana ekranlar var ama S.load/S.save (localStorage) baskın — server'a bağlanmıyor</div>
+    <div class="progress-bar-bg"><div class="progress-bar-fill mid" style="width:70%"></div></div>
+  </div>
+  <div class="progress-item">
+    <div class="progress-label"><span>AWS Elastic Beanstalk konfigürasyonu</span><span>75%</span></div>
+    <div class="progress-sub">Nginx, WebSocket, nodecommand hazır; SSL ve env var'lar eksik</div>
+    <div class="progress-bar-bg"><div class="progress-bar-fill mid" style="width:75%"></div></div>
+  </div>
+  <div class="progress-item">
+    <div class="progress-label"><span>Oyun ekranları (src/screens)</span><span>40%</span></div>
+    <div class="progress-sub">GamesScreen.js ve SocialScreen.js 1 satır; SpyPage, MiningPage, PvpPage yarım</div>
+    <div class="progress-bar-bg"><div class="progress-bar-fill low" style="width:40%"></div></div>
+  </div>
+  <div class="progress-item">
+    <div class="progress-label"><span>Auth & güvenlik</span><span>80%</span></div>
+    <div class="progress-sub">JWT, 2FA, rate limiter tamam; VAPID ve SMTP ayarları boş</div>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:80%"></div></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Kritik hatalar — deploy'u engeller</div>
+  <div class="issue-list">
+
+    <div class="issue critical">
+      <span class="issue-badge badge-critical">KRİTİK</span>
+      <div class="issue-body">
+        <div class="issue-title">server.js vs server/main.js çakışması</div>
+        <div class="issue-desc">Kök dizindeki <code>server.js</code> eski, hiçbir route/socket'ı bağlamıyor; Socket.IO sadece boş <code>game:action</code> dinliyor. <code>package.json</code> <code>server/main.js</code>'i işaret ediyor — doğru. Ama <code>server.js</code> silinmezse karışıklık ve potansiyel deploy hatası oluşur.</div>
+      </div>
+    </div>
+
+    <div class="issue critical">
+      <span class="issue-badge badge-critical">KRİTİK</span>
+      <div class="issue-body">
+        <div class="issue-title">SQL şeması belirsizliği — 5 farklı dosya var</div>
+        <div class="issue-desc"><code>sql/schema_full.sql</code> tabloya <code>players</code> diyor; <code>server/migrations/schema.sql</code> <code>users</code> diyor. <code>dbService.js</code> ve tüm route'lar <code>users</code> kullanıyor. <code>schema_full.sql</code>'ü çalıştırırsan app çöker. Hangi dosyanın Supabase/RDS'e uygulanacağı belirtilmemiş.</div>
+      </div>
+    </div>
+
+    <div class="issue critical">
+      <span class="issue-badge badge-critical">KRİTİK</span>
+      <div class="issue-body">
+        <div class="issue-title">mongoose dependency yok ama 3 model dosyası var</div>
+        <div class="issue-desc"><code>server/models/User.js</code>, <code>Room.js</code>, <code>ChatMessage.js</code> hepsi <code>mongoose</code> kullanıyor. Ancak <code>package.json</code>'da <code>mongoose</code> yok. Bu dosyalar hiçbir yerde <code>require</code> edilmiyor — ölü kod. <code>npm install</code> sonrası <code>require('mongoose')</code> çağrısı olursa uygulama anında crash eder.</div>
+      </div>
+    </div>
+
+    <div class="issue critical">
+      <span class="issue-badge badge-critical">KRİTİK</span>
+      <div class="issue-body">
+        <div class="issue-title">GamesScreen.js ve SocialScreen.js tamamen boş</div>
+        <div class="issue-desc">Her iki dosya sadece 1 satır yorum içeriyor; asıl içerik yoktur deniyor, alt sayfalara bölünmüş. <code>app.jsx</code>'te bu ekranlara navigasyon varsa runtime'da beyaz ekran verir.</div>
+      </div>
+    </div>
+
+    <div class="issue critical">
+      <span class="issue-badge badge-critical">KRİTİK</span>
+      <div class="issue-body">
+        <div class="issue-title">Çoğu frontend verisi localStorage'da, sunucuya gitmiyor</div>
+        <div class="issue-desc"><code>app.jsx</code>'te <code>S.load/S.save</code> (localStorage) 511 kez kullanılıyor, <code>socket.emit/fetch</code> yalnızca 51 kez. Oyun verileri (envanter, işler, gang, PvP, madencilik, casusluk) sunucuya kaydedilmiyor. Kullanıcı telefonu değiştirirse tüm ilerleme kaybolur. Multiplayer mantığı çalışmaz.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Eksik özellikler — yarım kalmış</div>
+  <div class="issue-list">
+
+    <div class="issue warning">
+      <span class="issue-badge badge-warning">EKSİK</span>
+      <div class="issue-body">
+        <div class="issue-title">Firebase/Supabase kalıntıları temizlenmemiş</div>
+        <div class="issue-desc"><code>index.html</code>'de Firebase yorum satırları var. <code>render.yaml</code>'da <code>SUPABASE_URL</code>, <code>SUPABASE_SERVICE_KEY</code>, <code>MONGODB_URI</code> hâlâ env var olarak tanımlı. <code>.env</code>'de <code>MONGODB_URI=</code> boş satır duruyor. Bu karışıklık yanlış config uygulanmasına yol açar.</div>
+      </div>
+    </div>
+
+    <div class="issue warning">
+      <span class="issue-badge badge-warning">EKSİK</span>
+      <div class="issue-body">
+        <div class="issue-title">SMTP, VAPID, GIPHY, AWS S3 ayarları boş</div>
+        <div class="issue-desc"><code>.env</code>'de <code>SMTP_HOST</code>, <code>VAPID_PUBLIC_KEY</code>, <code>GIPHY_API_KEY</code>, <code>AWS_ACCESS_KEY_ID</code>, <code>AWS_S3_BUCKET</code> boş. E-posta bildirimleri, web push, GIF arama ve dosya yükleme hiçbiri çalışmaz.</div>
+      </div>
+    </div>
+
+    <div class="issue warning">
+      <span class="issue-badge badge-warning">EKSİK</span>
+      <div class="issue-body">
+        <div class="issue-title">SpyPage, MiningPage, PvpPage — localStorage kullanıyor, server yok</div>
+        <div class="issue-desc">Bu üç sayfa <code>useLs</code> (localStorage) ile çalışıyor. Sunucu tarafında karşılık gelen endpoint'ler ya yok ya da bağlı değil. Veriler tek cihaza bağlı kalır.</div>
+      </div>
+    </div>
+
+    <div class="issue warning">
+      <span class="issue-badge badge-warning">EKSİK</span>
+      <div class="issue-body">
+        <div class="issue-title">CasinoPage server entegrasyonu yok</div>
+        <div class="issue-desc">406 satır UI var ama kazanç/kayıp sunucu tarafında doğrulanmıyor. Anti-cheat çalışmaz, para manipülasyonu mümkün.</div>
+      </div>
+    </div>
+
+    <div class="issue warning">
+      <span class="issue-badge badge-warning">EKSİK</span>
+      <div class="issue-body">
+        <div class="issue-title">NpcPlayersPage gerçek NPC yapay zekası yok</div>
+        <div class="issue-desc">Sadece statik veri gösteriyor; NPC davranışı, ekonomik etki veya oyunla etkileşim yok.</div>
+      </div>
+    </div>
+
+    <div class="issue warning">
+      <span class="issue-badge badge-warning">EKSİK</span>
+      <div class="issue-body">
+        <div class="issue-title">iOS kurulumu eksik</div>
+        <div class="issue-desc"><code>package.json</code>'da <code>ios:add</code> scripti var ama <code>android/</code> klasörü mevcutken <code>ios/</code> klasörü hiç yok. iOS dağıtımı sıfırdan yapılmalı.</div>
+      </div>
+    </div>
+
+    <div class="issue warning">
+      <span class="issue-badge badge-warning">EKSİK</span>
+      <div class="issue-body">
+        <div class="issue-title">Rate limiter in-memory — sunucu yeniden başlayınca sıfırlanıyor</div>
+        <div class="issue-desc"><code>rateLimiter.js</code> bir <code>Map</code> kullanıyor. AWS EB'de sunucu restart edince tüm limitler sıfırlanır. Birden fazla instance varsa sınır aşılabilir. Redis veya DB destekli limiter gerekli.</div>
+      </div>
+    </div>
+
+    <div class="issue warning">
+      <span class="issue-badge badge-warning">EKSİK</span>
+      <div class="issue-body">
+        <div class="issue-title">Babel ile runtime JSX derleme — production için uygun değil</div>
+        <div class="issue-desc"><code>index.html</code> CDN'den Babel yükleyip JSX'i tarayıcıda compile ediyor. Bu development çözümü; production'da ciddi performans sorunu, SEO sorunu ve yavaş yükleme yaratır. Webpack/Vite build adımı gerekli.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Uyarılar — çalışır ama düzeltilmeli</div>
+  <div class="issue-list">
+    <div class="issue info">
+      <span class="issue-badge badge-info">UYARI</span>
+      <div class="issue-body">
+        <div class="issue-title">render.yaml AWS deploy için yanıltıcı</div>
+        <div class="issue-desc">Render.com için yazılmış config dosyası AWS paketinde duruyor. PORT 10000 (Render) vs 8080 (EB). Birini kullanırken diğerini düzeltmeyi unutmak yaygın hata kaynağı.</div>
+      </div>
+    </div>
+    <div class="issue info">
+      <span class="issue-badge badge-info">UYARI</span>
+      <div class="issue-body">
+        <div class="issue-title">EB WebSocket konfigürasyonu eksik adım içeriyor</div>
+        <div class="issue-desc"><code>AWS_DEPLOY.md</code>'de Load Balancer Stickiness etkinleştirmesi manuel adım olarak belirtilmiş ama <code>.ebextensions</code>'a eklenmemiş. Unutulursa Socket.IO polling çalışmaz.</div>
+      </div>
+    </div>
+    <div class="issue info">
+      <span class="issue-badge badge-info">UYARI</span>
+      <div class="issue-body">
+        <div class="issue-title">ALLOWED_ORIGINS production'da wildcard (*) olmamalı</div>
+        <div class="issue-desc"><code>.env</code>'de varsayılan <code>ALLOWED_ORIGINS=*</code>. Production'da kesin domain belirtilmeli, yoksa güvenlik açığı oluşur.</div>
+      </div>
+    </div>
+    <div class="issue info">
+      <span class="issue-badge badge-info">UYARI</span>
+      <div class="issue-body">
+        <div class="issue-title">js/ klasöründe eski Firebase dosyaları duruyor</div>
+        <div class="issue-desc"><code>firebase-init.js</code>, <code>firebase-init-v5.js</code>, <code>firebase-init-v6.js</code>, <code>firebase-save.js</code> vb. yükleniyor mu belirsiz. Paket boyutunu şişiriyor, karışıklık yaratıyor.</div>
+      </div>
+    </div>
+    <div class="issue info">
+      <span class="issue-badge badge-info">UYARI</span>
+      <div class="issue-body">
+        <div class="issue-title">node_modules yok — EB'de npm install çalışmalı</div>
+        <div class="issue-desc">Doğru yaklaşım bu, ama <code>.npmrc</code> veya bağımlılık lock dosyası (<code>package-lock.json</code>) eksikse farklı versiyonlar kurulabilir.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
