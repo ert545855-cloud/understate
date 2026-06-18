@@ -1,0 +1,76 @@
+# UNDERSTATE — Hata Düzeltme + Yeni Özellik Prompt'u
+
+Bu projeyi (UNDERSTATE — multiplayer şehir/devlet simülasyon oyunu) hem mevcut hataları düzelterek hem de yeni bir özellik ekleyerek geliştirmeni istiyorum. Aşağıdaki işleri **sırasıyla** yap, her adımdan sonra ne değiştirdiğini özetle, mevcut çalışan özellikleri bozma.
+
+## ÖNCELİK 1 — Güvenlik (acil)
+
+1. `server/config/jwt.js` içinde `JWT_SECRET` ortam değişkeni tanımlı değilse sabit bir varsayılan string (`'understate_dev_secret_change_in_production'`) kullanılıyor. Bunu kaldır: `JWT_SECRET` env var olarak tanımlı değilse sunucu **başlamasın**, açık bir hata mesajıyla çökmeli (fail-fast). Aynı kontrolü `DATABASE_URL` için de ekle.
+2. `.env` dosyasındaki `ALLOWED_ORIGINS` listesini kontrol et, kodda hiçbir yerde `*` (wildcard) origin kabul edilmediğinden emin ol.
+3. `.gitignore`'da `.env` zaten hariç tutulmuş ama repo/export içinde gerçek kimlik bilgileriyle bulunuyor — `.env.example` adında, gerçek değerler yerine placeholder içeren bir şablon dosyası oluştur ve README'de bunun nasıl doldurulacağını anlat.
+
+## ÖNCELİK 2 — Veritabanı şema temizliği
+
+Projede şu an 8 farklı SQL şema/migration dosyası var: `sql/schema.sql`, `sql/schema_full.sql`, `sql/schema_v2.sql`, `sql/schema_realtime.sql`, `sql/migration_features.sql`, `sql/missing_tables.sql`, `server/migrations/schema.sql`, `supabase/schema.sql`, `supabase/migration_v2.sql`. Bunlar birbiriyle çakışıyor (örn. bazıları `players` bazıları `users` tablosu adını kullanıyor).
+
+Yapman gerekenler:
+1. `server/routes/*.js` ve `server/database/*.js` (dbService) dosyalarını tara, gerçekte hangi tablo/kolon adlarının kodda kullanıldığını çıkar.
+2. Bu gerçek kullanıma uyan **tek bir** doğru şema dosyası oluştur (`server/migrations/001_initial_schema.sql` gibi).
+3. Diğer tüm SQL dosyalarını `sql/_archive/` klasörüne taşı, aktif kullanımdan çıkar.
+4. Gelecekte şema değişiklikleri için numaralı migration dosyaları kullanılacak şekilde bir düzen kur (örn. `001_`, `002_` öneki).
+
+## ÖNCELİK 3 — Deploy konfigürasyonu sadeleştirme
+
+Şu an aynı anda 4 farklı platforma ait config dosyası var: AWS Elastic Beanstalk (.env, .ebignore), Render.com (`render.yaml`, port 10000), genel Docker (`Dockerfile`, port 5000), Cloudflare Worker (`wrangler.jsonc`, `worker.js` — tamamen farklı bir mimari, KV tabanlı).
+
+**Hedef platform: Render.com** (şu anda test amaçlı Render üzerinden yayınlanıyor)
+
+Seçilen platform dışındaki config dosyalarını sil veya `deploy/_unused/` klasörüne taşı. Seçilen platformun config dosyasında PORT, start command ve gerekli env var listesinin gerçek koddaki (`server/main.js`) değerlerle birebir uyuştuğunu doğrula.
+
+## ÖNCELİK 4 — Rate limiter
+
+`server/middleware/rateLimiter.js` ve `socketRateLimiter.js` bellek içi (`Map`) tutuyor; sunucu yeniden başlayınca veya birden fazla instance çalışınca işe yaramıyor. Bunu kalıcı bir çözüme taşı (Redis varsa `ioredis` ile, yoksa en azından veritabanı tablosuna yazan basit bir implementasyon). Eğer Redis eklemek proje kapsamını aşıyorsa, en azından bunun bilinen bir sınırlama olduğunu kod içinde yorum olarak belirt.
+
+## ÖNCELİK 5 — Ekonomi verilerini sunucuya taşı + anti-cheat
+
+`src/app.jsx` içinde oyun verisi (para, envanter, fabrika, gang kasası vb.) ağırlıklı olarak `localStorage`'da tutuluyor, sunucuya senkronize edilmiyor. Bu yüzden:
+1. Para/ekonomi ile ilgili sayfaları (FactoryPage, CasinoPage, PvpPage, MiningPage, SpyPage, GangPage) öncelik sırasına al.
+2. Her biri için ilgili sunucu route'unu (varsa) gerçek DB okuma/yazma yapacak şekilde bağla; yoksa oluştur.
+3. Para kazandıran her işlemde (üretim toplama, kumar sonucu, haraç vb.) **miktarı sunucuda hesapla ve doğrula** — istemciden gelen miktarı asla doğrudan güvenme. Cooldown/zaman kontrollerini de sunucu tarafında yap.
+4. Bu geçiş bittiğinde `localStorage` sadece UI tercihleri (tema, dil vb.) için kullanılmalı, oyun ekonomisi için kullanılmamalı.
+
+---
+
+## YENİ ÖZELLİK — Aile (Gang) Fabrikaları
+
+Mevcut bireysel fabrika sistemine (`src/screens/games/FactoryPage.js`) paralel, gang/aile temalı, daha pahalı ve kazancı kişisel cüzdana değil **gang kasasına** (`treasury` alanı, bkz. `GangPage.js`) aktaran yeni bir sistem ekle.
+
+### Fabrika türleri
+
+| İkon | Ad | Maliyet | Gelir | Üretim süresi | Ürün |
+|---|---|---|---|---|---|
+| 🍷 | Aile Şarap İmalathanesi | ₺2.000.000 | ₺12.000 | 3 saat | Şarap |
+| 🧵 | Aile Tekstil Atölyesi | ₺3.000.000 | ₺18.000 | 4 saat | Lüks Kumaş |
+| 🛢️ | Aile Rafinerisi | ₺6.000.000 | ₺35.000 | 6 saat | Petrol Ürünü |
+| 🏗️ | Aile İnşaat Şirketi | ₺10.000.000 | ₺60.000 | 8 saat | Yapı Malzemesi |
+| 💎 | Aile Mücevher Atölyesi | ₺18.000.000 | ₺110.000 | 12 saat | Mücevher |
+
+### Kurallar / mekanik
+
+- Fabrikayı sadece gang **lideri** (veya ileride eklenecek "Hazine Sorumlusu" rütbesi) satın alabilir/yükseltebilir; satın alma ve yükseltme maliyeti **gang kasasından** düşülür, kişisel paradan değil.
+- Üretimi **herhangi bir gang üyesi** toplayabilir (mevcut "Haraç Topla" butonuna benzer UX), ama toplanan tutar doğrudan `treasury`'e eklenir, toplayan kişinin kendi parasına eklenmez.
+- Fabrika sayısı, gang'ın bölge (`territory`) sayısına bağlı bir slot sistemiyle sınırlı olsun: her 2 bölge için 1 aile fabrikası hakkı.
+- En üst seviye fabrika (Mücevher Atölyesi) sadece belirli bir minimum gang seviyesinin üzerindeki gang'lara açık olsun.
+- (İsteğe bağlı, eklenebilirse) rakip gang'lar küçük bir maliyetle bir üretim döngüsünü sabote edebilsin — mevcut gang-vs-gang güç/bölge rekabetine doğal bir uzantı olarak.
+- Bu özelliği ÖNCELİK 5'teki anti-cheat mantığıyla aynı standartta kur: toplama miktarı ve cooldown sunucu tarafında hesaplanıp doğrulanmalı, istemciden gelen değer güvenilmemeli.
+
+### UI / entegrasyon notu
+
+`GangPage.js` içine yeni bir "🏭 Aile Fabrikaları" sekmesi ekle; görsel dil olarak mevcut bireysel `FactoryPage.js` ile tutarlı ama gang temasına (kasa, güç, bölge renkleri) uyumlu olsun.
+
+---
+
+## Genel kısıtlamalar
+
+- Mevcut kullanıcı arayüzü tasarım dilini (renkler, font, buton stilleri) değiştirme, sadece yeni bileşenleri buna uydur.
+- Her adımdan sonra hangi dosyaları değiştirdiğini ve neden değiştirdiğini kısaca özetle.
+- Şüpheli/belirsiz bir karar noktasında (örn. hangi SQL dosyasının "doğru" olduğu belli değilse) tahmin etmek yerine bana sor.
