@@ -1,3 +1,19 @@
+/**
+ * HTTP Rate Limiter (in-memory)
+ *
+ * ⚠️ BİLİNEN KISITLAMA: Bu limiter bellek içi (Map) tutar.
+ *   - Sunucu yeniden başladığında pencere sıfırlanır.
+ *   - Birden fazla instance (yatay ölçekleme) durumunda her instance
+ *     bağımsız sayar, gerçek bir sınır uygulanamaz.
+ *
+ * ÇÖZÜM: Kritik endpoint'ler (login, register) için DB-backed limiter kullanın:
+ *   const { createDbRateLimiter } = require('./dbRateLimiter');
+ *   Bu limiter /server/middleware/dbRateLimiter.js'de, PostgreSQL tablosu
+ *   ile çalışır ve instance sayısından bağımsızdır.
+ *
+ * Şu anki mimari tek instance çalıştırdığı için in-memory yeterlidir,
+ * ancak ölçekleme planlanıyorsa DB-backed'e geçilmelidir.
+ */
 const {
   RATE_LIMIT_WINDOW,
   RATE_LIMIT_MAX,

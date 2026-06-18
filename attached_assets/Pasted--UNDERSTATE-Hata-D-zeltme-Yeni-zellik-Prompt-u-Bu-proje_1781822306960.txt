@@ -1,0 +1,92 @@
+# UNDERSTATE — Hata Düzeltme + Yeni Özellik Prompt'u
+
+Bu projeyi (UNDERSTATE — multiplayer şehir/devlet simülasyon oyunu) hem mevcut hataları düzelterek hem de yeni bir özellik ekleyerek geliştirmeni istiyorum. Aşağıdaki işleri **sırasıyla** yap, her adımdan sonra ne değiştirdiğini özetle, mevcut çalışan özellikleri bozma.
+
+## ÖNCELİK 1 — Güvenlik (acil)
+
+1. `server/config/jwt.js` içinde `JWT_SECRET` ortam değişkeni tanımlı değilse sabit bir varsayılan string (`'understate_dev_secret_change_in_production'`) kullanılıyor. Bunu kaldır: `JWT_SECRET` env var olarak tanımlı değilse sunucu **başlamasın**, açık bir hata mesajıyla çökmeli (fail-fast). Aynı kontrolü `DATABASE_URL` için de ekle.
+2. `.env` dosyasındaki `ALLOWED_ORIGINS` listesini kontrol et, kodda hiçbir yerde `*` (wildcard) origin kabul edilmediğinden emin ol.
+3. `.gitignore`'da `.env` zaten hariç tutulmuş ama repo/export içinde gerçek kimlik bilgileriyle bulunuyor — `.env.example` adında, gerçek değerler yerine placeholder içeren bir şablon dosyası oluştur ve README'de bunun nasıl doldurulacağını anlat.
+
+## ÖNCELİK 2 — Veritabanı şema temizliği
+
+Projede şu an 8 farklı SQL şema/migration dosyası var: `sql/schema.sql`, `sql/schema_full.sql`, `sql/schema_v2.sql`, `sql/schema_realtime.sql`, `sql/migration_features.sql`, `sql/missing_tables.sql`, `server/migrations/schema.sql`, `supabase/schema.sql`, `supabase/migration_v2.sql`. Bunlar birbiriyle çakışıyor (örn. bazıları `players` bazıları `users` tablosu adını kullanıyor).
+
+Yapman gerekenler:
+1. `server/routes/*.js` ve `server/database/*.js` (dbService) dosyalarını tara, gerçekte hangi tablo/kolon adlarının kodda kullanıldığını çıkar.
+2. Bu gerçek kullanıma uyan **tek bir** doğru şema dosyası oluştur (`server/migrations/001_initial_schema.sql` gibi).
+3. Diğer tüm SQL dosyalarını `sql/_archive/` klasörüne taşı, aktif kullanımdan çıkar.
+4. Gelecekte şema değişiklikleri için numaralı migration dosyaları kullanılacak şekilde bir düzen kur (örn. `001_`, `002_` öneki).
+
+## ÖNCELİK 3 — Deploy konfigürasyonu sadeleştirme
+
+Şu an aynı anda 4 farklı platforma ait config dosyası var: AWS Elastic Beanstalk (.env, .ebignore), Render.com (`render.yaml`, port 10000), genel Docker (`Dockerfile`, port 5000), Cloudflare Worker (`wrangler.jsonc`, `worker.js` — tamamen farklı bir mimari, KV tabanlı).
+
+**Hedef platform: Render.com** (şu anda test amaçlı Render üzerinden yayınlanıyor)
+
+Seçilen platform dışındaki config dosyalarını sil veya `deploy/_unused/` klasörüne taşı. Seçilen platformun config dosyasında PORT, start command ve gerekli env var listesinin gerçek koddaki (`server/main.js`) değerlerle birebir uyuştuğunu doğrula.
+
+## ÖNCELİK 4 — Rate limiter
+
+`server/middleware/rateLimiter.js` ve `socketRateLimiter.js` bellek içi (`Map`) tutuyor; sunucu yeniden başlayınca veya birden fazla instance çalışınca işe yaramıyor. Bunu kalıcı bir çözüme taşı (Redis varsa `ioredis` ile, yoksa en azından veritabanı tablosuna yazan basit bir implementasyon). Eğer Redis eklemek proje kapsamını aşıyorsa, en azından bunun bilinen bir sınırlama olduğunu kod içinde yorum olarak belirt.
+
+## ÖNCELİK 5 — Ekonomi verilerini sunucuya taşı + anti-cheat
+
+`src/app.jsx` içinde oyun verisi (para, envanter, fabrika, gang kasası vb.) ağırlıklı olarak `localStorage`'da tutuluyor, sunucuya senkronize edilmiyor. Bu yüzden:
+1. Para/ekonomi ile ilgili sayfaları (FactoryPage, CasinoPage, PvpPage, MiningPage, SpyPage, GangPage) öncelik sırasına al.
+2. Her biri için ilgili sunucu route'unu (varsa) gerçek DB okuma/yazma yapacak şekilde bağla; yoksa oluştur.
+3. Para kazandıran her işlemde (üretim toplama, kumar sonucu, haraç vb.) **miktarı sunucuda hesapla ve doğrula** — istemciden gelen miktarı asla doğrudan güvenme. Cooldown/zaman kontrollerini de sunucu tarafında yap.
+4. Bu geçiş bittiğinde `localStorage` sadece UI tercihleri (tema, dil vb.) için kullanılmalı, oyun ekonomisi için kullanılmamalı.
+
+---
+
+## YENİ ÖZELLİK — Aile Fabrikaları
+
+**Önemli ayrım: Aile (`FamilyCenterScreen.js` / `EconomicEmpireScreen.js`) ve Gang/Çete (`GangPage.js`) birbirinden tamamen farklı, ayrı sistemlerdir.** Kodda da bu ayrım net: bir kullanıcı gang üyesiyse aile kuramıyor (`'Çete üyeleri aile kuramaz'` kontrolü `FamilyCenterScreen.js`'de mevcut). Bu özellik **sadece Aile sistemine** ait olacak, Gang'ın `treasury`'sine hiçbir şekilde dokunmayacak.
+
+### Mevcut durum (eksik/yarım kısım)
+
+`EconomicEmpireScreen.js` içinde zaten bir Aile işletme hiyerarşisi var: Holding → Fabrika → Şirket. Ama:
+- Sadece **tek tip** jenerik "Fabrika" var (₺2.000.000 maliyet, ₺200.000/ay gelir, `BUSINESS_TYPES` içinde).
+- `monthlyIncome` değeri sadece ekranda gösteriliyor (satır 57-61) — **hiçbir yere aktarılmıyor**, gerçek bir "topla" / kasaya aktarma fonksiyonu yok.
+- `FamilyCenterScreen.js`'de "Fabrika gelirleri kasaya otomatik aktarılabilir" diye yazıyor ama bu kodda implemente edilmemiş, sadece açıklama metni.
+
+Bu prompt'un hedefi bu eksiği tamamlamak ve fabrika çeşitliliği eklemek.
+
+### Yapılacaklar
+
+1. `BUSINESS_TYPES` içindeki tek tip "fabrika" girdisini, aşağıdaki tabloya göre **çoklu fabrika alt türüne** genişlet. Her tür hâlâ bir Holding'e bağlı olmalı (mevcut `canBuild('fabrika')` kuralı korunsun: önce holding gerekir).
+
+| İkon | Ad | Maliyet | Aylık Gelir | Ürün |
+|---|---|---|---|---|
+| 🍷 | Aile Şarap İmalathanesi | ₺2.500.000 | ₺220.000 | Şarap |
+| 🧵 | Aile Tekstil Atölyesi | ₺3.500.000 | ₺320.000 | Lüks Kumaş |
+| 🛢️ | Aile Rafinerisi | ₺7.000.000 | ₺600.000 | Petrol Ürünü |
+| 🏗️ | Aile İnşaat Şirketi | ₺12.000.000 | ₺950.000 | Yapı Malzemesi |
+| 💎 | Aile Mücevher Atölyesi | ₺20.000.000 | ₺1.600.000 | Mücevher |
+
+(Bu fiyatlar, `src/screens/games/FactoryPage.js`'teki **bireysel/kişisel** fabrikalardan — ₺500K-₺5M arası — bilinçli olarak daha yüksek; çünkü bunlar aile/holding seviyesinde, kişisel değil.)
+
+2. Eksik olan **gelir toplama mekaniğini** yaz: aylık gelir birikip belirli bir sürede (örn. her gerçek 24 saatte bir döngü) `myFamily.treasury`'e otomatik veya "Topla" butonuyla manuel aktarılsın — mevcut `FamilyCenterScreen.js`'deki kasa yatırma/çekme mantığıyla (satır ~120-140) aynı veriyi güncellemeli, ayrı bir state oluşturma.
+3. Hangi familyId'ye ait fabrika olduğunu zaten tutan `familyId` alanını kullan (satır 102) — yeni bir ilişki kurmana gerek yok, mevcut yapıyı genişlet.
+
+### Kurallar / mekanik
+
+- Fabrika satın alma/yükseltme işlemini sadece aile **Boss**'u veya yetkili **Underboss** (mevcut `RANKS` / `perms` sistemi, `FamilyCenterScreen.js` satır 38-39) yapabilsin — bu zaten `factory` permission'ı tanımlı, ona bağlan.
+- Maliyet **aile kasasından** (`myFamily.treasury`) düşülmeli, kurucunun kişisel parasından değil.
+- Fabrika sayısı, ailenin elindeki Holding sayısına bağlı slot sistemiyle sınırlı kalsın (mevcut "max 5 fabrika/holding" kuralı, satır 78-79).
+- En üst seviye fabrika (Mücevher Atölyesi) sadece belirli bir minimum aile seviyesi/itibarına (`influence`) sahip ailelere açık olsun.
+- Gang'lar bu fabrikalara karşı sadece mevcut "koruma anlaşması" (`protDeals`, `protectedBy`) ve saldırı (`gang:assetAttacked` event'i, satır 27-34) mekanizmasıyla etkileşebilir — yani gang'ların ailenin fabrika gelirine *doğrudan* erişimi olmaz, sadece saldırıp üretimi durdurabilir veya korumalık parası alabilir. Bu ayrımı koru.
+- Gelir toplama miktarı ve zamanlaması sunucu tarafında hesaplanıp doğrulanmalı (ÖNCELİK 5'teki anti-cheat standardıyla aynı).
+
+### UI / entegrasyon notu
+
+Yeni fabrika türlerini `EconomicEmpireScreen.js`'deki mevcut "İşletme Kur" formuna (satır 89-129, `buildBusiness`) ekle; görsel dili (kart stilleri, `card` sabiti) değiştirme. `FamilyCenterScreen.js`'deki "Kasa" sekmesine de bu fabrikalardan gelen toplam aylık geliri gösteren bir satır ekle.
+
+---
+
+## Genel kısıtlamalar
+
+- Mevcut kullanıcı arayüzü tasarım dilini (renkler, font, buton stilleri) değiştirme, sadece yeni bileşenleri buna uydur.
+- Her adımdan sonra hangi dosyaları değiştirdiğini ve neden değiştirdiğini kısaca özetle.
+- Şüpheli/belirsiz bir karar noktasında (örn. hangi SQL dosyasının "doğru" olduğu belli değilse) tahmin etmek yerine bana sor.

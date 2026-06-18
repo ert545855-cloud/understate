@@ -5,8 +5,12 @@
 // ═══════════════════════════════════════════════════════
 window.FamilyCenterScreen = function FamilyCenterScreen({ cu, families, gangs, parties, allUsers, setCurrentPage }) {
 
-  const readFams = () => { try { return JSON.parse(localStorage.getItem('rep_families')||'[]'); } catch { return []; } };
+  const readFams    = () => { try { return JSON.parse(localStorage.getItem('rep_families')||'[]'); } catch { return []; } };
   const readProfile = () => { try { return JSON.parse(localStorage.getItem('rep_userProfile')||'{}'); } catch { return {}; } };
+  const getToken    = () => localStorage.getItem('rep_token')||localStorage.getItem('token')||'';
+
+  // Sunucu tabanlı aile fabrikaları (EconomicEmpireScreen ile senkronize)
+  const [serverFactories, setServerFactories] = React.useState([]);
 
   const [fams, setFams]               = React.useState(readFams);
   const [tab, setTab]                 = React.useState('genel');
@@ -150,10 +154,23 @@ window.FamilyCenterScreen = function FamilyCenterScreen({ cu, families, gangs, p
     showMsg('Aile dağıtıldı', 'info');
   };
 
-  // ── Fabrikalar ────────────────────────────────────────
-  const allFactories = (() => { try { return JSON.parse(localStorage.getItem('us_empire_factories')||'[]'); } catch { return []; } })();
+  // ── Sunucu fabrikaları yükle ─────────────────────────
+  React.useEffect(()=>{
+    if(!myFamily?.id) return;
+    fetch(`/api/family-factory?familyId=${encodeURIComponent(myFamily.id)}`,
+      {headers:{'Authorization':'Bearer '+getToken()}})
+      .then(r=>r.json())
+      .then(d=>{if(d.success)setServerFactories(d.factories||[]);})
+      .catch(()=>{});
+  },[myFamily?.id]);
+
+  const fmtM = (n) => { if(!n&&n!==0)return '₺0'; if(n>=1e6)return '₺'+(n/1e6).toFixed(1)+'M'; if(n>=1e3)return '₺'+(n/1e3).toFixed(0)+'K'; return '₺'+Math.floor(n); };
+  const COLLECT_24H = 24*3600*1000;
+
+  // Fabrikalar (eski localStorage tabanlı — geriye uyumluluk için korunur)
+  const allFactories    = (()=>{try{return JSON.parse(localStorage.getItem('us_empire_factories')||'[]');}catch{return [];}})();
   const familyFactories = allFactories.filter(f=>f.familyId===myFamily?.id);
-  const ownedFree = allFactories.filter(f=>f.ownerId===cu?.uid && !f.familyId);
+  const ownedFree       = allFactories.filter(f=>f.ownerId===cu?.uid&&!f.familyId);
 
   const assignFactory = (fid) => {
     if (!hasPerm('factory')) return showMsg('Bu işlem için yetkiniz yok', 'error');
@@ -289,7 +306,7 @@ window.FamilyCenterScreen = function FamilyCenterScreen({ cu, families, gangs, p
               {[
                 {l:'Üyeler',   v:(myFamily.members||[]).length, c:'#60A5FA'},
                 {l:'Kasa',     v:fmt(myFamily.treasury||0),     c:'#10B981'},
-                {l:'Fabrika',  v:familyFactories.length,        c:'#F59E0B'},
+                {l:'Fabrika',  v:serverFactories.length||familyFactories.length, c:'#F59E0B'},
                 {l:'Etki',     v:myFamily.influence||0,         c:'#A78BFA'},
               ].map(s=>(
                 <div key={s.l} style={{background:'rgba(255,255,255,0.04)',borderRadius:8,padding:'0.4rem',textAlign:'center'}}>
@@ -357,47 +374,88 @@ window.FamilyCenterScreen = function FamilyCenterScreen({ cu, families, gangs, p
               <li>Tüm üyeler kasaya para yatırabilir</li>
               <li>Sadece Boss para çekebilir</li>
               <li>Kasa, siyasi parti fonlamasında kullanılabilir</li>
-              <li>Fabrika gelirleri kasaya otomatik aktarılabilir</li>
+              <li>Fabrika gelirleri <b>"Fabrikalar"</b> sekmesinden kasaya aktarılır</li>
             </ul>
           </div>
+
+          {/* ── Fabrika Gelirleri Özeti ──────────────────── */}
+          {serverFactories.length>0&&(
+            <div style={{...card,background:'rgba(245,158,11,0.05)',border:'1px solid rgba(245,158,11,0.15)'}}>
+              <div className="card-title">🏭 Fabrika Geliri</div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.5rem'}}>
+                <div style={{fontSize:'0.78rem',color:'#8899AA'}}>Toplam Aylık</div>
+                <div style={{fontWeight:700,color:'#F59E0B',fontFamily:'JetBrains Mono,monospace'}}>{fmtM(serverFactories.reduce((a,f)=>a+(f.monthlyIncome||0),0))}</div>
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.5rem'}}>
+                <div style={{fontSize:'0.78rem',color:'#8899AA'}}>Toplanabilir Fabrika</div>
+                <div style={{fontWeight:700,color:'#10B981'}}>
+                  {serverFactories.filter(f=>f.canCollect||Number(f.lastCollectedAt)===0).length}/{serverFactories.length}
+                </div>
+              </div>
+              <button className="btn btn-primary" style={{width:'100%',fontSize:'0.8rem'}} onClick={()=>setTab('fabrika')}>
+                🏭 Fabrikaları Yönet / Gelir Topla
+              </button>
+            </div>
+          )}
         </div>
       )}
 
-      {/* ── FABRİKALAR ────────────────────────────────────── */}
+      {/* ── FABRİKALAR — sunucu tabanlı ─────────────────── */}
       {tab==='fabrika' && (
         <div>
-          <div style={card}>
-            <div className="card-title">🏭 Aile Fabrikaları ({familyFactories.length})</div>
-            {familyFactories.length===0 && <div style={{textAlign:'center',color:'#5E7390',padding:'0.75rem',fontSize:'0.82rem'}}>Henüz aileye atanmış fabrika yok.</div>}
-            {familyFactories.map(f=>(
-              <div key={f.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'0.5rem 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
-                <div>
-                  <div style={{fontWeight:700,color:'#ddd',fontSize:'0.85rem'}}>{f.icon||'🏭'} {f.name}</div>
-                  <div style={{fontSize:'0.7rem',color:'#5E7390'}}>{f.type||'Fabrika'} · Lv.{f.level||1}</div>
+          {/* Sunucu fabrikaları (anti-cheat: gelir toplaması server doğrulayır) */}
+          {serverFactories.length>0 ? (
+            <div>
+              <div style={{...card,background:'rgba(245,158,11,0.05)',border:'1px solid rgba(245,158,11,0.2)'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <div>
+                    <div style={{fontSize:'0.68rem',color:'#5E7390',textTransform:'uppercase',letterSpacing:'0.06em'}}>Toplam Aylık Fabrika Geliri</div>
+                    <div style={{fontFamily:'JetBrains Mono,monospace',fontWeight:900,fontSize:'1.2rem',color:'#F59E0B'}}>{fmtM(serverFactories.reduce((a,f)=>a+(f.monthlyIncome||0),0))}</div>
+                  </div>
+                  <div style={{textAlign:'right'}}>
+                    <div style={{fontSize:'0.62rem',color:'#5E7390'}}>Günlük</div>
+                    <div style={{fontSize:'0.85rem',fontWeight:700,color:'#10B981'}}>{fmtM(serverFactories.reduce((a,f)=>a+Math.floor((f.monthlyIncome||0)/30),0))}</div>
+                  </div>
                 </div>
-                {hasPerm('factory') && (
-                  <button className="btn btn-red" style={{fontSize:'0.72rem',padding:'0.3rem 0.6rem'}} onClick={()=>unassignFactory(f.id)}>Kaldır</button>
-                )}
               </div>
-            ))}
-          </div>
-
-          {ownedFree.length>0 && hasPerm('factory') && (
-            <div style={card}>
-              <div className="card-title">+ Aileye Fabrika Ekle</div>
-              <div style={{fontSize:'0.72rem',color:'#5E7390',marginBottom:'0.5rem'}}>Kendi fabrikanızı aile yönetimine katın:</div>
-              {ownedFree.map(f=>(
-                <div key={f.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'0.45rem 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
-                  <span style={{fontSize:'0.85rem',color:'#ddd'}}>{f.icon||'🏭'} {f.name}</span>
-                  <button className="btn btn-primary" style={{fontSize:'0.72rem',padding:'0.3rem 0.65rem'}} onClick={()=>assignFactory(f.id)}>Ekle</button>
-                </div>
-              ))}
+              {serverFactories.map(f=>{
+                const canColl = f.canCollect || Number(f.lastCollectedAt)===0;
+                const nextAt  = f.nextCollectAt || (Number(f.lastCollectedAt)||0)+COLLECT_24H;
+                const rem     = Math.max(0, nextAt - Date.now());
+                const h = Math.floor(rem/3600000), m = Math.floor((rem%3600000)/60000);
+                return (
+                  <div key={f.id} style={{...card,borderLeft:'3px solid #F59E0B'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'0.4rem'}}>
+                      <div>
+                        <div style={{fontWeight:700,color:'#E8EDF2',fontSize:'0.88rem'}}>🏭 {f.name}</div>
+                        <div style={{fontSize:'0.68rem',color:'#5E7390'}}>{f.factoryType}</div>
+                      </div>
+                      <div style={{textAlign:'right',flexShrink:0,marginLeft:'0.5rem'}}>
+                        <div style={{fontSize:'0.72rem',fontWeight:700,color:'#10B981'}}>{fmtM(f.monthlyIncome)}/ay</div>
+                        <div style={{fontSize:'0.62rem',color:'#F59E0B'}}>{fmtM(Math.floor((f.monthlyIncome||0)/30))}/gün</div>
+                      </div>
+                    </div>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                      <div style={{fontSize:'0.68rem',color:canColl?'#10B981':'#5E7390'}}>
+                        {canColl?'✅ Toplanabilir':`⏳ ${h>0?h+'sa ':''}${m}dk sonra`}
+                      </div>
+                      <button className="btn btn-primary" disabled={!canColl}
+                        style={{fontSize:'0.72rem',padding:'0.3rem 0.7rem',opacity:canColl?1:0.45}}
+                        onClick={()=>setCurrentPage('economic_empire')}>
+                        {canColl?'💰 Topla (İmparatorluk)':'⏳ Bekle'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ):(
+            <div style={{...card,textAlign:'center',padding:'2rem'}}>
+              <div style={{fontSize:'2rem',marginBottom:'0.5rem'}}>🏭</div>
+              <div style={{color:'#5E7390',fontSize:'0.82rem',marginBottom:'0.75rem'}}>Henüz aile fabrikası yok. Ekonomik İmparatorluk ekranından fabrika kurabilirsiniz.</div>
+              <button className="btn btn-primary" onClick={()=>setCurrentPage('economic_empire')}>🏢 Ekonomik İmparatorluk</button>
             </div>
           )}
-
-          <button className="btn" style={{width:'100%',border:'1px solid rgba(245,158,11,0.3)',color:'#F59E0B'}} onClick={()=>setCurrentPage('economic_empire')}>
-            🏢 Ekonomik İmparatorluk'ta Fabrika Kur
-          </button>
         </div>
       )}
 

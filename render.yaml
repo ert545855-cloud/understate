@@ -4,24 +4,37 @@ services:
     runtime: node
     plan: free
     buildCommand: npm install
-    startCommand: node server/index.js
+    startCommand: node server/main.js
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 10000
+      # PORT, Render tarafından otomatik olarak inject edilir — sabit değer girmeyin.
       - key: DATABASE_URL
-        sync: false
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_ANON_KEY
-        sync: false
-      - key: SUPABASE_SERVICE_KEY
-        sync: false
+        sync: false    # Render Dashboard'dan elle girilecek (zorunlu, fail-fast)
       - key: JWT_SECRET
-        sync: false
+        sync: false    # Render Dashboard'dan elle girilecek (zorunlu, fail-fast)
       - key: PUBLIC_URL
         value: https://understate.onrender.com
-      - key: MONGODB_URI
+      - key: ALLOWED_ORIGINS
+        value: https://understate.onrender.com,capacitor://localhost
+      - key: ADMIN_USERS
+        value: admin
+      - key: BETA_MODE
+        value: "false"
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_FROM
+        value: noreply@understate.game
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: GIPHY_API_KEY
         sync: false

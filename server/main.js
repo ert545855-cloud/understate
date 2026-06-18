@@ -1,4 +1,23 @@
 require('dotenv').config();
+
+// ── Fail-fast: kritik env var kontrolü ───────────────────────────────────────
+// jwt.js da kontrol eder, ama burada erken yakalayıp net hata veriyoruz.
+if (!process.env.JWT_SECRET) {
+  console.error('\n[FATAL] JWT_SECRET ortam değişkeni tanımlı değil!');
+  console.error('[FATAL] .env dosyasına veya sunucu ortamına ekleyin.');
+  console.error('[FATAL] Örnek: JWT_SECRET=<en_az_32_karakter_rastgele_string>\n');
+  process.exit(1);
+}
+if (!process.env.DATABASE_URL) {
+  console.error('\n[FATAL] DATABASE_URL ortam değişkeni tanımlı değil!');
+  console.error('[FATAL] PostgreSQL bağlantı URL\'sini sağlayın.');
+  console.error('[FATAL] Örnek: DATABASE_URL=postgresql://user:pass@host:5432/dbname\n');
+  process.exit(1);
+}
+if (process.env.ALLOWED_ORIGINS === '*' && process.env.NODE_ENV === 'production') {
+  console.warn('[WARN] ALLOWED_ORIGINS=* production ortamında güvensizdir. Gerçek origin listesi kullanın.');
+}
+
 const express  = require('express');
 const http     = require('http');
 const cors     = require('cors');
@@ -118,8 +137,9 @@ app.use('/api/factory',       require('./routes/factory'));
 app.use('/api/jobs',          require('./routes/jobs'));
 app.use('/api/store',         require('./routes/store'));
 app.use('/api/gang-crime',    require('./routes/gangCrime'));
-app.use('/api/bank',          require('./routes/bank'));
-app.use('/api/chat',          require('./routes/chat'));
+app.use('/api/bank',           require('./routes/bank'));
+app.use('/api/chat',           require('./routes/chat'));
+app.use('/api/family-factory', require('./routes/familyFactory'));
 
 app.get('/health',            (_req, res) => res.json({ status: 'OK', ts: Date.now() }));
 app.get('/api/admob-config',  (_req, res) => res.json(getPublicAdConfig(process.env.NODE_ENV !== 'production')));
