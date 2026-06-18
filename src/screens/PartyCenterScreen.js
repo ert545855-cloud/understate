@@ -15,7 +15,9 @@ window.PartyCenterScreen = function PartyCenterScreen({ cu, parties, allUsers, f
   const [msg, setMsg]             = React.useState(null);
   const [cabinet, setCabinet]     = React.useState(()=>S.load("cabinet",{}));
   const [kampCooldowns, setKampCooldowns] = React.useState(()=>S.load("kampCooldowns",{}));
-  const [paySource, setPaySource] = React.useState("treasury");
+  const [paySource, setPaySource]         = React.useState("treasury");
+  // Parti içi rütbe sistemi: { [partyId]: { [username]: rankId } }
+  const [partyRanks, setPartyRanks]       = React.useState(()=>S.load("partyRanks",{}));
 
   const showMsg = (text, type="info") => { setMsg({text,type}); setTimeout(()=>setMsg(null),3000); };
 
@@ -29,6 +31,40 @@ window.PartyCenterScreen = function PartyCenterScreen({ cu, parties, allUsers, f
   };
 
   const fmtMoney = (n) => { if(!n)return "₺0"; if(n>=1e9)return "₺"+(n/1e9).toFixed(1)+"Mlr"; if(n>=1e6)return "₺"+(n/1e6).toFixed(1)+"M"; if(n>=1e3)return "₺"+(n/1e3).toFixed(0)+"K"; return "₺"+n; };
+
+  // ── Parti Hiyerarşisi (6 kademe) ─────────────────────────────────────────────
+  const PARTY_RANKS = [
+    { id:'genel_baskan',   label:'⭐ Genel Başkan',       color:'#FFD700', icon:'⭐', maxCount:1,  desc:'Parti kurucusu ve genel yöneticisi. Tüm kararlar burada biter.',      canBeCampaign:true },
+    { id:'baskan_yrd',     label:'🏅 Başkan Yardımcısı', color:'#F97316', icon:'🏅', maxCount:2,  desc:'Genel başkanın vekili; kampanya ve yasal süreçleri yönetir.',          canBeCampaign:true },
+    { id:'sozcu',          label:'🎙️ Parti Sözcüsü',     color:'#60A5FA', icon:'🎙️', maxCount:1,  desc:'Resmi basın açıklamaları ve medya koordinasyonundan sorumlu.',         canBeCampaign:false},
+    { id:'il_baskani',     label:'🌆 İl Başkanı',         color:'#A78BFA', icon:'🌆', maxCount:8,  desc:'Bölgesel örgütlenme ve seçim çalışmalarını yürütür.',                 canBeCampaign:true },
+    { id:'milletvekili',   label:'🏛️ Milletvekili',       color:'#10B981', icon:'🏛️', maxCount:30, desc:'Meclis oturumlarında partiyi temsil eder; yasa oylamalarına katılır.', canBeCampaign:false},
+    { id:'uye',            label:'👤 Üye',                color:'#5E7390', icon:'👤', maxCount:999,desc:'Genel parti üyesi.',                                                   canBeCampaign:false},
+  ];
+
+  const getPartyRank = (username) => {
+    if(username===myParty?.leader) return PARTY_RANKS[0];
+    const rid = (partyRanks[myParty?.id]||{})[username] || 'uye';
+    return PARTY_RANKS.find(r=>r.id===rid) || PARTY_RANKS[PARTY_RANKS.length-1];
+  };
+
+  const assignPartyRank = (username, rankId) => {
+    if(!isLeader) return showMsg("Sadece Genel Başkan rütbe atayabilir","error");
+    if(username===myParty?.leader) return showMsg("Lider rütbesi değiştirilemez","error");
+    const rankDef = PARTY_RANKS.find(r=>r.id===rankId);
+    if(!rankDef) return showMsg("Geçersiz rütbe","error");
+    // Maksimum kişi sayısı kontrolü
+    if(rankDef.maxCount<999) {
+      const currentHolders = (myParty?.members||[]).filter(m=>m!==username&&getPartyRank(m).id===rankId);
+      if(currentHolders.length>=rankDef.maxCount)
+        return showMsg(`Bu pozisyon için maksimum ${rankDef.maxCount} kişi atanabilir (mevcut: ${currentHolders.join(', ')})`, "error");
+    }
+    const updated = {...partyRanks, [myParty.id]:{...(partyRanks[myParty.id]||{}),[username]:rankId}};
+    setPartyRanks(updated);
+    S.save("partyRanks",updated);
+    meclisBroadcast(rankDef.icon, `${username} → ${rankDef.label} atandı`, cu?.username, myParty?.name);
+    showMsg(`${username} → ${rankDef.label} ✓`,"success");
+  };
 
   const partyArr = Array.isArray(parties)?parties:[];
   const fams = Array.isArray(families)?families:[];
@@ -150,11 +186,118 @@ window.PartyCenterScreen = function PartyCenterScreen({ cu, parties, allUsers, f
       )}
       <div style={{display:"flex",gap:"0.4rem",overflowX:"auto",paddingBottom:"0.5rem",marginBottom:"0.75rem",scrollbarWidth:"none"}}>
         {tabBtn("overview","Genel","🏛️")}
+        {tabBtn("yonetim","Yönetim","⚙️")}
         {tabBtn("kampanya","Kampanya","📣")}
         {tabBtn("laws","Yasalar","📜")}
         {tabBtn("sponsors","Sponsorlar","💰")}
         {tabBtn("members","Üyeler","👥")}
       </div>
+
+      {/* ── YÖNETİM HİYERARŞİSİ ─────────────────────────── */}
+      {tab==="yonetim"&&(
+        <div>
+          {/* Org chart — 6 kademeli görsel hiyerarşi */}
+          <div style={{...card,background:"linear-gradient(135deg,rgba(167,139,250,0.07),rgba(0,0,0,0))"}}>
+            <div className="card-title">🏛️ Parti Teşkilat Yapısı</div>
+            <div style={{display:"flex",flexDirection:"column",gap:"0.3rem",marginTop:"0.5rem"}}>
+              {PARTY_RANKS.map((r,i)=>{
+                const holders=(myParty?.members||[]).filter(m=>getPartyRank(m).id===r.id);
+                const isTop=i===0;
+                const indent=Math.min(i,4)*8;
+                return (
+                  <div key={r.id} style={{
+                    marginLeft:indent,
+                    background:`${r.color}0D`,
+                    border:`1px solid ${r.color}33`,
+                    borderRadius:10,
+                    padding:"0.55rem 0.75rem",
+                    position:"relative",
+                  }}>
+                    {i>0&&<div style={{position:"absolute",left:-8,top:"50%",width:8,height:1,background:`${r.color}55`}}/>}
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"0.5rem"}}>
+                      <div style={{flex:1}}>
+                        <div style={{display:"flex",alignItems:"center",gap:"0.35rem",marginBottom:"0.15rem"}}>
+                          <span style={{background:`${r.color}22`,border:`1px solid ${r.color}44`,borderRadius:6,padding:"0.1rem 0.45rem",fontSize:"0.68rem",fontWeight:800,color:r.color}}>{r.label}</span>
+                          <span style={{fontSize:"0.6rem",color:"#5E7390"}}>max {r.maxCount===999?"∞":r.maxCount} kişi</span>
+                        </div>
+                        <div style={{fontSize:"0.68rem",color:"#5E7390",lineHeight:1.4}}>{r.desc}</div>
+                        {holders.length>0&&(
+                          <div style={{marginTop:"0.25rem",display:"flex",flexWrap:"wrap",gap:"0.25rem"}}>
+                            {holders.map(h=>(
+                              <span key={h} style={{background:"rgba(255,255,255,0.07)",borderRadius:5,padding:"0.05rem 0.35rem",fontSize:"0.67rem",color:"#E8EDF2",fontWeight:600}}>{h}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{textAlign:"right",flexShrink:0}}>
+                        <div style={{fontSize:"0.75rem",fontWeight:700,color:r.color}}>{holders.length}</div>
+                        <div style={{fontSize:"0.55rem",color:"#5E7390"}}>kişi</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Rütbe Atama — sadece Genel Başkan */}
+          {isLeader&&(
+            <div style={card}>
+              <div className="card-title">⚙️ Rütbe Ata</div>
+              <div style={{fontSize:"0.75rem",color:"#8899AA",marginBottom:"0.75rem"}}>Üyeye bir pozisyon atayın. Maksimum sayı aşılamaz.</div>
+              {(myParty?.members||[]).filter(m=>m!==myParty?.leader).length===0
+                ? <div style={{textAlign:"center",color:"#5E7390",fontSize:"0.82rem",padding:"0.75rem"}}>Atanacak üye yok.</div>
+                : (myParty?.members||[]).filter(m=>m!==myParty?.leader).map(m=>{
+                  const r=getPartyRank(m);
+                  return (
+                    <div key={m} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"0.5rem 0",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+                      <div>
+                        <span style={{fontWeight:700,color:"#E8EDF2",fontSize:"0.85rem"}}>{m}</span>
+                        <span style={{marginLeft:6,background:`${r.color}22`,border:`1px solid ${r.color}44`,borderRadius:4,padding:"0.05rem 0.3rem",fontSize:"0.6rem",fontWeight:700,color:r.color}}>{r.label}</span>
+                      </div>
+                      <select
+                        value={r.id}
+                        onChange={e=>assignPartyRank(m,e.target.value)}
+                        style={{background:"rgba(255,255,255,0.05)",color:"#E8EDF2",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,padding:"0.3rem 0.5rem",fontSize:"0.72rem",fontFamily:"inherit",cursor:"pointer"}}
+                      >
+                        {PARTY_RANKS.filter(pr=>pr.id!=="genel_baskan").map(pr=>(
+                          <option key={pr.id} value={pr.id} style={{background:"#111"}}>{pr.icon} {pr.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })
+              }
+            </div>
+          )}
+
+          {/* Kabine Atamaları */}
+          <div style={card}>
+            <div className="card-title">🏅 Kabine Pozisyonları</div>
+            <div style={{fontSize:"0.75rem",color:"#8899AA",marginBottom:"0.65rem"}}>Seçimi kazanan parti bu pozisyonları hükümet üyelerine dağıtır.</div>
+            {CABINET_POSITIONS.map(pos=>{
+              const assigned=Object.entries(myCabinet).find(([,v])=>v===pos);
+              return (
+                <div key={pos} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"0.45rem 0",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+                  <div>
+                    <div style={{fontSize:"0.82rem",fontWeight:700,color:"#E8EDF2"}}>🏛️ {pos}</div>
+                    {assigned
+                      ? <div style={{fontSize:"0.67rem",color:"#10B981",marginTop:"0.1rem"}}>● {assigned[0]}</div>
+                      : <div style={{fontSize:"0.67rem",color:"#5E7390",marginTop:"0.1rem"}}>Atanmadı</div>
+                    }
+                  </div>
+                  {isLeader&&(
+                    <button className="btn" style={{fontSize:"0.68rem",padding:"0.25rem 0.55rem",border:"1px solid rgba(167,139,250,0.3)",color:"#A78BFA"}}
+                      onClick={()=>{const u=prompt(`"${pos}" için kullanıcı adı:`);if(u)assignCabinet(pos,u);}}>
+                      Ata
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* GENEL */}
       {tab==="overview"&&(
@@ -371,18 +514,45 @@ window.PartyCenterScreen = function PartyCenterScreen({ cu, parties, allUsers, f
 
       {/* ÜYELER */}
       {tab==="members"&&(
-        <div style={card}>
-          <div className="card-title">👥 Parti Üyeleri ({(myParty.members||[]).length})</div>
-          {(myParty.members||[]).length===0&&<div style={{textAlign:"center",color:"#5E7390",padding:"0.75rem",fontSize:"0.82rem"}}>Henüz üye yok.</div>}
-          {(myParty.members||[]).map((m,i)=>(
-            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"0.45rem 0",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
-              <div>
-                <span style={{fontWeight:700,fontSize:"0.85rem",color:"#ddd"}}>{m}</span>
-                {m===myParty.leader&&<span style={{marginLeft:"0.4rem",background:"rgba(255,215,0,0.12)",border:"1px solid rgba(255,215,0,0.3)",borderRadius:4,padding:"0.1rem 0.35rem",fontSize:"0.58rem",fontWeight:700,color:"#FFD700"}}>LİDER</span>}
-                {myCabinet[m]&&<span style={{marginLeft:"0.4rem",fontSize:"0.65rem",color:"#A78BFA"}}>{myCabinet[m]}</span>}
-              </div>
+        <div>
+          <div style={card}>
+            <div className="card-title">👥 Parti Üyeleri ({(myParty.members||[]).length})</div>
+            {(myParty.members||[]).length===0&&<div style={{textAlign:"center",color:"#5E7390",padding:"0.75rem",fontSize:"0.82rem"}}>Henüz üye yok.</div>}
+            {(myParty.members||[]).map((m,i)=>{
+              const pr=getPartyRank(m);
+              const cabinetPos=myCabinet[m];
+              return (
+                <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"0.5rem 0",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+                  <div>
+                    <div style={{display:"flex",alignItems:"center",gap:"0.35rem",flexWrap:"wrap"}}>
+                      <span style={{fontWeight:700,fontSize:"0.85rem",color:"#E8EDF2"}}>{m}</span>
+                      <span style={{background:`${pr.color}22`,border:`1px solid ${pr.color}44`,borderRadius:4,padding:"0.06rem 0.35rem",fontSize:"0.6rem",fontWeight:700,color:pr.color}}>{pr.label}</span>
+                      {cabinetPos&&<span style={{background:"rgba(167,139,250,0.12)",border:"1px solid rgba(167,139,250,0.3)",borderRadius:4,padding:"0.06rem 0.35rem",fontSize:"0.6rem",fontWeight:700,color:"#A78BFA"}}>🏛️ {cabinetPos}</span>}
+                    </div>
+                    {m===myParty.leader&&<div style={{fontSize:"0.62rem",color:"#5E7390",marginTop:"0.15rem"}}>Genel Başkan · Parti Kurucusu</div>}
+                  </div>
+                  <div style={{fontSize:"0.65rem",color:"#5E7390",textAlign:"right"}}>
+                    {pr.canBeCampaign&&<div style={{color:"#10B981",fontSize:"0.6rem"}}>📣 Kampanya</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Üye istatistikleri */}
+          <div style={{...card,padding:"0.75rem"}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"0.35rem"}}>
+              {[
+                {l:"Liderlik",v:PARTY_RANKS.slice(0,3).reduce((a,r)=>{const h=(myParty?.members||[]).filter(m=>getPartyRank(m).id===r.id).length;return a+h;},0),c:"#FFD700"},
+                {l:"İl Teşkilatı",v:(myParty?.members||[]).filter(m=>getPartyRank(m).id==="il_baskani").length,c:"#A78BFA"},
+                {l:"Milletvekili",v:(myParty?.members||[]).filter(m=>getPartyRank(m).id==="milletvekili").length,c:"#10B981"},
+              ].map(s=>(
+                <div key={s.l} style={{background:"rgba(255,255,255,0.04)",borderRadius:8,padding:"0.5rem",textAlign:"center"}}>
+                  <div style={{fontWeight:700,fontSize:"0.9rem",color:s.c}}>{s.v}</div>
+                  <div style={{fontSize:"0.6rem",color:"#5E7390"}}>{s.l}</div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       )}
     </div>

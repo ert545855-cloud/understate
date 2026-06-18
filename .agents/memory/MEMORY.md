@@ -13,5 +13,7 @@
 - [Server Routes Added](server-routes-added.md) — bank.js (deposit/withdraw/interest/transfer), chat.js (history+save), familyFactory.js (/api/family-factory) registered in server/main.js.
 - [PvP/Mining/Spy/Gang Server Handlers](game-action-handlers.md) — pvp:attack, mining:mine/sell, spy:op, gang:buyWeapon/getWeapons, empire:sync/get all in gameHandler.js; updateUser whitelist includes money/hp/merit_points/game_data.
 - [GangTreasury bank→treasury bug](gang-treasury-fix.md) — GangTreasuryScreen used myGang.bank but DB/server stores myGang.treasury; fixed + weapons now load via gang:getWeapons socket event.
+- [Kasa Yöneticisi Role](kasa-yoneticisi.md) — family rank 'kasaci' (treasury perm only); boss appoints via changeRank; withdraw() allows isLeader || hasPerm('treasury').
+- [Party Rank Schema](party-rank-schema.md) — 6-tier PARTY_RANKS in PartyCenterScreen.js; partyRanks localStorage state; yonetim tab with org chart + rank assignment + kabine.
 - [Family Factory Anti-cheat](family-factory-anticheat.md) — family_factories DB table; collection timing fully server-validated; treasury deduction is client-side (families are localStorage-based); DB-backed rate limiter in dbRateLimiter.js.
 - [Security & Deploy Hardening](security-hardening.md) — JWT_SECRET + DATABASE_URL fail-fast in server/main.js AND jwt.js; render.yaml fixed (startCommand=node server/main.js, removed SUPABASE_* + MONGODB_URI); old SQL files → sql/_archive/; unused deploy files → deploy/_unused/.

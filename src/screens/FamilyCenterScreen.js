@@ -39,10 +39,11 @@ window.FamilyCenterScreen = function FamilyCenterScreen({ cu, families, gangs, p
   const isLeader = myFamily && (myFamily.leaderId===cu?.uid || myFamily.leader===cu?.username);
 
   const RANKS = [
-    { id:'boss',      label:'👑 Boss',       color:'#FFD700', perms:['invite','kick','promote','factory','treasury','heir','disband'] },
-    { id:'underboss', label:'⚔️ Underboss',  color:'#F97316', perms:['invite','factory','treasury'] },
-    { id:'yonetici',  label:'🏛️ Yönetici',   color:'#A78BFA', perms:['factory'] },
-    { id:'uye',       label:'👤 Üye',         color:'#60A5FA', perms:[] },
+    { id:'boss',      label:'👑 Boss',            color:'#FFD700', perms:['invite','kick','promote','factory','treasury','heir','disband'] },
+    { id:'underboss', label:'⚔️ Underboss',       color:'#F97316', perms:['invite','factory','treasury'] },
+    { id:'kasaci',    label:'💰 Kasa Yöneticisi', color:'#10B981', perms:['treasury'] },
+    { id:'yonetici',  label:'🏛️ Yönetici',        color:'#A78BFA', perms:['factory'] },
+    { id:'uye',       label:'👤 Üye',              color:'#60A5FA', perms:[] },
   ];
 
   const getMemberRank = (uname) => {
@@ -130,9 +131,9 @@ window.FamilyCenterScreen = function FamilyCenterScreen({ cu, families, gangs, p
     showMsg(`${fmt(amt)} kasaya yatırıldı ✓`, 'success');
   };
 
-  // ── Kasadan Para Çek (Sadece Boss) ────────────────────
+  // ── Kasadan Para Çek (Boss veya Kasa Yöneticisi) ──────
   const withdraw = () => {
-    if (!isLeader) return showMsg('Sadece Boss para çekebilir', 'error');
+    if (!isLeader && !hasPerm('treasury')) return showMsg('Sadece Boss veya Kasa Yöneticisi para çekebilir', 'error');
     const amt = parseInt(withdrawAmt);
     if (!amt||amt<=0) return showMsg('Geçerli miktar girin', 'error');
     if ((myFamily.treasury||0)<amt) return showMsg('Kasada yeterli para yok', 'error');
@@ -344,39 +345,86 @@ window.FamilyCenterScreen = function FamilyCenterScreen({ cu, families, gangs, p
       {/* ── KASA ──────────────────────────────────────────── */}
       {tab==='kasa' && (
         <div>
-          <div style={{...card,background:'rgba(16,185,129,0.05)',border:'1px solid rgba(16,185,129,0.15)'}}>
-            <div style={{textAlign:'center',marginBottom:'0.75rem'}}>
-              <div style={{fontFamily:'JetBrains Mono,monospace',fontWeight:900,fontSize:'1.6rem',color:'#10B981'}}>{fmt(myFamily.treasury||0)}</div>
-              <div style={{fontSize:'0.7rem',color:'#5E7390'}}>Aile Kasası</div>
-            </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.5rem'}}>
-              <div>
-                <div style={{fontSize:'0.72rem',color:'#8899AA',marginBottom:'0.25rem'}}>Yatır</div>
-                <div style={{display:'flex',gap:'0.35rem'}}>
-                  <input style={{...inp,padding:'0.45rem 0.55rem'}} type="number" placeholder="₺" value={depositAmt} onChange={e=>setDepositAmt(e.target.value)}/>
-                  <button className="btn btn-primary" style={{flexShrink:0,padding:'0.45rem 0.65rem',fontSize:'0.8rem'}} onClick={deposit}>↑</button>
-                </div>
-              </div>
-              {isLeader && (
-                <div>
-                  <div style={{fontSize:'0.72rem',color:'#8899AA',marginBottom:'0.25rem'}}>Çek (Boss)</div>
-                  <div style={{display:'flex',gap:'0.35rem'}}>
-                    <input style={{...inp,padding:'0.45rem 0.55rem'}} type="number" placeholder="₺" value={withdrawAmt} onChange={e=>setWithdrawAmt(e.target.value)}/>
-                    <button className="btn btn-red" style={{flexShrink:0,padding:'0.45rem 0.65rem',fontSize:'0.8rem'}} onClick={withdraw}>↓</button>
+          {(()=>{
+            const kasaci = (myFamily.members||[]).find(m=>(myFamily.ranks||{})[m]==='kasaci');
+            const canWithdraw = isLeader || hasPerm('treasury');
+            return (
+              <>
+                {/* Kasa Yöneticisi Kimliği */}
+                <div style={{...card,background:'rgba(16,185,129,0.05)',border:'1px solid rgba(16,185,129,0.15)'}}>
+                  <div style={{textAlign:'center',marginBottom:'0.75rem'}}>
+                    <div style={{fontFamily:'JetBrains Mono,monospace',fontWeight:900,fontSize:'1.6rem',color:'#10B981'}}>{fmt(myFamily.treasury||0)}</div>
+                    <div style={{fontSize:'0.7rem',color:'#5E7390'}}>Aile Kasası</div>
+                    {kasaci && (
+                      <div style={{marginTop:'0.4rem',background:'rgba(16,185,129,0.1)',border:'1px solid rgba(16,185,129,0.25)',borderRadius:8,padding:'0.3rem 0.6rem',display:'inline-block'}}>
+                        <span style={{fontSize:'0.68rem',color:'#10B981',fontWeight:700}}>💰 Kasa Yöneticisi: {kasaci}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.5rem'}}>
+                    <div>
+                      <div style={{fontSize:'0.72rem',color:'#8899AA',marginBottom:'0.25rem'}}>Yatır (Tüm Üyeler)</div>
+                      <div style={{display:'flex',gap:'0.35rem'}}>
+                        <input style={{...inp,padding:'0.45rem 0.55rem'}} type="number" placeholder="₺" value={depositAmt} onChange={e=>setDepositAmt(e.target.value)}/>
+                        <button className="btn btn-primary" style={{flexShrink:0,padding:'0.45rem 0.65rem',fontSize:'0.8rem'}} onClick={deposit}>↑</button>
+                      </div>
+                    </div>
+                    {canWithdraw && (
+                      <div>
+                        <div style={{fontSize:'0.72rem',color:'#8899AA',marginBottom:'0.25rem'}}>
+                          Çek {isLeader?'(Boss)':'(Kasa Yön.)'}
+                        </div>
+                        <div style={{display:'flex',gap:'0.35rem'}}>
+                          <input style={{...inp,padding:'0.45rem 0.55rem'}} type="number" placeholder="₺" value={withdrawAmt} onChange={e=>setWithdrawAmt(e.target.value)}/>
+                          <button className="btn btn-red" style={{flexShrink:0,padding:'0.45rem 0.65rem',fontSize:'0.8rem'}} onClick={withdraw}>↓</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-              )}
-            </div>
-          </div>
-          <div style={card}>
-            <div className="card-title">💡 Kasa Kullanımı</div>
-            <ul style={{fontSize:'0.8rem',color:'#8899AA',lineHeight:1.75,paddingLeft:'1.2rem',margin:0}}>
-              <li>Tüm üyeler kasaya para yatırabilir</li>
-              <li>Sadece Boss para çekebilir</li>
-              <li>Kasa, siyasi parti fonlamasında kullanılabilir</li>
-              <li>Fabrika gelirleri <b>"Fabrikalar"</b> sekmesinden kasaya aktarılır</li>
-            </ul>
-          </div>
+
+                {/* Boss — Kasa Yöneticisi Ata */}
+                {isLeader && (
+                  <div style={card}>
+                    <div className="card-title">💰 Kasa Yöneticisi Ata</div>
+                    <div style={{fontSize:'0.75rem',color:'#8899AA',marginBottom:'0.6rem',lineHeight:1.5}}>
+                      Kasa Yöneticisi kasadan para çekip yatırabilir; diğer üyeler sadece yatırabilir.
+                      {kasaci&&<span style={{color:'#EF4444'}}> Mevcut: <b>{kasaci}</b></span>}
+                    </div>
+                    <div style={{display:'flex',flexDirection:'column',gap:'0.4rem'}}>
+                      {(myFamily.members||[]).filter(m=>m!==myFamily.leader).map(m=>{
+                        const mRank = getMemberRank(m);
+                        const isKasaci = mRank.id==='kasaci';
+                        return (
+                          <div key={m} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'0.4rem 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+                            <div>
+                              <span style={{fontWeight:600,color:'#E8EDF2',fontSize:'0.85rem'}}>{m}</span>
+                              <span style={{marginLeft:6,background:`${mRank.color}22`,border:`1px solid ${mRank.color}44`,borderRadius:4,padding:'0.05rem 0.3rem',fontSize:'0.58rem',fontWeight:700,color:mRank.color}}>{mRank.label}</span>
+                            </div>
+                            {isKasaci
+                              ? <button className="btn btn-red" style={{fontSize:'0.68rem',padding:'0.25rem 0.5rem'}} onClick={()=>changeRank(m,'uye')}>Görevden Al</button>
+                              : <button className="btn btn-primary" style={{fontSize:'0.68rem',padding:'0.25rem 0.5rem'}} onClick={()=>changeRank(m,'kasaci')}>Ata</button>
+                            }
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div style={card}>
+                  <div className="card-title">💡 Kasa Kullanımı</div>
+                  <ul style={{fontSize:'0.8rem',color:'#8899AA',lineHeight:1.75,paddingLeft:'1.2rem',margin:0}}>
+                    <li>Tüm üyeler kasaya para <b>yatırabilir</b></li>
+                    <li><b>Boss</b> ve <b>Kasa Yöneticisi</b> para çekebilir</li>
+                    <li>Boss, herhangi bir üyeyi Kasa Yöneticisi olarak atayabilir</li>
+                    <li>Kasa, siyasi parti fonlamasında kullanılabilir</li>
+                    <li>Fabrika gelirleri <b>"Fabrikalar"</b> sekmesinden kasaya aktarılır</li>
+                  </ul>
+                </div>
+              </>
+            );
+          })()}
 
           {/* ── Fabrika Gelirleri Özeti ──────────────────── */}
           {serverFactories.length>0&&(
