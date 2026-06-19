@@ -141,11 +141,15 @@ function registerGameHandlers(io, socket) {
 
   // ── Presence ──────────────────────────────────────────────────────────────
   socket.on('playerJoin', (data) => {
-    if (!data || !data.userId) return;
+    if (!data) return;
     const now = Date.now();
+    // Security: use server-verified userId from JWT auth middleware; never trust client-supplied userId
+    const verifiedUserId = socket.userId || null;
+    if (!verifiedUserId && !data.userId) return;
+    const resolvedUserId = verifiedUserId || data.userId;
     const player = {
       socketId:      socket.id,
-      userId:        data.userId,
+      userId:        resolvedUserId,
       username:      typeof data.username === 'string' ? data.username.slice(0, 20) : 'Oyuncu',
       level:         Number(data.level) || 1,
       city:          typeof data.city === 'string' ? data.city.slice(0, 30) : '',
@@ -158,7 +162,8 @@ function registerGameHandlers(io, socket) {
       lastSeen:      now,
     };
     onlinePlayers.set(socket.id, player);
-    socket.userId   = data.userId;
+    // Only set socket.userId if not already set by auth middleware
+    if (!socket.userId) socket.userId = resolvedUserId;
     socket.username = player.username;
 
     // ── Oyuncuyu global odaya + şehir bazlı odaya ekle ──────────────────
@@ -380,9 +385,19 @@ function registerGameHandlers(io, socket) {
   socket.on('gang:disband', async (data) => {
     if (!data || !checkEventRate(socket.id)) return;
     if (!socket.userId || !data.gangId) return;
-    if (db.isReady()) await db.deleteGang(data.gangId).catch(() => {});
-    const gangs = db.isReady() ? await db.getGangs().catch(() => []) : [];
-    io.emit('gangUpdate', { gangs, action: 'disband', gangId: data.gangId, ts: Date.now() });
+    // Security: only the gang leader may disband the gang
+    if (db.isReady()) {
+      const gangs = await db.getGangs().catch(() => []);
+      const gang = gangs.find(g => g.id === data.gangId);
+      if (!gang) return;
+      if (gang.leaderId !== socket.userId) {
+        logger.warn(`[Security] gang:disband rejected — ${socket.username} is not leader of ${data.gangId}`);
+        return;
+      }
+      await db.deleteGang(data.gangId).catch(() => {});
+      const updated = await db.getGangs().catch(() => []);
+      io.emit('gangUpdate', { gangs: updated, action: 'disband', gangId: data.gangId, ts: Date.now() });
+    }
   });
 
   socket.on('gang:war', async (data) => {
@@ -451,9 +466,17 @@ function registerGameHandlers(io, socket) {
     if (!socket.userId) return;
     const parties = Array.isArray(data.parties) ? data.parties : null;
     if (!parties) return;
-    if (db.isReady()) await db.setParties(parties).catch(() => {});
-    socket.broadcast.emit('partyUpdate', { parties, updatedBy: socket.username, ts: Date.now() });
-    logger.debug(`[Party] sync by ${socket.username} — ${parties.length} parti`);
+    // Security: only sync parties where the requesting user is the leader; ignore the rest
+    const allowedParties = parties.filter(p => p.leaderId === socket.userId || p.leader === socket.userId);
+    if (allowedParties.length === 0) return;
+    if (db.isReady()) {
+      for (const p of allowedParties) {
+        await db.upsertParty(p).catch(() => {});
+      }
+    }
+    const all = db.isReady() ? await db.getParties().catch(() => []) : allowedParties;
+    socket.broadcast.emit('partyUpdate', { parties: all, updatedBy: socket.username, ts: Date.now() });
+    logger.debug(`[Party] sync by ${socket.username} — ${allowedParties.length} kendi partisi güncellendi`);
   });
 
   // ── PARTY influence — atomic single-party update (CD enforced server-side) ──

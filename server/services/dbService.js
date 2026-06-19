@@ -118,7 +118,7 @@ async function createUser(fields) {
 }
 
 const ALLOWED_UPDATE_COLUMNS = new Set([
-  'username', 'email', 'password_hash', 'role', 'banned', 'ban_reason',
+  'username', 'email', 'password_hash', 'ban_reason',
   'level', 'xp', 'money', 'bank_money', 'under_coin', 'hp', 'score',
   'credit_score', 'merit_points', 'loyalty_points', 'city', 'position_tag',
   'education_level', 'education_progress', 'inventory', 'equipped_items',

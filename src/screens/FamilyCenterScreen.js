@@ -286,6 +286,7 @@ window.FamilyCenterScreen = function FamilyCenterScreen({ cu, families, gangs, p
         <TabBtn id="fabrika"  lbl="Fabrikalar"icon="🏭"/>
         <TabBtn id="uyeler"   lbl="Üyeler"    icon="👥"/>
         <TabBtn id="rutbeler" lbl="Rütbeler"  icon="⚔️"/>
+        <TabBtn id="harita"   lbl="Harita"    icon="🗺️"/>
         {isLeader && <TabBtn id="halef" lbl="Halef"    icon="👑"/>}
       </div>
 
@@ -576,6 +577,23 @@ window.FamilyCenterScreen = function FamilyCenterScreen({ cu, families, gangs, p
                 );
               })}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* ── HARİTA ─────────────────────────────────────────── */}
+      {tab==='harita' && (
+        <div>
+          {window.TurkeyMapScreen ? (
+            React.createElement(window.TurkeyMapScreen, {
+              profile: cu,
+              gangs: [],
+              families: JSON.parse(localStorage.getItem('rep_families')||'[]'),
+              showNotif,
+              mode: 'family',
+            })
+          ) : (
+            <div style={{textAlign:'center',color:'#5E7390',padding:'2rem'}}>Harita yükleniyor…</div>
           )}
         </div>
       )}

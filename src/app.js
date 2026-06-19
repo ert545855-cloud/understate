@@ -977,6 +977,16 @@ function App() {
         else if (data.winnerUserId === myId) showNotif(`🏆 Savaşı kazandınız!`, 'success', '🏆');
       });
 
+      // ── İl bölge kontrolü ────────────────────────────────────────
+      s.on('province:sync', (data) => {
+        try {
+          if (data.control) {
+            localStorage.setItem('rep_provinceControl', JSON.stringify(data.control));
+            window.dispatchEvent(new Event('provinceControlUpdate'));
+          }
+        } catch(e){}
+      });
+
       // ── Şehir sahipliği ──────────────────────────────────────────
       s.on('cityOwnershipUpdate', (data) => {
         try {

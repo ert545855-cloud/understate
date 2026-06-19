@@ -60,7 +60,7 @@ router.post('/ban/:userId', adminMiddleware, async (req, res) => {
     const { reason = 'Kural ihlali' } = req.body;
     const user = await db.findUserById(req.params.userId);
     if (!user) return res.status(404).json({ success: false, message: 'Kullanıcı bulunamadı' });
-    await db.updateUser(user.id, { banned: true, ban_reason: reason });
+    await db.query('UPDATE users SET banned = true, ban_reason = $1, updated_at = NOW() WHERE id = $2', [reason, user.id]);
     if (_io && user.socket_id) { _io.to(user.socket_id).emit('banned', { reason }); _io.sockets.sockets.get(user.socket_id)?.disconnect(true); }
     logger.warn(`BAN: ${user.username} — ${reason} (by ${req.user.username})`);
     res.json({ success: true, message: `${user.username} banlandı` });
@@ -72,7 +72,7 @@ router.post('/unban/:userId', adminMiddleware, async (req, res) => {
     if (!db.isReady()) return res.json({ success: false, message: 'DB bağlı değil' });
     const user = await db.findUserById(req.params.userId);
     if (!user) return res.status(404).json({ success: false, message: 'Kullanıcı bulunamadı' });
-    await db.updateUser(user.id, { banned: false, ban_reason: '' });
+    await db.query('UPDATE users SET banned = false, ban_reason = $1, updated_at = NOW() WHERE id = $2', ['', user.id]);
     logger.info(`UNBAN: ${user.username} (by ${req.user.username})`);
     res.json({ success: true, message: `${user.username} banı kaldırıldı` });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
@@ -171,7 +171,7 @@ router.post('/users/:userId/role', adminMiddleware, async (req, res) => {
     if (!sb.isReady()) return res.json({ success: false, message: 'DB bağlı değil' });
     const user = await sb.findUserById(req.params.userId);
     if (!user) return res.status(404).json({ success: false, message: 'Kullanıcı bulunamadı' });
-    await sb.updateUser(user.id, { role });
+    await sb.query('UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2', [role, user.id]);
     if (_io && user.socket_id) _io.to(user.socket_id).emit('roleUpdate', { role, from: 'admin', timestamp: Date.now() });
     res.json({ success: true, username: user.username, role });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }

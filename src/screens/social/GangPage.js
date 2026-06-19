@@ -359,7 +359,19 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
         )}
 
         {sub==='territory' && (
-          <TerritorySystem profile={profile} setProfile={setProfile} showNotif={showNotif} myGang={myGang} gangs={gangs} setGangs={setGangs} isGangLeader={isGangLeader} />
+          <div>
+            {window.TurkeyMapScreen ? (
+              React.createElement(window.TurkeyMapScreen, {
+                profile,
+                gangs,
+                families: (()=>{ try{return JSON.parse(localStorage.getItem('rep_families')||'[]');}catch{return[];} })(),
+                showNotif,
+                mode: 'gang',
+              })
+            ) : (
+              <TerritorySystem profile={profile} setProfile={setProfile} showNotif={showNotif} myGang={myGang} gangs={gangs} setGangs={setGangs} isGangLeader={isGangLeader} />
+            )}
+          </div>
         )}
 
         {sub==='weapons' && (

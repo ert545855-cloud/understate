@@ -2,7 +2,7 @@
 - [UNDERSTATE localStorage conventions](understate-localstorage.md) — All useLs() keys use rep_ prefix; daily task state key is rep_dailyTaskState; user profile is rep_userProfile.
 - [Multiplayer Architecture](multiplayer-arch.md) — full real-time multiplayer + DB persistence layer design decisions for gangs/parties/alliances/elections/laws/announcements.
 - [Socket Emit Patterns](socket-emit-patterns.md) — where gang/party/alliance/election/law mutations emit to server in app.js; setGangs/setParties/etc. all have inline socket.emit calls.
-- [Turkey Map Component](turkey-map.md) — TurkeyMap SVG component with PROVINCE_MAP_DATA (81 provinces, geographic circle positions) and GANG_PALETTE; placed before TerritorySystem in app.js; used in both gang Bölge tab and politics Harita tab.
+- [Turkey Province Map](turkey-map.md) — window.TurkeyProvinceMap + window.TurkeyMapScreen in src/screens/TurkeyMapScreen.js; TR_PROVINCES array (81 cities, SVG viewBox 840x440); control stored in rep_provinceControl localStorage; emits province:sync socket event.
 - [Dark Mode Text Colors](dark-mode-colors.md) — #3B4E63 was invisible on dark bg (125 instances); replaced all with #5A7089. Never use #2A3A4A or #3B4E63 for text.
 - [PoliticsPage Meclis](politics-meclis.md) — meclis sub-tab REMOVED from PoliticsScreen; standalone PartyCenterScreen.js loaded via index.html, routed as party_center in Devlet nav.
 - [Score Calculation](score-calc.md) — calcScore(p) in app.js before App(); useEffect auto-updates profile.score on level/xp/money/merits/edu changes; autosave uses calcScore(p) directly.
