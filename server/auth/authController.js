@@ -10,6 +10,8 @@ const logger  = require('../utils/logger');
 const { RESET_TOKEN_EXPIRY_MS, BCRYPT_ROUNDS, BETA_MODE, BETA_INVITE_CODES } = require('../config/constants');
 const mailService = require('../services/mailService');
 
+const ADMIN_USERNAMES = (process.env.ADMIN_USERS || 'admin').split(',').map(s => s.trim());
+
 const EMAIL_VERIFY_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
 function _baseUrl(req) {
@@ -38,6 +40,7 @@ function validatePassword(p) {
 }
 
 function userToPublic(u) {
+  const isAdmin = u.role === 'admin' || ADMIN_USERNAMES.includes(u.username);
   return {
     id:               u.id,
     username:         u.username,
@@ -57,12 +60,14 @@ function userToPublic(u) {
     loyaltyPoints:    u.loyalty_points,
     city:             u.city,
     position:         u.position_tag,
-    educationLevel:   u.education_level,
-    educationProgress:u.education_progress,
+    educationLevel:   isAdmin ? 'profesor' : u.education_level,
+    educationProgress:isAdmin ? 100 : u.education_progress,
     inventory:        u.inventory,
     equippedItems:    u.equipped_items,
     holdings:         u.holdings,
-    gameData:         u.game_data,
+    gameData:         isAdmin
+      ? { ...(u.game_data || {}), education: { ...(u.game_data?.education || {}), diploma: 'profesor', progress: 100 } }
+      : u.game_data,
     lastLogin:        u.last_login,
     createdAt:        u.created_at,
     emailVerified:    u.email_verified,

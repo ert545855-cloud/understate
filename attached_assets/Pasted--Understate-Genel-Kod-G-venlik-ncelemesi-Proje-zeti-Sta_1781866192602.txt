@@ -1,0 +1,232 @@
+# Understate — Genel Kod & Güvenlik İncelemesi
+
+## Proje Özeti
+
+**Stack:** Node.js + Express + Socket.IO + PostgreSQL (Supabase) + React (Babel standalone monolith)  
+**Mimari:** Tek sunucu (single-instance), SPA, Capacitor ile Android/iOS çıktısı  
+**Kapsam:** Çok oyunculu browser tabanlı Türkiye temalı yönetim/strateji oyunu
+
+---
+
+## 1. Güçlü Yanlar ✅
+
+### 1.1 Güvenlik Katmanı Genel Olarak Düşünülmüş
+- `server/middleware/saveValidator.js`: Para/XP/seviye için min/max sınırı ve delta kontrolü mevcut (`MAX_MONEY_DELTA_PER_SAVE = 50M`)
+- `server/services/securityService.js`: IP ban, kullanıcı dondurma, anomali tespiti ve `security_flags` tablosu eklenmiş
+- `server/services/dbService.js`: `ALLOWED_UPDATE_COLUMNS` whitelist ile doğrudan SQL injection riski minimize edilmiş
+- `server/utils/antiCheat.js`: Hareket hızı ve paket hızı doğrulama mevcut
+- `server/middleware/socketRateLimiter.js`: Event bazlı socket rate limiting var
+- `server/middleware/rateLimiter.js`: Login/register için ayrı in-memory limiter
+- `server/auth/authController.js`: bcrypt (BCRYPT_ROUNDS), JWT access+refresh token, 2FA desteği, email doğrulama — bunların hepsi yerli yerinde
+- `server/main.js`: `JWT_SECRET` / `DATABASE_URL` fail-fast kontrolü, Helmet kullanımı iyi
+
+### 1.2 DB Katmanı
+- Gangs/parties/alliances artık localStorage'dan çıkarılmış, gerçek SQL tablolarında — bu kritik bir iyileştirme
+- `ON CONFLICT ... DO UPDATE` ile upsert kullanımı, büyük ölçüde `dbService.js`'de parametrik sorgular
+
+### 1.3 Agent Memory Sistemi
+`.agents/memory/` dizinindeki notlar, geliştiricinin öğrendiği dersleri ileriye taşıdığını gösteriyor (babel hook clash, dark mode renk hataları, treasury bug fix vb.)
+
+---
+
+## 2. Kritik Güvenlik Sorunları 🔴
+
+### 2.1 `playerJoin` Olayında userId Sahtecilik Açığı
+
+**Dosya:** `server/socket/gameHandler.js`, satır ~161
+
+```js
+socket.on('playerJoin', (data) => {
+  socket.userId = data.userId;   // ← Client'tan gelen değer!
+  socket.username = player.username;
+```
+
+**Sorun:** `socket.userId`, `socketAuthMiddleware` tarafından JWT'den alınmak yerine, client'ın gönderdiği `data.userId`'ye eziliyor. Bu, kimliği doğrulanmış bir kullanıcının başka bir kullanıcının `userId`'siyle işlem yapmasına olanak tanır. Saldırgan:
+- Başka kullanıcının adına para transferi başlatabilir
+- Başka kullanıcıya ait PvP/spy/mining işlemleri yaptırabilir
+
+**Düzeltme:**
+```js
+socket.on('playerJoin', (data) => {
+  // JWT'den gelen kimliği kullan, client'ı güvenme
+  if (!socket.userId) {
+    socket.userId = data.userId; // sadece misafir için
+  }
+  // socket.userId'yi asla client verisiyle ezme
+```
+
+---
+
+### 2.2 `gang:disband` Yetki Kontrolü Eksik
+
+**Dosya:** `server/socket/gameHandler.js`, satır ~380
+
+```js
+socket.on('gang:disband', async (data) => {
+  if (!data || !checkEventRate(socket.id)) return;
+  if (!socket.userId || !data.gangId) return;
+  if (db.isReady()) await db.deleteGang(data.gangId).catch(() => {});
+```
+
+**Sorun:** Herhangi bir oturum açmış kullanıcı, herhangi bir çetenin `gangId`'sini bilerek o çeteyi silebilir. Çete lideri kontrolü yapılmıyor.
+
+**Düzeltme:** Silmeden önce kullanıcının çete lideri olup olmadığını DB'den doğrula:
+```js
+const gang = await db.getGang(data.gangId);
+if (!gang || gang.leader_id !== socket.userId) {
+  return socket.emit('error', { message: 'Yetkisiz' });
+}
+```
+
+---
+
+### 2.3 `party:sync` — Tüm Parti Listesinin Müzakeresi Herhangi Kullanıcıya Açık
+
+**Dosya:** `server/socket/gameHandler.js`, satır ~443
+
+```js
+socket.on('party:sync', async (data) => {
+  if (!socket.userId) return;
+  const parties = Array.isArray(data.parties) ? data.parties : null;
+  if (db.isReady()) await db.setParties(parties).catch(() => {});
+  socket.broadcast.emit('partyUpdate', { parties, ... });
+```
+
+**Sorun:** `setParties` muhtemelen tüm parti listesini toplu yazıyor (upsert/delete). Herhangi bir kullanıcı kendi istediği partiyi içeren listeyi göndererek diğer partileri silebilir veya tahrif edebilir.
+
+**Düzeltme:** `party:sync`'i kaldırın; yalnızca `party:create`, `party:update`, `party:delete` gibi atomik olayları tutun ve her birinde kullanıcının yetkisini doğrulayın.
+
+---
+
+### 2.4 `ALLOWED_UPDATE_COLUMNS` İçinde Hassas Sütunlar
+
+**Dosya:** `server/services/dbService.js`, satır ~120
+
+```js
+const ALLOWED_UPDATE_COLUMNS = new Set([
+  'username', 'email', 'password_hash', 'role', 'banned', 'ban_reason',
+  ...
+]);
+```
+
+**Sorun:** `role` ve `banned`/`ban_reason` sütunları whitelist'te. `updateUser()` socket handler'larından çağrılıyor. Eğer herhangi bir socket event yanlışlıkla `role: 'admin'` veya `banned: false` içeren bir payload gönderirse bu değerler yazılır.
+
+**Düzeltme:** Bu sütunları `ALLOWED_UPDATE_COLUMNS`'dan çıkar; yalnızca özel `banUser()` ve `setRole()` fonksiyonları (sadece admin route'larından erişilebilen) üzerinden değiştirilebilsin.
+
+---
+
+## 3. Orta Önem Sorunları 🟡
+
+### 3.1 In-Memory Rate Limiter Ölçekleme Sorunu
+
+**Dosya:** `server/middleware/rateLimiter.js`
+
+Dosyanın kendi yorumunda belirtildiği gibi, sunucu yeniden başlayınca pencere sıfırlanıyor. Yatay ölçekleme durumunda her instance bağımsız sayıyor. Şu an tek instance çalıştığı için acil değil, ama `dbRateLimiter.js` (PostgreSQL tabanlı) zaten mevcut — login/register için oraya geçmek mantıklı.
+
+---
+
+### 3.2 Socket.IO CORS Ayarı Aşırı Geniş
+
+**Dosya:** `server/main.js`, satır ~100
+
+```js
+const io = socketIo(server, {
+  cors: { origin: '*', methods: ['GET', 'POST'] },
+```
+
+HTTP rotaları için `isOriginAllowed()` fonksiyonu dikkatli yazılmış, ama Socket.IO için `origin: '*'` ile tüm originler serbest bırakılmış. Aynı whitelist logic'i buraya da uygulanmalı.
+
+---
+
+### 3.3 `checkAnomaly` Snapshot'ı In-Memory Tutulması
+
+**Dosya:** `server/services/securityService.js`
+
+```js
+const _snapshots = new Map(); // userId → { money, xp, level, ts }
+```
+
+Sunucu yeniden başladığında snapshot'lar sıfırlanır; bu dönemde gerçekleşen anormal para artışları tespit edilemez. Kritik değil ama bilinmesi önemli.
+
+---
+
+### 3.4 `saveValidator.js` Limit: `MAX_MONEY_DELTA_PER_SAVE = 50M`
+
+50 milyon birim para, tek bir kayıt işleminde kabul edilen maksimum artış. Oyun ekonomisine göre bu makul mı değerlendirmeli. Eğer normal oyunda böyle bir artış mümkün değilse, değeri düşürmek anomali tespitini güçlendirir.
+
+---
+
+### 3.5 `antiCheat.js` Kullanılmıyor Görünüyor
+
+**Dosya:** `server/utils/antiCheat.js`
+
+`validateMovement`, `checkDuplicatePacket` vb. fonksiyonlar tanımlanmış ama `gameHandler.js`'de `checkEventRate` kendi yerel implementasyonunu kullanıyor. `antiCheat.js`'deki fonksiyonların gerçekten çağrıldığı yer tespit edilemedi. Dead code olabilir.
+
+---
+
+### 3.6 `gang:war` Olayı — Hasar Client'tan Geliyor
+
+**Dosya:** `server/socket/gameHandler.js`, satır ~387
+
+```js
+[data.damage || 0, JSON.stringify({ initiator: socket.username, ...data })]
+```
+
+`data.damage` değeri client'tan geliyor ve doğrulanmadan DB'ye yazılıyor. War log'larında manipüle edilmiş hasar değerleri görünebilir.
+
+---
+
+## 4. Kod Kalitesi & Mimari 🔵
+
+### 4.1 `src/app.jsx` — 2.3 MB Tek Dosya
+
+MEMORY.md'de de belirtildiği üzere, `app.jsx` yaklaşık 13.700+ satır. Bu dosya:
+- Test edilemiyor
+- Diff görüntülemesi imkansız hale geliyor
+- Babel-standalone ile tarayıcıda parse ediliyor (yükleme süresi)
+
+Mevcut screen split çalışması devam ettirilmeli. `app.jsx`'teki global state (`gangs`, `parties` vb.) React context veya Zustand gibi bir store'a taşınabilir.
+
+### 4.2 Socket.IO Event Sistemi ile HTTP API Tutarsızlığı
+
+Bazı işlemler hem socket event hem HTTP API üzerinden yapılabiliyor (örn. gang işlemleri). Bu iki kanalın doğrulama/yetkilendirme mantığının senkron olduğundan emin olunmalı. HTTP tarafında `authMiddleware` varken socket tarafında yoksa aradaki uçurum risk oluşturur.
+
+### 4.3 `_io` Global Değişkeni
+
+```js
+let _io = null;
+setInterval(() => { ... _io.emit('onlinePlayers', list); }, 30_000);
+```
+
+`_io` modül düzeyinde bir mutable global. `initSocket` çağrılmadan interval başlarsa `_io.emit` çöker. `setInterval`'i `registerGameHandlers` veya `initSocket` içine taşımak daha güvenli.
+
+### 4.4 `.env` Dosyası Repoya Dahil
+
+Zip içinde `understate-main/.env` dosyası mevcut. Eğer bu gerçek değerleri içeriyorsa (JWT_SECRET, DATABASE_URL vb.) hemen döndürülmeli/yenilenmelidir. `.env` asla git'e commit edilmemeli.
+
+---
+
+## 5. Öncelik Sırası
+
+| Öncelik | Başlık | Dosya |
+|---------|--------|-------|
+| 🔴 Kritik | `playerJoin` userId spoofing | `socket/gameHandler.js` |
+| 🔴 Kritik | `gang:disband` yetki eksikliği | `socket/gameHandler.js` |
+| 🔴 Kritik | `party:sync` toplu yazma yetkisizliği | `socket/gameHandler.js` |
+| 🔴 Kritik | `role`/`banned` whitelist'te bulunması | `services/dbService.js` |
+| 🟡 Orta | Socket.IO CORS `*` | `server/main.js` |
+| 🟡 Orta | `gang:war` hasar client'tan geliyor | `socket/gameHandler.js` |
+| 🟡 Orta | `antiCheat.js` dead code kontrolü | `utils/antiCheat.js` |
+| 🟡 Orta | `_io` global mutable değişken | `socket/gameHandler.js` |
+| 🔵 Kalite | `app.jsx` parçalanması | `src/app.jsx` |
+| 🔵 Kalite | `.env` git'e commit edilmemesi | `.env` |
+
+---
+
+## 6. Hızlı Kazanımlar
+
+1. **`playerJoin`'de `socket.userId`'yi asla client'tan alma** — JWT middleware zaten bunu veriyor
+2. **`role` ve `banned`'i `ALLOWED_UPDATE_COLUMNS`'dan çıkar** — admin-only fonksiyonlara taşı
+3. **`gang:disband` öncesi leader kontrolü** — tek satırlık DB sorgusu
+4. **`.env`'yi `.gitignore`'a ekle, eğer commit edildiyse secret'ları döndür**
+5. **Socket.IO CORS'u `isOriginAllowed` fonksiyonuyla eşleştir**

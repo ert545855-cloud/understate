@@ -187,6 +187,7 @@ window.PartyCenterScreen = function PartyCenterScreen({ cu, parties, allUsers, f
       <div style={{display:"flex",gap:"0.4rem",overflowX:"auto",paddingBottom:"0.5rem",marginBottom:"0.75rem",scrollbarWidth:"none"}}>
         {tabBtn("overview","Genel","🏛️")}
         {tabBtn("yonetim","Yönetim","⚙️")}
+        {tabBtn("kabine","Kabine","🏛️")}
         {tabBtn("kampanya","Kampanya","📣")}
         {tabBtn("laws","Yasalar","📜")}
         {tabBtn("sponsors","Sponsorlar","💰")}
@@ -271,30 +272,84 @@ window.PartyCenterScreen = function PartyCenterScreen({ cu, parties, allUsers, f
             </div>
           )}
 
-          {/* Kabine Atamaları */}
+        </div>
+      )}
+
+      {/* ── KABİNE ───────────────────────────────────────── */}
+      {tab==="kabine"&&(
+        <div>
+          {/* Kabine özeti */}
+          <div style={{...card,background:"linear-gradient(135deg,rgba(245,158,11,0.06),rgba(0,0,0,0))"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"0.5rem"}}>
+              <div>
+                <div style={{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"0.9rem",color:"#F59E0B"}}>🏛️ Hükümet Kabinesi</div>
+                <div style={{fontSize:"0.7rem",color:"#5E7390",marginTop:"0.15rem"}}>Seçimi kazanan parti kabine pozisyonlarını doldurur</div>
+              </div>
+              <div style={{background:"rgba(245,158,11,0.12)",border:"1px solid rgba(245,158,11,0.3)",borderRadius:8,padding:"0.35rem 0.65rem",textAlign:"center"}}>
+                <div style={{fontWeight:900,color:"#F59E0B",fontSize:"0.95rem"}}>{Object.keys(myCabinet).length}</div>
+                <div style={{fontSize:"0.55rem",color:"#5E7390"}}>ATANMIŞ</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bakanlık pozisyonları */}
+          {(()=>{
+            const FULL_CABINET = [
+              {pos:"Başbakan",           icon:"⭐", color:"#FFD700", note:"Kabineyi yönetir, hükümet sözcüsü"},
+              {pos:"Ekonomi Bakanı",     icon:"💰", color:"#10B981", note:"Ekonomi politikası ve bütçe"},
+              {pos:"İçişleri Bakanı",    icon:"🛡️", color:"#60A5FA", note:"Güvenlik ve kolluk kuvvetleri"},
+              {pos:"Adalet Bakanı",      icon:"⚖️", color:"#A78BFA", note:"Yargı ve hukuk işlemleri"},
+              {pos:"Maliye Bakanı",      icon:"📊", color:"#F59E0B", note:"Vergiler ve mali kontrol"},
+              {pos:"Sanayi Müdürü",      icon:"🏭", color:"#F97316", note:"Sanayi ve üretim sektörü"},
+              {pos:"Sağlık Bakanı",      icon:"🏥", color:"#34D399", note:"Halk sağlığı hizmetleri"},
+              {pos:"Eğitim Bakanı",      icon:"📚", color:"#818CF8", note:"Eğitim politikası"},
+              {pos:"Dışişleri Bakanı",   icon:"🌍", color:"#22D3EE", note:"Dış ilişkiler ve ittifaklar"},
+              {pos:"Savunma Bakanı",     icon:"🎖️", color:"#EF4444", note:"Ordu ve savunma sistemi"},
+            ];
+            return (
+              <div style={card}>
+                <div className="card-title">🏅 Bakanlık Pozisyonları</div>
+                {FULL_CABINET.map(({pos,icon,color,note})=>{
+                  const assignedUser = Object.entries(myCabinet).find(([,v])=>v===pos)?.[0];
+                  return (
+                    <div key={pos} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"0.55rem 0",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+                      <div style={{flex:1}}>
+                        <div style={{display:"flex",alignItems:"center",gap:"0.4rem"}}>
+                          <span style={{background:`${color}18`,border:`1px solid ${color}33`,borderRadius:6,padding:"0.2rem 0.4rem",fontSize:"0.75rem"}}>{icon}</span>
+                          <div>
+                            <div style={{fontSize:"0.82rem",fontWeight:700,color:"#E8EDF2"}}>{pos}</div>
+                            <div style={{fontSize:"0.62rem",color:"#5E7390"}}>{note}</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:"0.4rem",flexShrink:0}}>
+                        {assignedUser
+                          ? <span style={{background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.25)",borderRadius:6,padding:"0.2rem 0.5rem",fontSize:"0.72rem",fontWeight:700,color:"#10B981"}}>👤 {assignedUser}</span>
+                          : <span style={{fontSize:"0.68rem",color:"#5E7390",fontStyle:"italic"}}>Atanmadı</span>
+                        }
+                        {isLeader&&(
+                          <button className="btn" style={{fontSize:"0.65rem",padding:"0.2rem 0.45rem",border:"1px solid rgba(167,139,250,0.3)",color:"#A78BFA"}}
+                            onClick={()=>{const u=prompt(`"${pos}" için kullanıcı adı:`);if(u)assignCabinet(pos,u);}}>
+                            {assignedUser?"Değiştir":"Ata"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+          {/* Kabine kural bilgisi */}
           <div style={card}>
-            <div className="card-title">🏅 Kabine Pozisyonları</div>
-            <div style={{fontSize:"0.75rem",color:"#8899AA",marginBottom:"0.65rem"}}>Seçimi kazanan parti bu pozisyonları hükümet üyelerine dağıtır.</div>
-            {CABINET_POSITIONS.map(pos=>{
-              const assigned=Object.entries(myCabinet).find(([,v])=>v===pos);
-              return (
-                <div key={pos} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"0.45rem 0",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
-                  <div>
-                    <div style={{fontSize:"0.82rem",fontWeight:700,color:"#E8EDF2"}}>🏛️ {pos}</div>
-                    {assigned
-                      ? <div style={{fontSize:"0.67rem",color:"#10B981",marginTop:"0.1rem"}}>● {assigned[0]}</div>
-                      : <div style={{fontSize:"0.67rem",color:"#5E7390",marginTop:"0.1rem"}}>Atanmadı</div>
-                    }
-                  </div>
-                  {isLeader&&(
-                    <button className="btn" style={{fontSize:"0.68rem",padding:"0.25rem 0.55rem",border:"1px solid rgba(167,139,250,0.3)",color:"#A78BFA"}}
-                      onClick={()=>{const u=prompt(`"${pos}" için kullanıcı adı:`);if(u)assignCabinet(pos,u);}}>
-                      Ata
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+            <div className="card-title">💡 Kabine Hakkında</div>
+            <ul style={{fontSize:"0.8rem",color:"#8899AA",lineHeight:1.75,paddingLeft:"1.2rem",margin:0}}>
+              <li>Sadece <b>Genel Başkan</b> kabine ataması yapabilir</li>
+              <li>Kabine üyeleri yasa süreçlerinde oy ağırlığı kazanır</li>
+              <li>Seçim kaybedilirse kabine sıfırlanabilir</li>
+              <li>Aynı kişi birden fazla bakanlık tutamaz</li>
+            </ul>
           </div>
         </div>
       )}
