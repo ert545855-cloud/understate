@@ -1,0 +1,45 @@
+Projeyi (152 JS dosyası: backend + client) taradım. Otomatik syntax kontrolünden (node --check) tüm server dosyaları sorunsuz geçti — JSX kullanan client dosyalarındaki "hata" görünümleri normal (Babel'siz parse edildiği için), gerçek syntax hatası yok. Asıl sorunlar mantık ve güvenlik tarafında, ve bazıları gerçekten ciddi. En önemliden başlıyorum.
+1. En kritik: Socket üzerinden para/seviye tamamen doğrulamasız yazılabiliyor
+server/socket/playerHandler.js (satır 26-27), istemciden gelen playerUpdate olayındaki gameData alanını doğrudan scheduleSave(socket.userId, data.gameData) ile kaydediyor. Bu çağrı saveService.js → dbService.saveUserGameData()'a gidiyor; orada sadece alan adı beyaz listesi var (money, bank_money, under_coin, level, credit_score dahil), ama hiçbir değer sınırlaması (clamp) veya delta kontrolü yok. Oysa HTTP tarafındaki /api/save rotası bunun için saveValidator.js'de hem clamp hem de "tek kayıtta en fazla 50M artış" gibi kontroller uyguluyor. Socket yolu bu kontrolleri tamamen atlıyor.
+Pratik sonucu: herhangi bir oyuncu istemcide socket.emit('playerUpdate', {action:'x', gameData:{money: 999999999999, under_coin: 999999999, level: 9999}}) gönderirse, 3 saniyelik debounce sonrası bu değerler doğrudan veritabanına yazılır. Bu, oyunun para/ekonomi sisteminin tamamını anlamsız kılan bir açık.
+2. Mağaza satın alımlarında ödeme doğrulaması yok
+server/routes/store.js — /purchase/uc ve /purchase/vip endpoint'lerinde kod yorumunda da yazıyor: "simüle — gerçek ödeme entegrasyonu hazır değil". Endpoint sadece packageId'yi kabul edip karşılığını anında veriyor; hiçbir ödeme sağlayıcı doğrulaması (webhook, receipt, vs.) yok. Giriş yapmış herhangi bir kullanıcı bu endpoint'i istediği kadar çağırarak sınırsız UC/VIP elde edebilir.
+3. Banka işlemlerinde race condition (çift para)
+server/routes/bank.js — /deposit, /withdraw, /interest endpoint'lerinin hepsi aynı kalıbı kullanıyor: önce findUserById ile bakiyeyi okuyup yeni değeri JS'te hesaplıyor, sonra bu mutlak değeri UPDATE users SET money=$1 ile yazıyor (atomik artırma değil). İki eşzamanlı istek aynı eski bakiyeyi okuyup ikisi de kendi hesapladığı değeri yazarsa, biri diğerini ezer ve net olarak para kaybolmadan/sınır kontrolünden geçerek çekilebilir. İlginç olan: aynı dosyadaki /transfer endpoint'i bunu doğru yapmış (money=money-$1 ile atomik), demek ki ekip bu deseni biliyor ama deposit/withdraw/interest'te uygulamamış. Aynı kalıp routes/jobs.js'de de var (para/xp/uc güncellemesi okuma-hesapla-yaz şeklinde).
+4. Oyuncu kimliği spoof edilebiliyor
+server/socket/playerHandler.js satır 31-37'de:
+jsObject.assign(playerState, {
+  socketId: socket.id,
+  userId: socket.userId,
+  username: socket.username,
+  lastUpdate: Date.now(),
+  ...data,   // ← bu, üstteki userId/username'i client verisiyle ezebilir
+});
+...data spread'i en sonda olduğu için, istemci data.userId veya data.username gönderirse sunucu tarafındaki güvenilir değerleri ezer. Bu, başka oyunculara yapılan playerUpdate yayınında ve onlinePlayers haritasında kimlik sahteciliğine yol açabilir. Çözüm basit: ...data spread'ini en başa alıp asıl userId/username/socketId atamalarını sonra yapmak.
+5. Refresh token secret'ı access token secret'ından türetiliyor
+server/config/jwt.js: REFRESH_SECRET = process.env.JWT_SECRET + '_refresh'. İki ayrı secret kullanmanın amacı bağımsızlık sağlamaktır; burada ikincisi öngörülebilir bir sonek ile birincisinden türetildiği için pratikte tek bir secret var. .env dosyasına gerçekten bağımsız bir JWT_REFRESH_SECRET eklemek daha doğru olur.
+6. Yüklediğin zip'te canlı .env dosyası var
+Proje kökünde DATABASE_URL, JWT_SECRET, AWS_ACCESS_KEY_ID/SECRET, SMTP_PASS, VAPID_PRIVATE_KEY gibi gerçek görünen değerlerle dolu bir .env bulunuyor (.gitignore'da doğru şekilde hariç tutulmuş, yani git'e gitmiyor — ama bu zip'e dahil olmuş). Bu dosyayı başka kimseyle paylaşma ve mümkünse bu anahtarları rotasyona al, özellikle AWS ve DB kimlik bilgilerini.
+Daha küçük bulgular
+services/loanService.js'de kredi limiti ve bakiye kontrolleri DB transaction'ından önce ayrı sorgularla yapılıyor; art arda gelen eşzamanlı istekler kredi limitini aşmaya veya bakiyeyi negatife düşürmeye izin verebilir — ciddiyeti banka bug'ından düşük ama aynı kök neden (TOCTOU). server/middleware/authMiddleware.js'de admin yetkisi tamamen JWT içindeki role claim'ine güveniyor; bir admin yetkisi geri alındığında mevcut token 1 saat boyunca hâlâ admin gibi çalışır (token süresi kısa olduğu için düşük risk ama bilinmesi gerek).
+Bu kapsamlı bir tarama ama 50'den fazla React ekran dosyasını (src/screens) satır satır incelemedim — orada büyük olasılıkla küçük UI/state hataları vardır ama JSX/transpiler olmadan otomatik kontrol edemiyorum. İstersen belirli bir ekranı (örneğin GangCrime, Casino gibi ekonomi içeren oyun ekranlarını) seçip onlara da bakabilirim, ya da yukarıdaki bulguları düzeltmemi ister misin?2 / 2You said: bulbul00:30Claude responded: En ciddi bulgu burada: birçok oyun ekranında para tamamen istemci tarafında üretiliyor, sunucuya hiç danışılmıyor.Synthesized security vulnerabilities and prepared comprehensive findingsSynthesized security vulnerabilities and prepared comprehensive findingsEn ciddi bulgu burada: birçok oyun ekranında para tamamen istemci tarafında üretiliyor, sunucuya hiç danışılmıyor.
+src/screens/games/ altındaki ekranları taradım — kazanç/kayıp API çağrısı yapıp yapmadıklarına bakarak:
+ArmyPage, CasinoPage, CrisisPage, FactoryPage, FootballPage,
+MiningPage, NewspaperPage, SpyPage, PartyCenterScreen
+→ para değiştiriyor ama hiç /api çağrısı yapmıyor (api_calls=0)
+CasinoPage.js en çarpıcı örnek — Blackjack, poker, slot, yazı-tura, çark; hepsi Math.random() ile tarayıcıda hesaplanıyor, sonuç doğrudan updateUser() ile React state'e ve localStorage'a yazılıyor:
+jsconst updateUser = (upd) => {
+  const next = {...cu,...upd};
+  setProfile(next);
+  localStorage.setItem('rep_userProfile', JSON.stringify(next));
+  ...
+};
+Sunucu tarafında routes/'ı taradım, casino/bahis için tek bir endpoint yok. Yani bir oyuncu tarayıcı konsolunu açıp localStorage'daki rep_userProfile'ı değiştirse ya da React state'i manipüle etse, kumar sonuçlarını ya da bakiyesini doğrudan dilediği gibi ayarlayabilir — hile için Math.random'ı yenmesi bile gerekmiyor.
+Bunun "ama nasıl sunucuya kalıcı oluyor" sorusunun cevabı önceki turda bulduğum bulgularla birleşiyor: app.js'deki 30 saniyelik autosave döngüsü (satır 736-773), profile.money/profile.underCoin/profile.creditScore/profile.meritPoints gibi tamamen istemci kontrolündeki değerleri /api/save'e gönderiyor. Orada:
+
+money ve bank_money için en azından bir "kayıt başına +50M sınırı" var (saveValidator.js),
+ama under_coin, meritPoints, loyaltyPoints, creditScore, inventory, game_data için hiçbir artış sınırı yok, sadece üst tavan clamp'i var (ya da hiç clamp yok).
+
+Yani zincir şöyle: CasinoPage (ve Factory/Mining/Football/Army/Crisis/Newspaper/Spy ekranları) → client state'i istediğin gibi şişir → 30 saniye içinde autosave bunu sunucuya gönderir → sunucu büyük ölçüde güvenip kaydeder. Bu, önceki turda bulduğum "socket üzerinden doğrulamasız kayıt" açığından bile daha temel bir mimari sorun: oyunun ekonomisinin büyük kısmı sunucu otoritesi olmadan tasarlanmış; sadece bank/loans/transfer/jobs/store gibi az sayıda endpoint gerçek sunucu tarafı doğrulamaya sahip.
+Pratik etkisi: gerçek parayla satılan premium para birimi (under_coin/UC) dahil olmak üzere oyunun tüm ilerleme ekonomisi, istemciye güvenilmemesi gereken yerde istemciye güveniyor.
+Bunu nasıl ele almak istersin — örnek olarak Casino veya Factory için gerçek bir sunucu-taraflı endpoint tasarımı (bahis isteğini sunucuya gönder, sonucu sunucuda hesapla, sadece sonucu istemciye dön) hazırlayayım mı, yoksa önce diğer ekranlarda (Army, Mining, Football vs.) aynı kalıbı teyit edip tam liste çıkarayım mı?

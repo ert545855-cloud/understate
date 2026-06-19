@@ -2,7 +2,9 @@
 - [UNDERSTATE localStorage conventions](understate-localstorage.md) — All useLs() keys use rep_ prefix; daily task state key is rep_dailyTaskState; user profile is rep_userProfile.
 - [Multiplayer Architecture](multiplayer-arch.md) — full real-time multiplayer + DB persistence layer design decisions for gangs/parties/alliances/elections/laws/announcements.
 - [Socket Emit Patterns](socket-emit-patterns.md) — where gang/party/alliance/election/law mutations emit to server in app.js; setGangs/setParties/etc. all have inline socket.emit calls.
-- [Turkey Province Map](turkey-map.md) — window.TurkeyProvinceMap + window.TurkeyMapScreen in src/screens/TurkeyMapScreen.js; TR_PROVINCES array (81 cities, SVG viewBox 840x440); control stored in rep_provinceControl localStorage; emits province:sync socket event.
+- [Turkey Province Map](turkey-map.md) — window.TurkeyProvinceMap + window.TurkeyMapScreen; redesigned to use TURKEY_OUTLINE_PATH + PROVINCE_MAP_DATA (app.js global); viewBox 820x360; region lookup via TR_REGION_MAP object; ammo power included in territory attack check.
+- [Ammo (Mermi) System](ammo-system.md) — gang.ammo field (number); 3 types (standart/agir/ap) bought in WeaponSystem (PoliticsScreen.js); power = base + weapons*5 + ammo*3; all 4 GangPage power displays updated; ammo job roles added to FACTORY_JOB_ROLES in JobsScreen.js.
+- [Factory Devlet/Ozel Split](factory-split.md) — FactoryPage.js redesigned; DEVLET_TYPES (cheaper, stable) vs OZEL_TYPES (expensive, higher income); both include mermi factory type; 'weapon' and 'mermi' types added to FACTORY_JOB_ROLES and KARIYER_ICONS/COLORS.
 - [Dark Mode Text Colors](dark-mode-colors.md) — #3B4E63 was invisible on dark bg (125 instances); replaced all with #5A7089. Never use #2A3A4A or #3B4E63 for text.
 - [PoliticsPage Meclis](politics-meclis.md) — meclis sub-tab REMOVED from PoliticsScreen; standalone PartyCenterScreen.js loaded via index.html, routed as party_center in Devlet nav.
 - [Score Calculation](score-calc.md) — calcScore(p) in app.js before App(); useEffect auto-updates profile.score on level/xp/money/merits/edu changes; autosave uses calcScore(p) directly.

@@ -163,11 +163,11 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
                   <div style={{fontSize:'1.5rem'}}>{myGang.type==='family'?'👨‍👩‍👧‍👦':'⚔️'}</div>
                   <div>
                     <div style={{fontWeight:900,color:'#E8EDF2',fontSize:'1rem'}}>{myGang.name}</div>
-                    <div style={{fontSize:'0.7rem',color:'#5A7089'}}>{myGang.memberCount} üye • Güç: {(myGang.power||10)+((myGang.weapons||0)*5)} • {isGangLeader?'👑 Lidersin':'Üye'}</div>
+                    <div style={{fontSize:'0.7rem',color:'#5A7089'}}>{myGang.memberCount} üye • Güç: {(myGang.power||10)+((myGang.weapons||0)*5)+((myGang.ammo||0)*3)} • {isGangLeader?'👑 Lidersin':'Üye'}</div>
                   </div>
                 </div>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.35rem',marginBottom:'0.5rem'}}>
-                  {[['💰','Kasa',fmtWord(myGang.treasury||0)],['⚡','Güç',(myGang.power||10)+((myGang.weapons||0)*5)],['🗺️','Bölge',myGang.territory||0]].map(([ic,lb,v])=>(
+                  {[['💰','Kasa',fmtWord(myGang.treasury||0)],['⚡','Güç',(myGang.power||10)+((myGang.weapons||0)*5)+((myGang.ammo||0)*3)],['🗺️','Bölge',myGang.territory||0]].map(([ic,lb,v])=>(
                     <div key={lb} style={{background:'rgba(255,255,255,0.04)',borderRadius:'8px',padding:'0.4rem',textAlign:'center'}}>
                       <div style={{fontSize:'0.9rem'}}>{ic}</div>
                       <div style={{fontWeight:700,color:'#E8EDF2',fontSize:'0.78rem'}}>{v}</div>
@@ -193,7 +193,7 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                   <div>
                     <div style={{fontWeight:800,color:'#E8EDF2',fontSize:'0.9rem'}}>{gang.type==='family'?'👨‍👩‍👧‍👦':'⚔️'} {gang.name}</div>
-                    <div style={{fontSize:'0.7rem',color:'#5A7089'}}>{gang.memberCount} üye • Güç: {(gang.power||10)+((gang.weapons||0)*5)} • {fmtWord(gang.treasury||0)} kasa</div>
+                    <div style={{fontSize:'0.7rem',color:'#5A7089'}}>{gang.memberCount} üye • Güç: {(gang.power||10)+((gang.weapons||0)*5)+((gang.ammo||0)*3)} • {fmtWord(gang.treasury||0)} kasa</div>
                   </div>
                   <div style={{display:'flex',gap:'0.3rem',alignItems:'center'}}>
                     {gang.id===myGang?.id && <Tag color='red'>Üyesin</Tag>}
@@ -219,7 +219,7 @@ function GangPage({ profile, setProfile, showNotif, typeFilter }) {
                     {isGangLeader&&<Tag color='red'>👑 Lider</Tag>}
                   </div>
                   <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'0.35rem',marginBottom:'0.5rem'}}>
-                    {[['👑','Lider',myGang.leaderName||'?'],['👥','Üye',myGang.memberCount||1],['⚡','Güç',(myGang.power||10)+((myGang.weapons||0)*5)],['💰','Kasa',fmtWord(myGang.treasury||0)]].map(([ic,lb,v])=>(
+                    {[['👑','Lider',myGang.leaderName||'?'],['👥','Üye',myGang.memberCount||1],['⚡','Güç',(myGang.power||10)+((myGang.weapons||0)*5)+((myGang.ammo||0)*3)],['💰','Kasa',fmtWord(myGang.treasury||0)]].map(([ic,lb,v])=>(
                       <div key={lb} style={{background:'rgba(255,255,255,0.04)',borderRadius:'8px',padding:'0.4rem',textAlign:'center'}}>
                         <div style={{fontSize:'0.8rem'}}>{ic}</div>
                         <div style={{fontWeight:700,color:'#E8EDF2',fontSize:'0.7rem',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{v}</div>

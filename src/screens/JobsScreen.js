@@ -19,10 +19,19 @@ const FACTORY_JOB_ROLES = {
     { id:'oto_montaj',      name:'Montaj İşçisi',          icon:'🚗', salary:48000,  duration:6*3600000,  level:5  },
     { id:'oto_usta',        name:'Oto Ustası',              icon:'🏆', salary:95000,  duration:12*3600000, level:20 },
   ],
+  mermi:       [
+    { id:'mermi_isci',      name:'Mermi İşçisi',           icon:'🔴', salary:22000,  duration:4*3600000,  level:1  },
+    { id:'mermi_kontrol',   name:'Kalite Kontrol',         icon:'🎯', salary:48000,  duration:6*3600000,  level:8  },
+    { id:'mermi_usta',      name:'Balistik Uzmanı',        icon:'💥', salary:72000,  duration:8*3600000,  level:15 },
+  ],
+  weapon:      [
+    { id:'silah_isci',      name:'Silah Montaj İşçisi',   icon:'🔫', salary:28000,  duration:4*3600000,  level:3  },
+    { id:'silah_usta',      name:'Silah Ustası',           icon:'⚔️', salary:65000,  duration:8*3600000,  level:12 },
+  ],
 };
 
-const KARIYER_ICONS = { textile:'👕', food:'🍞', steel:'⚙️', electronics:'💻', auto:'🚗' };
-const KARIYER_COLORS = { textile:'#8B5CF6', food:'#F59E0B', steel:'#6B7280', electronics:'#3B82F6', auto:'#EF4444' };
+const KARIYER_ICONS  = { textile:'👕', food:'🍞', steel:'⚙️', electronics:'💻', auto:'🚗', mermi:'🔴', weapon:'🔫' };
+const KARIYER_COLORS = { textile:'#8B5CF6', food:'#F59E0B', steel:'#6B7280', electronics:'#3B82F6', auto:'#EF4444', mermi:'#F97316', weapon:'#EF4444' };
 
 function KariyerCalismaPage({ profile, setProfile, showNotif }) {
   const { dark } = useTheme();

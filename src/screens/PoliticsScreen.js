@@ -1329,23 +1329,34 @@ function TerritorySystem({ profile, setProfile, showNotif, myGang, gangs, setGan
 // ═══════════════════════════════════════════════════════
 function WeaponSystem({ profile, setProfile, showNotif, myGang, gangs, setGangs, isGangLeader }) {
   const { dark } = useTheme();
-  const card = dark ? 'rgba(255,255,255,0.04)' : '#FFFFFF';
+  const card   = dark ? 'rgba(255,255,255,0.04)' : '#FFFFFF';
   const border = dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
-  const [buyQty, setBuyQty] = useState(1);
+  const [buyQty,  setBuyQty]  = useState(1);
+  const [ammoQty, setAmmoQty] = useState(1);
+  const [ammoTab, setAmmoTab] = useState(0);
 
   const WEAPON_COST = 150000;
+  const AMMO_TYPES = [
+    { id:'standart', name:'Standart Mermi', icon:'🔴', costPerBox:200000, powerPerBox:3,  boxSize:50,  desc:'50 mermi kutusu' },
+    { id:'agir',     name:'Ağır Mermi',     icon:'🟠', costPerBox:600000, powerPerBox:8,  boxSize:20,  desc:'20 mermi kutusu' },
+    { id:'ap',       name:'Çelik Çekirdek', icon:'💥', costPerBox:2000000,powerPerBox:20, boxSize:10,  desc:'10 mermi kutusu · Zırh deler' },
+  ];
+
   const myWeapons = myGang?.weapons || 0;
-  const gangPowerBonus = myWeapons * 5;
+  const myAmmo    = myGang?.ammo    || 0;
+  const weaponPower = myWeapons * 5;
+  const ammoPower   = myAmmo * 3;
+  const totalBonus  = weaponPower + ammoPower;
 
   const buyWeapons = () => {
     if (!myGang) { showNotif('Silah almak için bir çeteye katıl!', 'error'); return; }
-    if (myGang.type === 'family') { showNotif('❌ Aileler silah satın alamaz! Yalnızca çeteler silah alabilir.', 'error'); return; }
+    if (myGang.type === 'family') { showNotif('❌ Aileler silah satın alamaz!', 'error'); return; }
     if (!isGangLeader) { showNotif('Silah sadece çete lideri tarafından alınabilir!', 'error'); return; }
-    const qty = Math.max(1, parseInt(buyQty) || 1);
+    const qty   = Math.max(1, parseInt(buyQty) || 1);
     const total = qty * WEAPON_COST;
     if ((profile?.money || 0) < total) { showNotif(`Yetersiz para! Gerekli: ₺${fmtWord(total)}`, 'error'); return; }
     setGangs(prev => prev.map(g => g.id === myGang.id ? { ...g, weapons: (g.weapons || 0) + qty } : g));
-    setProfile(p => { const np={...p, money:(p.money||0)-total, xp:(p.xp||0)+qty*50}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
+    setProfile(p => { const np = { ...p, money: (p.money||0) - total, xp: (p.xp||0) + qty * 50 }; localStorage.setItem('rep_userProfile', JSON.stringify(np)); return np; });
     showNotif(`🔫 ${qty} silah satın alındı! +${qty*50} XP`, 'success');
   };
 
@@ -1354,65 +1365,158 @@ function WeaponSystem({ profile, setProfile, showNotif, myGang, gangs, setGangs,
     if (myWeapons < qty) { showNotif('Yeterli silah yok!', 'error'); return; }
     const gain = Math.floor(qty * WEAPON_COST * 0.7);
     setGangs(prev => prev.map(g => g.id === myGang.id ? { ...g, weapons: (g.weapons || 0) - qty } : g));
-    setProfile(p => { const np={...p, money:(p.money||0)+gain}; localStorage.setItem('rep_userProfile',JSON.stringify(np)); return np; });
+    setProfile(p => { const np = { ...p, money: (p.money||0) + gain }; localStorage.setItem('rep_userProfile', JSON.stringify(np)); return np; });
     showNotif(`💰 ${qty} silah satıldı. +₺${fmtWord(gain)}`, 'success');
   };
 
+  const buyAmmo = () => {
+    if (!myGang) { showNotif('Mermi almak için bir çeteye katıl!', 'error'); return; }
+    if (myGang.type === 'family') { showNotif('❌ Aileler mermi satın alamaz!', 'error'); return; }
+    if (!isGangLeader) { showNotif('Mermi sadece çete lideri tarafından alınabilir!', 'error'); return; }
+    const ammoType = AMMO_TYPES[ammoTab];
+    const qty   = Math.max(1, parseInt(ammoQty) || 1);
+    const total = qty * ammoType.costPerBox;
+    if ((profile?.money || 0) < total) { showNotif(`Yetersiz para! Gerekli: ₺${fmtWord(total)}`, 'error'); return; }
+    const powerGain = qty * ammoType.powerPerBox;
+    setGangs(prev => prev.map(g => g.id === myGang.id ? { ...g, ammo: (g.ammo || 0) + powerGain } : g));
+    setProfile(p => { const np = { ...p, money: (p.money||0) - total, xp: (p.xp||0) + qty * 80 }; localStorage.setItem('rep_userProfile', JSON.stringify(np)); return np; });
+    showNotif(`${ammoType.icon} ${qty} kutu ${ammoType.name} alındı! +${powerGain} güç, +${qty*80} XP`, 'success');
+  };
+
+  const sellAmmo = (pwr) => {
+    if (!isGangLeader) { showNotif('Mermi satışı sadece lider yapabilir!', 'error'); return; }
+    if (myAmmo < pwr) { showNotif('Yeterli mermi yok!', 'error'); return; }
+    const gain = Math.floor(pwr * 40000);
+    setGangs(prev => prev.map(g => g.id === myGang.id ? { ...g, ammo: Math.max(0, (g.ammo || 0) - pwr) } : g));
+    setProfile(p => { const np = { ...p, money: (p.money||0) + gain }; localStorage.setItem('rep_userProfile', JSON.stringify(np)); return np; });
+    showNotif(`💰 Mermi satıldı. +₺${fmtWord(gain)}`, 'success');
+  };
+
   return (
-    <div style={{padding:'0.7rem'}}>
-      <div style={{background:'linear-gradient(135deg,rgba(239,68,68,0.12),rgba(11,21,39,0.97))',border:'1px solid rgba(239,68,68,0.25)',borderRadius:'14px',padding:'1rem',marginBottom:'0.75rem'}}>
-        <div style={{fontSize:'0.65rem',color:'#EF4444',fontWeight:800,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:'0.5rem'}}>🔫 SİLAH DEPOSU</div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.4rem',marginBottom:'0.65rem'}}>
-          {[['🔫','Silah',myWeapons],['⚡','Güç Bonusu',`+${gangPowerBonus}`],['💰','Birim Fiyat',fmtWord(WEAPON_COST)]].map(([ic,lb,v])=>(
-            <div key={lb} style={{background:'rgba(255,255,255,0.04)',borderRadius:'8px',padding:'0.4rem',textAlign:'center'}}>
-              <div style={{fontSize:'0.85rem'}}>{ic}</div>
-              <div style={{fontWeight:800,color:'#E8EDF2',fontSize:'0.78rem'}}>{v}</div>
-              <div style={{fontSize:'0.55rem',color:'#5A7089',textTransform:'uppercase'}}>{lb}</div>
+    <div style={{ padding: '0.7rem' }}>
+      {/* ── Durum kartı ── */}
+      <div style={{ background: 'linear-gradient(135deg,rgba(239,68,68,0.1),rgba(11,21,39,0.97))', border: '1px solid rgba(239,68,68,0.22)', borderRadius: 14, padding: '1rem', marginBottom: '0.75rem' }}>
+        <div style={{ fontSize: '0.62rem', color: '#EF4444', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.55rem' }}>⚔️ SİLAH & MERMİ DEPOSU</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '0.35rem', marginBottom: '0.6rem' }}>
+          {[
+            ['🔫', 'Silah',       myWeapons,          '#EF4444'],
+            ['🔴', 'Mermi Gücü',  myAmmo,              '#F97316'],
+            ['⚡', 'Silah Bonusu',`+${weaponPower}`,    '#60A5FA'],
+            ['💥', 'Mermi Bonusu',`+${ammoPower}`,      '#FB923C'],
+          ].map(([ic,lb,v,c]) => (
+            <div key={lb} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '0.4rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.9rem' }}>{ic}</div>
+              <div style={{ fontWeight: 800, color: c, fontSize: '0.82rem' }}>{v}</div>
+              <div style={{ fontSize: '0.5rem', color: '#5A7089', textTransform: 'uppercase', marginTop: 1 }}>{lb}</div>
             </div>
           ))}
         </div>
-        <div style={{fontSize:'0.68rem',color:'#5A7089',lineHeight:1.5}}>
-          🔫 Her silah: <strong style={{color:'#FCA5A5'}}>₺150.000</strong> • Satarken %70 geri alırsın<br/>
-          ⚡ Silah başına +5 güç (sınırsız) • Sadece çete liderleri satın alabilir
+        <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8, padding: '0.4rem 0.6rem', textAlign: 'center' }}>
+          <span style={{ fontSize: '0.7rem', color: '#5A7089' }}>Toplam Güç Bonusu: </span>
+          <span style={{ fontSize: '0.9rem', fontWeight: 900, color: '#10B981' }}>+{totalBonus}</span>
+          <span style={{ fontSize: '0.62rem', color: '#5A7089', marginLeft: 6 }}>({weaponPower} silah + {ammoPower} mermi)</span>
         </div>
       </div>
 
       {!myGang ? (
-        <div style={{textAlign:'center',padding:'2rem',color:'#5A7089',fontSize:'0.85rem'}}>Silah almak için bir çeteye katıl! (Aileler silah alamaz)</div>
+        <div style={{ textAlign: 'center', padding: '2rem', color: '#5A7089', fontSize: '0.85rem' }}>Silah almak için bir çeteye katıl! (Aileler silah alamaz)</div>
       ) : (
         <>
-          <div style={{background:card,border:`1px solid ${border}`,borderRadius:'14px',padding:'1rem',marginBottom:'0.65rem'}}>
-            <div style={{fontSize:'0.8rem',fontWeight:800,color:'#E8EDF2',marginBottom:'0.75rem'}}>🛒 Silah Satın Al</div>
-            <div style={{display:'flex',gap:'0.5rem',marginBottom:'0.65rem'}}>
-              <div style={{flex:1,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'10px',display:'flex',alignItems:'center'}}>
-                <button onClick={()=>setBuyQty(q=>Math.max(1,q-1))} style={{background:'none',border:'none',color:'#E8EDF2',padding:'0.5rem 0.75rem',cursor:'pointer',fontSize:'1rem'}}>-</button>
-                <span style={{flex:1,textAlign:'center',color:'#E8EDF2',fontWeight:800,fontSize:'1rem'}}>{buyQty}</span>
-                <button onClick={()=>setBuyQty(q=>q+1)} style={{background:'none',border:'none',color:'#E8EDF2',padding:'0.5rem 0.75rem',cursor:'pointer',fontSize:'1rem'}}>+</button>
+          {/* ── Silah bölümü ── */}
+          <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, padding: '1rem', marginBottom: '0.65rem' }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#EF4444', marginBottom: '0.65rem' }}>🔫 Silah Al (₺{fmtWord(WEAPON_COST)}/adet · +5 güç)</div>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <div style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, display: 'flex', alignItems: 'center' }}>
+                <button onClick={() => setBuyQty(q => Math.max(1, q - 1))} style={{ background: 'none', border: 'none', color: '#E8EDF2', padding: '0.5rem 0.75rem', cursor: 'pointer', fontSize: '1rem' }}>-</button>
+                <span style={{ flex: 1, textAlign: 'center', color: '#E8EDF2', fontWeight: 800 }}>{buyQty}</span>
+                <button onClick={() => setBuyQty(q => q + 1)} style={{ background: 'none', border: 'none', color: '#E8EDF2', padding: '0.5rem 0.75rem', cursor: 'pointer', fontSize: '1rem' }}>+</button>
               </div>
-              <div style={{display:'flex',flexDirection:'column',justifyContent:'center',gap:'2px'}}>
-                <div style={{fontSize:'0.7rem',color:'#5A7089'}}>Toplam</div>
-                <div style={{fontSize:'0.9rem',fontWeight:800,color:'#EF4444'}}>₺{fmtWord(buyQty*WEAPON_COST)}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2 }}>
+                <div style={{ fontSize: '0.65rem', color: '#5A7089' }}>Toplam</div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#EF4444' }}>₺{fmtWord(buyQty * WEAPON_COST)}</div>
               </div>
             </div>
-            <div style={{display:'flex',gap:'0.4rem',marginBottom:'0.5rem',flexWrap:'wrap'}}>
-              {[1,5,10,25].map(n=><button key={n} onClick={()=>setBuyQty(n)} style={{padding:'0.3rem 0.65rem',borderRadius:'8px',border:`1px solid ${buyQty===n?'rgba(239,68,68,0.4)':'rgba(255,255,255,0.1)'}`,background:buyQty===n?'rgba(239,68,68,0.12)':'rgba(255,255,255,0.04)',color:buyQty===n?'#F87171':'#8BA0B5',fontSize:'0.72rem',cursor:'pointer',fontWeight:700}}>{n} adet</button>)}
+            <div style={{ display: 'flex', gap: '0.35rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+              {[1,5,10,25].map(n => <button key={n} onClick={() => setBuyQty(n)} style={{ padding: '0.28rem 0.6rem', borderRadius: 8, border: `1px solid ${buyQty===n?'rgba(239,68,68,0.4)':'rgba(255,255,255,0.1)'}`, background: buyQty===n?'rgba(239,68,68,0.12)':'rgba(255,255,255,0.04)', color: buyQty===n?'#F87171':'#8BA0B5', fontSize: '0.7rem', cursor: 'pointer', fontWeight: 700 }}>{n}</button>)}
             </div>
-            <Btn variant='danger' size='full' onClick={buyWeapons} disabled={!isGangLeader}>{isGangLeader?`🔫 ${buyQty} Silah Al`:'Sadece lider alabilir'}</Btn>
-          </div>
-
-          {myWeapons > 0 && (
-            <div style={{background:card,border:`1px solid ${border}`,borderRadius:'14px',padding:'1rem'}}>
-              <div style={{fontSize:'0.8rem',fontWeight:800,color:'#E8EDF2',marginBottom:'0.75rem'}}>💰 Silah Sat (%70 fiyat)</div>
-              <div style={{display:'flex',gap:'0.4rem',flexWrap:'wrap'}}>
-                {[1,5,10].filter(n=>n<=myWeapons).map(n=>(
-                  <button key={n} onClick={()=>sellWeapons(n)} disabled={!isGangLeader}
-                    style={{flex:1,padding:'0.5rem',borderRadius:'10px',border:'1px solid rgba(245,158,11,0.25)',background:'rgba(245,158,11,0.08)',color:'#F59E0B',fontWeight:700,fontSize:'0.78rem',cursor:'pointer'}}>
-                    {n} sat (+₺{fmtWord(n*WEAPON_COST*0.7)})
+            <Btn variant='danger' size='full' onClick={buyWeapons} disabled={!isGangLeader}>{isGangLeader ? `🔫 ${buyQty} Silah Al (+${buyQty*5} güç)` : 'Sadece lider alabilir'}</Btn>
+            {myWeapons > 0 && (
+              <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                {[1,5,10].filter(n => n <= myWeapons).map(n => (
+                  <button key={n} onClick={() => sellWeapons(n)} disabled={!isGangLeader}
+                    style={{ flex: 1, padding: '0.4rem', borderRadius: 8, border: '1px solid rgba(245,158,11,0.25)', background: 'rgba(245,158,11,0.07)', color: '#F59E0B', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer' }}>
+                    {n} sat (+₺{fmtWord(Math.floor(n * WEAPON_COST * 0.7))})
                   </button>
                 ))}
               </div>
+            )}
+          </div>
+
+          {/* ── Mermi bölümü ── */}
+          <div style={{ background: 'linear-gradient(135deg,rgba(249,115,22,0.08),rgba(11,21,39,0.95))', border: '1px solid rgba(249,115,22,0.22)', borderRadius: 14, padding: '1rem' }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#F97316', marginBottom: '0.65rem' }}>🔴 Mermi Satın Al</div>
+
+            {/* Ammo type tabs */}
+            <div style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.65rem' }}>
+              {AMMO_TYPES.map((t, i) => (
+                <button key={t.id} onClick={() => setAmmoTab(i)}
+                  style={{ flex: 1, padding: '0.35rem 0.25rem', borderRadius: 8, border: `1px solid ${ammoTab===i?'rgba(249,115,22,0.5)':'rgba(255,255,255,0.08)'}`, background: ammoTab===i?'rgba(249,115,22,0.15)':'rgba(255,255,255,0.03)', color: ammoTab===i?'#FB923C':'#8BA0B5', fontSize: '0.62rem', cursor: 'pointer', fontWeight: 700, textAlign: 'center' }}>
+                  {t.icon}<br/><span style={{ fontSize: '0.58rem' }}>{t.name.split(' ')[0]}</span>
+                </button>
+              ))}
             </div>
-          )}
+
+            {/* Selected ammo info */}
+            {(() => {
+              const at = AMMO_TYPES[ammoTab];
+              return (
+                <>
+                  <div style={{ background: 'rgba(249,115,22,0.07)', borderRadius: 10, padding: '0.5rem 0.65rem', marginBottom: '0.55rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: 800, color: '#FB923C', fontSize: '0.82rem' }}>{at.icon} {at.name}</div>
+                      <div style={{ fontSize: '0.62rem', color: '#5A7089', marginTop: 2 }}>{at.desc} · +{at.powerPerBox} güç/kutu</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: 800, color: '#EF4444', fontSize: '0.9rem' }}>₺{fmtWord(at.costPerBox)}</div>
+                      <div style={{ fontSize: '0.58rem', color: '#5A7089' }}>kutu başı</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <div style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, display: 'flex', alignItems: 'center' }}>
+                      <button onClick={() => setAmmoQty(q => Math.max(1, q - 1))} style={{ background: 'none', border: 'none', color: '#E8EDF2', padding: '0.5rem 0.75rem', cursor: 'pointer', fontSize: '1rem' }}>-</button>
+                      <span style={{ flex: 1, textAlign: 'center', color: '#E8EDF2', fontWeight: 800 }}>{ammoQty}</span>
+                      <button onClick={() => setAmmoQty(q => q + 1)} style={{ background: 'none', border: 'none', color: '#E8EDF2', padding: '0.5rem 0.75rem', cursor: 'pointer', fontSize: '1rem' }}>+</button>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2 }}>
+                      <div style={{ fontSize: '0.65rem', color: '#5A7089' }}>+{ammoQty * at.powerPerBox} güç</div>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#F97316' }}>₺{fmtWord(ammoQty * at.costPerBox)}</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.35rem', marginBottom: '0.5rem' }}>
+                    {[1,3,5].map(n => <button key={n} onClick={() => setAmmoQty(n)} style={{ flex: 1, padding: '0.28rem', borderRadius: 8, border: `1px solid ${ammoQty===n?'rgba(249,115,22,0.4)':'rgba(255,255,255,0.1)'}`, background: ammoQty===n?'rgba(249,115,22,0.12)':'rgba(255,255,255,0.03)', color: ammoQty===n?'#FB923C':'#8BA0B5', fontSize: '0.7rem', cursor: 'pointer', fontWeight: 700 }}>{n} kutu</button>)}
+                  </div>
+                  <button onClick={buyAmmo} disabled={!isGangLeader}
+                    style={{ width: '100%', padding: '0.6rem', borderRadius: 10, border: isGangLeader ? '1px solid rgba(249,115,22,0.4)' : '1px solid rgba(255,255,255,0.08)', background: isGangLeader ? 'rgba(249,115,22,0.18)' : 'rgba(255,255,255,0.04)', color: isGangLeader ? '#FB923C' : '#5A7089', fontFamily: 'inherit', fontWeight: 800, fontSize: '0.82rem', cursor: isGangLeader ? 'pointer' : 'not-allowed' }}>
+                    {isGangLeader ? `${at.icon} ${ammoQty} Kutu Al (+${ammoQty * at.powerPerBox} güç)` : 'Sadece lider alabilir'}
+                  </button>
+                </>
+              );
+            })()}
+
+            {myAmmo > 0 && (
+              <div style={{ marginTop: '0.55rem' }}>
+                <div style={{ fontSize: '0.65rem', color: '#5A7089', marginBottom: '0.3rem' }}>Mevcut Mermi Gücü: <strong style={{ color: '#FB923C' }}>{myAmmo}</strong> (+{ammoPower} güç)</div>
+                <div style={{ display: 'flex', gap: '0.35rem' }}>
+                  {[10,50,100].filter(n => n <= myAmmo).map(n => (
+                    <button key={n} onClick={() => sellAmmo(n)} disabled={!isGangLeader}
+                      style={{ flex: 1, padding: '0.35rem', borderRadius: 8, border: '1px solid rgba(245,158,11,0.2)', background: 'rgba(245,158,11,0.06)', color: '#F59E0B', fontWeight: 700, fontSize: '0.68rem', cursor: 'pointer' }}>
+                      {n} sat (+₺{fmtWord(n * 40000)})
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </>
       )}
     </div>
